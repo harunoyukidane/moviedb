@@ -1,0 +1,32 @@
+# Secrets / environment
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Build outputs
+build/
+out/
+dist/
+target/
+bin/
+
+# Gradle
+.gradle/
+
+# Node / frontend
+node_modules/
+.svelte-kit/
+.vite/
+
+# Artwork volume (binary demo assets are not committed)
+artwork/
+demo/downloads/
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
