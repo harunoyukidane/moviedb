@@ -2,7 +2,7 @@ import com.google.protobuf.gradle.id
 
 plugins {
     alias(libs.plugins.protobuf)
-    java
+    `java-library`
 }
 
 java {
