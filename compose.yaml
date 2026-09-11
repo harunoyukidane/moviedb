@@ -1,0 +1,86 @@
+services:
+  catalogue-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${CATALOGUE_DB_NAME:-catalogue}
+      POSTGRES_USER: ${CATALOGUE_DB_USER:-catalogue}
+      POSTGRES_PASSWORD: ${CATALOGUE_DB_PASSWORD:-catalogue}
+    volumes:
+      - catalogue-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${CATALOGUE_DB_USER:-catalogue} -d ${CATALOGUE_DB_NAME:-catalogue}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [internal]
+
+  people-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${PEOPLE_DB_NAME:-people}
+      POSTGRES_USER: ${PEOPLE_DB_USER:-people}
+      POSTGRES_PASSWORD: ${PEOPLE_DB_PASSWORD:-people}
+    volumes:
+      - people-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PEOPLE_DB_USER:-people} -d ${PEOPLE_DB_NAME:-people}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [internal]
+
+  people-service:
+    build:
+      context: ./backend
+      dockerfile: people-service/Dockerfile
+    environment:
+      PEOPLE_DB_URL: jdbc:postgresql://people-db:5432/${PEOPLE_DB_NAME:-people}
+      PEOPLE_DB_USER: ${PEOPLE_DB_USER:-people}
+      PEOPLE_DB_PASSWORD: ${PEOPLE_DB_PASSWORD:-people}
+      PEOPLE_GRPC_PORT: "9090"
+      PEOPLE_HTTP_PORT: "8081"
+    depends_on:
+      people-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/actuator/health/readiness | grep -q UP"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+    # gRPC (9090) and health (8081) stay on the internal network only.
+    networks: [internal]
+
+  catalogue-service:
+    build:
+      context: ./backend
+      dockerfile: catalogue-service/Dockerfile
+    environment:
+      CATALOGUE_DB_URL: jdbc:postgresql://catalogue-db:5432/${CATALOGUE_DB_NAME:-catalogue}
+      CATALOGUE_DB_USER: ${CATALOGUE_DB_USER:-catalogue}
+      CATALOGUE_DB_PASSWORD: ${CATALOGUE_DB_PASSWORD:-catalogue}
+      PEOPLE_GRPC_TARGET: static://people-service:9090
+      CATALOGUE_HTTP_PORT: "8080"
+    depends_on:
+      catalogue-db:
+        condition: service_healthy
+      people-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health/readiness | grep -q UP"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+    ports:
+      # Only the reviewer-facing Catalogue HTTP port is published.
+      - "${CATALOGUE_HTTP_PORT:-8080}:8080"
+    networks: [internal]
+
+volumes:
+  catalogue-db-data:
+  people-db-data:
+
+networks:
+  internal:
+    driver: bridge

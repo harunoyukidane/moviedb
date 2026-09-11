@@ -1,0 +1,69 @@
+syntax = "proto3";
+package catalogue.people.v1;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/field_mask.proto";
+
+option java_multiple_files = true;
+option java_package = "com.moviecatalogue.people.v1";
+option java_outer_classname = "PeopleProto";
+
+// Internal, service-to-service API owned by the People Service.
+// Never exposed to the browser. See TECHNICAL_SPECIFICATION §8.3.
+service PeopleService {
+  rpc GetPerson(GetPersonRequest) returns (PersonResponse);
+  rpc GetPeople(GetPeopleRequest) returns (GetPeopleResponse);
+  rpc SearchPeople(SearchPeopleRequest) returns (SearchPeopleResponse);
+  rpc CreatePerson(CreatePersonRequest) returns (PersonResponse);
+  rpc UpdatePerson(UpdatePersonRequest) returns (PersonResponse);
+  rpc DeletePerson(DeletePersonRequest) returns (google.protobuf.Empty);
+}
+
+message GetPersonRequest { string id = 1; }
+message GetPeopleRequest { repeated string ids = 1; }
+message SearchPeopleRequest { string query = 1; int32 limit = 2; int32 offset = 3; }
+
+message PersonResponse {
+  string id = 1;
+  optional int64 tmdb_id = 2;
+  string name = 3;
+  string biography = 4;
+  optional string birth_date = 5;
+  optional string death_date = 6;
+  optional string place_of_birth = 7;
+  optional string profile_path = 8;
+  int64 version = 9;
+}
+
+message GetPeopleResponse { repeated PersonResponse people = 1; }
+message SearchPeopleResponse { repeated PersonResponse people = 1; int64 total = 2; }
+
+// death_date included so a person can be created deceased in one call,
+// matching PersonPatch and the person table (confirmed decision).
+message CreatePersonRequest {
+  optional int64 tmdb_id = 1;
+  string name = 2;
+  string biography = 3;
+  optional string birth_date = 4;
+  optional string death_date = 5;
+  optional string place_of_birth = 6;
+  optional string profile_path = 7;
+}
+
+message UpdatePersonRequest {
+  string id = 1;
+  int64 expected_version = 2;
+  PersonPatch patch = 3;
+  google.protobuf.FieldMask update_mask = 4;
+}
+
+message PersonPatch {
+  string name = 1;
+  string biography = 2;
+  optional string birth_date = 3;
+  optional string death_date = 4;
+  optional string place_of_birth = 5;
+  optional string profile_path = 6;
+}
+
+message DeletePersonRequest { string id = 1; }

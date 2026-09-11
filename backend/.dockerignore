@@ -1,0 +1,10 @@
+# Keep Docker build context small; the image builds from source via Gradle.
+**/build/
+**/.gradle/
+**/.idea/
+**/*.iml
+frontend/node_modules/
+frontend/.svelte-kit/
+.git/
+*.md
+!settings.gradle.kts
