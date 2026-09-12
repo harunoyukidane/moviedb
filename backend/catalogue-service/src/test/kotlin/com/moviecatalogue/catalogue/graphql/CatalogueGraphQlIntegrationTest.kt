@@ -284,6 +284,46 @@ class CatalogueGraphQlIntegrationTest {
     }
 
     @Test
+    fun `createMovie with tmdbId is idempotent (upsert, no duplicate)`() {
+        val first = tester.document(
+            """mutation { createMovie(input: { title: "Imported", tmdbId: 694 }) { id version } }""",
+        ).execute().path("createMovie.id").entity(String::class.java).get()
+
+        // second create with the same tmdbId updates in place and returns the SAME id
+        val second = tester.document(
+            """mutation { createMovie(input: { title: "Imported (updated)", tmdbId: 694 }) { id } }""",
+        ).execute().path("createMovie.id").entity(String::class.java).get()
+
+        assertThat(second).isEqualTo(first)
+        // exactly one movie exists
+        tester.document("""query { movies(page:{limit:50,offset:0}) { total } }""")
+            .execute().path("movies.total").entity(Long::class.java).isEqualTo(1L)
+        // and it carries the updated title
+        tester.document("""query { movie(id: "$first") { title } }""")
+            .execute().path("movie.title").entity(String::class.java).isEqualTo("Imported (updated)")
+    }
+
+    @Test
+    fun `addMovieCredit with tmdbCreditId is idempotent (upsert, no duplicate)`() {
+        val movieId = createMovie("Idem Credits")
+        val person = fakePeople.seed("Repeat Actor")
+
+        fun addByTmdb(character: String) = tester.document(
+            """mutation { addMovieCredit(movieId: "$movieId", input: {
+                 personId: "$person", roleCode: "ACTOR", characterName: "$character", tmdbCreditId: "tc-1" }) { id } }""",
+        ).execute().path("addMovieCredit.id").entity(String::class.java).get()
+
+        val c1 = addByTmdb("Hero")
+        val c2 = addByTmdb("Hero Renamed")
+        assertThat(c2).isEqualTo(c1)
+        // still exactly one cast credit on the movie
+        tester.document("""query { movie(id: "$movieId") { cast { id characterName } } }""")
+            .execute()
+            .path("movie.cast").entityList(Any::class.java).hasSize(1)
+            .path("movie.cast[0].characterName").entity(String::class.java).isEqualTo("Hero Renamed")
+    }
+
+    @Test
     fun `creditRoles filter by category`() {
         val cats = tester.document("""query { creditRoles(category: CAST) { code category } }""")
             .execute().path("creditRoles[*].category").entityList(String::class.java).get()

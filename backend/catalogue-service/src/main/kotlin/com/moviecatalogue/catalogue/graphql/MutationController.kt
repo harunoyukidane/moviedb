@@ -40,6 +40,7 @@ class MutationController(
                 runtimeMinutes = input.runtimeMinutes,
                 originalLanguage = input.originalLanguage,
                 genreCodes = input.genreCodes,
+                tmdbId = input.tmdbId,
             ),
         ).toGql()
 
@@ -128,6 +129,8 @@ class MutationController(
                 roleCode = input.roleCode,
                 characterName = input.characterName,
                 billingOrder = input.billingOrder,
+                tmdbCreditId = input.tmdbCreditId,
+                sourceRoleName = input.sourceRoleName,
             ),
         ).toGql()
 

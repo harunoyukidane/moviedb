@@ -1,0 +1,27 @@
+{
+  "name": "moviedb-tmdb-importer",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "tmdb-import": "dist/main.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node --loader ts-node/esm src/main.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@grpc/grpc-js": "1.11.3",
+    "@grpc/proto-loader": "0.7.13",
+    "graphql-request": "6.1.0",
+    "graphql": "16.9.0"
+  },
+  "devDependencies": {
+    "@types/node": "20.16.5",
+    "ts-node": "10.9.2",
+    "typescript": "5.5.4",
+    "vitest": "1.6.0"
+  }
+}

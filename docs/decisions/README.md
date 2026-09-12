@@ -8,7 +8,7 @@ ADRs capture the significant, hard-to-reverse decisions and their rationale. Num
 4. [Store artwork locally behind an abstraction and serve bytes over HTTP](0004-artwork-local-store-http.md)
 5. [Use controlled genre/credit-role code tables while keeping roles on MovieCredit](0005-controlled-code-tables.md)
 6. [Physical deletion with reference protection under the no-retention assumption](0006-physical-deletion-reference-protection.md)
-7. Fixed TMDB IDs and an idempotent setup-time import through application interfaces.
+7. [Fixed TMDB IDs and an idempotent setup-time import through application interfaces](0007-fixed-tmdb-ids-idempotent-import.md)
 8. Offset pagination for the stated scale, documented keyset evolution path.
 9. [Defer dedicated cache/search/message infrastructure until measured requirements justify it](0009-defer-search-cache-messaging.md)
 10. [Application-generated UUIDv7 primary keys](0010-uuidv7-primary-keys.md)

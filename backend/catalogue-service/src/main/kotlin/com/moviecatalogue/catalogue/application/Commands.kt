@@ -14,6 +14,8 @@ data class CreateMovieCommand(
     val runtimeMinutes: Int?,
     val originalLanguage: String?,
     val genreCodes: List<String>,
+    /** Optional TMDB provenance id; when set, create is idempotent (upsert). */
+    val tmdbId: Long? = null,
 )
 
 data class UpdateMovieCommand(
@@ -34,6 +36,10 @@ data class AddCreditCommand(
     val roleCode: String,
     val characterName: String?,
     val billingOrder: Int?,
+    /** Optional TMDB credit id; when set, add is idempotent (upsert). */
+    val tmdbCreditId: String? = null,
+    /** Optional original TMDB job/role, preserved as provenance. */
+    val sourceRoleName: String? = null,
 )
 
 data class UpdateCreditCommand(

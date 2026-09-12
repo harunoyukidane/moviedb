@@ -18,6 +18,7 @@ data class CreateMovieInput(
     val runtimeMinutes: Int? = null,
     val originalLanguage: String? = null,
     val genreCodes: List<String> = emptyList(),
+    val tmdbId: Long? = null,
 )
 
 data class UpdateMovieInput(
@@ -51,6 +52,8 @@ data class CreateCreditInput(
     val roleCode: String,
     val characterName: String? = null,
     val billingOrder: Int? = null,
+    val tmdbCreditId: String? = null,
+    val sourceRoleName: String? = null,
 )
 
 data class UpdateCreditInput(

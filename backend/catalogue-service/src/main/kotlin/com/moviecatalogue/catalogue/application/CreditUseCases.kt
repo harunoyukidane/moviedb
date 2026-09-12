@@ -43,6 +43,22 @@ class CreditUseCases(
         // 2. validate the logical person reference over gRPC (throws DEPENDENCY_UNAVAILABLE
         //    on outage, NOT_FOUND if the person doesn't exist) — before any insert.
         val person = peopleClient.getPerson(command.personId)
+        val sourceRoleName = CreditRules.normalizeSourceRoleName(command.sourceRoleName)
+
+        // Idempotent upsert by TMDB credit id (§12.3): update in place if present.
+        val existing = command.tmdbCreditId?.let {
+            credits.findByMovieIdAndTmdbCreditId(command.movieId, it)
+        }
+        if (existing != null) {
+            existing.personId = command.personId
+            existing.roleCode = command.roleCode
+            existing.category = category
+            existing.characterName = characterName
+            existing.billingOrder = command.billingOrder
+            existing.sourceRoleName = sourceRoleName
+            val saved = credits.saveAndFlush(existing)
+            return saved.toView(PersonRef(person.id, person.name, available = true))
+        }
 
         // 3. insert subject to uniqueness constraints (uq_movie_credit_manual)
         val credit = MovieCredit(
@@ -53,6 +69,8 @@ class CreditUseCases(
             category = category,
             characterName = characterName,
             billingOrder = command.billingOrder,
+            sourceRoleName = sourceRoleName,
+            tmdbCreditId = command.tmdbCreditId,
         )
         val saved = try {
             credits.saveAndFlush(credit)

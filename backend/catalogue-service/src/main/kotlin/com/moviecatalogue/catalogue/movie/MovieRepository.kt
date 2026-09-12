@@ -11,6 +11,9 @@ interface MovieRepository : JpaRepository<Movie, UUID> {
     /** Paged listing ordered by the caller-supplied Pageable (title asc by default). */
     override fun findAll(pageable: Pageable): Page<Movie>
 
+    /** Lookup by TMDB provenance id for idempotent import upserts (§12.3). */
+    fun findByTmdbId(tmdbId: Long): Movie?
+
     /**
      * Case-insensitive title / original-title search (§9). Matches on
      * `lower(title)` (uses ix_movie_title_lower) and `lower(original_title)`.

@@ -18,4 +18,7 @@ interface CreditRepository : JpaRepository<MovieCredit, UUID> {
 
     /** Reference-protection check for person delete (§6.6). */
     fun existsByPersonId(personId: UUID): Boolean
+
+    /** Lookup by TMDB credit id for idempotent import upserts (§12.3, uq_movie_credit_tmdb). */
+    fun findByMovieIdAndTmdbCreditId(movieId: UUID, tmdbCreditId: String): MovieCredit?
 }

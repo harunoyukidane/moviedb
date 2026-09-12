@@ -66,9 +66,9 @@ type PersonPage { items: [Person!]!, total: Long!, limit: Int!, offset: Int! }
 
 enum CreditCategory { CAST CREW }
 input PageInput { limit: Int! = 20, offset: Int! = 0 }
-input CreateMovieInput { title: String!, originalTitle: String, synopsis: String = "", releaseDate: Date, runtimeMinutes: Int, originalLanguage: String, genreCodes: [ID!]! = [] }
+input CreateMovieInput { title: String!, originalTitle: String, synopsis: String = "", releaseDate: Date, runtimeMinutes: Int, originalLanguage: String, genreCodes: [ID!]! = [], tmdbId: Long }
 input UpdateMovieInput { title: String, originalTitle: String, synopsis: String, releaseDate: Date, runtimeMinutes: Int, originalLanguage: String, genreCodes: [ID!] }
 input CreatePersonInput { name: String!, biography: String = "", birthDate: Date, deathDate: Date, placeOfBirth: String }
 input UpdatePersonInput { name: String, biography: String, birthDate: Date, deathDate: Date, placeOfBirth: String }
-input CreateCreditInput { personId: ID!, roleCode: ID!, characterName: String, billingOrder: Int }
+input CreateCreditInput { personId: ID!, roleCode: ID!, characterName: String, billingOrder: Int, tmdbCreditId: String, sourceRoleName: String }
 input UpdateCreditInput { roleCode: ID, characterName: String, billingOrder: Int }

@@ -55,9 +55,26 @@ class MovieUseCases(
         MovieRules.validateRuntime(command.runtimeMinutes)
         validateGenreCodes(command.genreCodes)
 
+        // Idempotent upsert by TMDB provenance id (§12.3): update in place if present.
+        val existing = command.tmdbId?.let { movies.findByTmdbId(it) }
+        if (existing != null) {
+            existing.title = title
+            existing.originalTitle = originalTitle
+            existing.synopsis = command.synopsis.trim()
+            existing.releaseDate = command.releaseDate
+            existing.runtimeMinutes = command.runtimeMinutes
+            existing.originalLanguage = originalLanguage
+            val saved = movies.saveAndFlush(existing)
+            movieGenres.deleteByIdMovieId(saved.id)
+            movieGenres.flush()
+            assignGenres(saved.id, command.genreCodes)
+            return saved
+        }
+
         val movie = movies.saveAndFlush(
             Movie(
                 id = UuidV7.generate(),
+                tmdbId = command.tmdbId,
                 title = title,
                 originalTitle = originalTitle,
                 synopsis = command.synopsis.trim(),
