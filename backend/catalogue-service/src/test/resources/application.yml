@@ -1,0 +1,22 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+
+# The GraphQL integration tests replace PeopleClient with a controllable fake,
+# so the gRPC client stub is not needed. Point it at an unused in-process target
+# and keep the channel lazy; no real connection is attempted during the tests.
+grpc:
+  client:
+    people-service:
+      address: "in-process:catalogue-it-unused"
+      negotiation-type: plaintext
+
+management:
+  endpoint:
+    health:
+      probes:
+        enabled: true

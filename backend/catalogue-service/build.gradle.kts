@@ -31,8 +31,11 @@ dependencies {
     implementation(libs.uuid.creator)
 
     testImplementation(libs.spring.boot.starter.test)
+    testImplementation(libs.spring.graphql.test)
+    testImplementation("org.springframework.boot:spring-boot-starter-webflux")
     testImplementation(libs.testcontainers.junit)
     testImplementation(libs.testcontainers.postgresql)
     testImplementation(libs.mockk)
     testImplementation(libs.assertj.core)
+    testImplementation(libs.grpc.inprocess)
 }

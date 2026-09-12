@@ -27,5 +27,15 @@ subprojects {
 
     tasks.withType<Test>().configureEach {
         useJUnitPlatform()
+        // Docker Desktop on Windows rejects the Docker API version negotiated by
+        // default, returning a spurious HTTP 400 that makes Testcontainers report
+        // "Could not find a valid Docker environment". docker-java reads the
+        // `api.version` system property (DefaultDockerClientConfig.CONFIG_KEYS), so
+        // pinning it to a version the daemon accepts fixes it. Override or disable
+        // via -PdockerApiVersion=<ver|""> (empty string opts out, e.g. on Linux CI).
+        val dockerApiVersion = (project.findProperty("dockerApiVersion") as String?) ?: "1.44"
+        if (dockerApiVersion.isNotBlank()) {
+            systemProperty("api.version", dockerApiVersion)
+        }
     }
 }

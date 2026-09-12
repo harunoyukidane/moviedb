@@ -1,0 +1,243 @@
+package com.moviecatalogue.people.application
+
+import com.moviecatalogue.people.domain.DuplicateTmdbIdException
+import com.moviecatalogue.people.domain.PersonNotFoundException
+import com.moviecatalogue.people.domain.PreconditionException
+import com.moviecatalogue.people.domain.ValidationException
+import com.moviecatalogue.people.domain.VersionConflictException
+import com.moviecatalogue.people.person.Person
+import com.moviecatalogue.people.person.PersonRepository
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.slot
+import io.mockk.verify
+import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.Test
+import org.springframework.data.domain.Pageable
+import java.time.LocalDate
+import java.util.Optional
+import java.util.UUID
+
+class PeopleApplicationServiceTest {
+
+    private val repository = mockk<PersonRepository>(relaxed = false)
+    private val service = PeopleApplicationService(repository)
+
+    private fun person(
+        id: UUID = UUID.randomUUID(),
+        name: String = "Jane Doe",
+        version: Long = 0,
+        tmdbId: Long? = null,
+    ) = Person(id = id, name = name, version = version, tmdbId = tmdbId)
+
+    // --- getPerson ---------------------------------------------------------
+
+    @Test
+    fun `getPerson returns view`() {
+        val id = UUID.randomUUID()
+        every { repository.findById(id) } returns Optional.of(person(id = id, name = "Ada"))
+        assertThat(service.getPerson(id).name).isEqualTo("Ada")
+    }
+
+    @Test
+    fun `getPerson throws NotFound when absent`() {
+        val id = UUID.randomUUID()
+        every { repository.findById(id) } returns Optional.empty()
+        assertThatThrownBy { service.getPerson(id) }
+            .isInstanceOf(PersonNotFoundException::class.java)
+    }
+
+    // --- getPeople ---------------------------------------------------------
+
+    @Test
+    fun `getPeople dedupes ids and keys by id, missing absent`() {
+        val a = UUID.randomUUID()
+        val b = UUID.randomUUID()
+        val missing = UUID.randomUUID()
+        val slot = slot<Collection<UUID>>()
+        every { repository.findAllByIdIn(capture(slot)) } returns listOf(
+            person(id = b, name = "B"), person(id = a, name = "A"), // out of order on purpose
+        )
+
+        val result = service.getPeople(listOf(a, b, a, missing, b))
+
+        // repository queried with de-duplicated ids
+        assertThat(slot.captured.toSet()).containsExactlyInAnyOrder(a, b, missing)
+        // keyed by id; missing simply absent; order-independent
+        assertThat(result.keys).containsExactlyInAnyOrder(a, b)
+        assertThat(result[a]!!.name).isEqualTo("A")
+        assertThat(result[b]!!.name).isEqualTo("B")
+        assertThat(result).doesNotContainKey(missing)
+    }
+
+    @Test
+    fun `getPeople rejects oversize batch`() {
+        val ids = (1..201).map { UUID.randomUUID() }
+        assertThatThrownBy { service.getPeople(ids) }
+            .isInstanceOf(ValidationException::class.java)
+        verify(exactly = 0) { repository.findAllByIdIn(any()) }
+    }
+
+    @Test
+    fun `getPeople returns empty for empty input without querying`() {
+        assertThat(service.getPeople(emptyList())).isEmpty()
+        verify(exactly = 0) { repository.findAllByIdIn(any()) }
+    }
+
+    // --- searchPeople ------------------------------------------------------
+
+    @Test
+    fun `searchPeople clamps limit and returns total`() {
+        every { repository.countByNamePattern(any()) } returns 3
+        every { repository.searchByNamePattern(any(), any<Pageable>()) } returns listOf(
+            person(name = "Nolan"),
+        )
+        val result = service.searchPeople(SearchPeopleCommand(query = "nol", limit = 9999, offset = 0))
+        assertThat(result.total).isEqualTo(3)
+        assertThat(result.people).hasSize(1)
+    }
+
+    @Test
+    fun `searchPeople rejects blank and overlong query`() {
+        assertThatThrownBy { service.searchPeople(SearchPeopleCommand("   ", 10, 0)) }
+            .isInstanceOf(ValidationException::class.java)
+        assertThatThrownBy { service.searchPeople(SearchPeopleCommand("a".repeat(101), 10, 0)) }
+            .isInstanceOf(ValidationException::class.java)
+    }
+
+    // --- createPerson ------------------------------------------------------
+
+    @Test
+    fun `createPerson persists a valid person including death_date`() {
+        val saved = slot<Person>()
+        every { repository.existsByTmdbId(any()) } returns false
+        every { repository.saveAndFlush(capture(saved)) } answers { saved.captured }
+
+        val view = service.createPerson(
+            CreatePersonCommand(
+                tmdbId = 42,
+                name = "  Bela Lugosi  ",
+                biography = "  actor  ",
+                birthDate = LocalDate.of(1882, 10, 20),
+                deathDate = LocalDate.of(1956, 8, 16),
+                placeOfBirth = "Lugos",
+                profilePath = null,
+            ),
+        )
+        assertThat(view.name).isEqualTo("Bela Lugosi")
+        assertThat(view.deathDate).isEqualTo(LocalDate.of(1956, 8, 16))
+        assertThat(saved.captured.biography).isEqualTo("actor")
+    }
+
+    @Test
+    fun `createPerson rejects duplicate tmdb_id`() {
+        every { repository.existsByTmdbId(7) } returns true
+        assertThatThrownBy {
+            service.createPerson(
+                CreatePersonCommand(7, "Dup", "", null, null, null, null),
+            )
+        }.isInstanceOf(DuplicateTmdbIdException::class.java)
+        verify(exactly = 0) { repository.saveAndFlush(any()) }
+    }
+
+    @Test
+    fun `createPerson rejects blank name and death before birth`() {
+        assertThatThrownBy {
+            service.createPerson(CreatePersonCommand(null, "  ", "", null, null, null, null))
+        }.isInstanceOf(ValidationException::class.java)
+
+        assertThatThrownBy {
+            service.createPerson(
+                CreatePersonCommand(
+                    null, "X", "",
+                    birthDate = LocalDate.of(2000, 1, 1),
+                    deathDate = LocalDate.of(1990, 1, 1),
+                    placeOfBirth = null, profilePath = null,
+                ),
+            )
+        }.isInstanceOf(ValidationException::class.java)
+    }
+
+    // --- updatePerson ------------------------------------------------------
+
+    @Test
+    fun `updatePerson applies only masked fields`() {
+        val id = UUID.randomUUID()
+        val existing = person(id = id, name = "Old", version = 5)
+        existing.biography = "old bio"
+        every { repository.findById(id) } returns Optional.of(existing)
+        every { repository.saveAndFlush(any()) } answers { firstArg() }
+
+        val view = service.updatePerson(
+            UpdatePersonCommand(
+                id = id, expectedVersion = 5, maskPaths = setOf("name"),
+                name = "New", biography = "IGNORED", birthDate = null, deathDate = null,
+                placeOfBirth = null, profilePath = null,
+            ),
+        )
+        assertThat(view.name).isEqualTo("New")
+        assertThat(existing.biography).isEqualTo("old bio") // not in mask -> unchanged
+    }
+
+    @Test
+    fun `updatePerson maps stale version to VersionConflict`() {
+        val id = UUID.randomUUID()
+        every { repository.findById(id) } returns Optional.of(person(id = id, version = 9))
+        assertThatThrownBy {
+            service.updatePerson(
+                UpdatePersonCommand(
+                    id = id, expectedVersion = 3, maskPaths = setOf("name"),
+                    name = "X", biography = null, birthDate = null, deathDate = null,
+                    placeOfBirth = null, profilePath = null,
+                ),
+            )
+        }.isInstanceOf(VersionConflictException::class.java)
+    }
+
+    @Test
+    fun `updatePerson rejects unknown mask path with Precondition`() {
+        assertThatThrownBy {
+            service.updatePerson(
+                UpdatePersonCommand(
+                    id = UUID.randomUUID(), expectedVersion = 0, maskPaths = setOf("bogus"),
+                    name = null, biography = null, birthDate = null, deathDate = null,
+                    placeOfBirth = null, profilePath = null,
+                ),
+            )
+        }.isInstanceOf(PreconditionException::class.java)
+    }
+
+    @Test
+    fun `updatePerson rejects empty mask with Validation`() {
+        assertThatThrownBy {
+            service.updatePerson(
+                UpdatePersonCommand(
+                    id = UUID.randomUUID(), expectedVersion = 0, maskPaths = emptySet(),
+                    name = null, biography = null, birthDate = null, deathDate = null,
+                    placeOfBirth = null, profilePath = null,
+                ),
+            )
+        }.isInstanceOf(ValidationException::class.java)
+    }
+
+    // --- deletePerson ------------------------------------------------------
+
+    @Test
+    fun `deletePerson deletes when present`() {
+        val id = UUID.randomUUID()
+        every { repository.existsById(id) } returns true
+        every { repository.deleteById(id) } returns Unit
+        service.deletePerson(id)
+        verify { repository.deleteById(id) }
+    }
+
+    @Test
+    fun `deletePerson throws NotFound when absent`() {
+        val id = UUID.randomUUID()
+        every { repository.existsById(id) } returns false
+        assertThatThrownBy { service.deletePerson(id) }
+            .isInstanceOf(PersonNotFoundException::class.java)
+        verify(exactly = 0) { repository.deleteById(any()) }
+    }
+}

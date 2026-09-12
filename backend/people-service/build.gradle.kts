@@ -34,4 +34,5 @@ dependencies {
     testImplementation(libs.testcontainers.postgresql)
     testImplementation(libs.mockk)
     testImplementation(libs.assertj.core)
+    testImplementation(libs.grpc.inprocess)
 }
