@@ -12,6 +12,7 @@ java {
 
 dependencies {
     implementation(project(":contracts"))
+    implementation(project(":media"))
 
     implementation(libs.spring.boot.starter.web)
     implementation(libs.spring.boot.starter.actuator)

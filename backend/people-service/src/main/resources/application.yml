@@ -16,6 +16,14 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
+
+# Person photos live on a mounted volume outside Git (ADR-12 hybrid, §14).
+artwork:
+  storage-path: ${PERSON_ARTWORK_STORAGE_PATH:./data/person-artwork}
 
 management:
   endpoint:

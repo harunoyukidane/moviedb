@@ -39,6 +39,9 @@ services:
       PEOPLE_DB_PASSWORD: ${PEOPLE_DB_PASSWORD:-people}
       PEOPLE_GRPC_PORT: "9090"
       PEOPLE_HTTP_PORT: "8081"
+      PERSON_ARTWORK_STORAGE_PATH: /var/lib/artwork
+    volumes:
+      - person-artwork-data:/var/lib/artwork
     depends_on:
       people-db:
         condition: service_healthy
@@ -61,6 +64,9 @@ services:
       CATALOGUE_DB_PASSWORD: ${CATALOGUE_DB_PASSWORD:-catalogue}
       PEOPLE_GRPC_TARGET: static://people-service:9090
       CATALOGUE_HTTP_PORT: "8080"
+      ARTWORK_STORAGE_PATH: /var/lib/artwork
+    volumes:
+      - catalogue-artwork-data:/var/lib/artwork
     depends_on:
       catalogue-db:
         condition: service_healthy
@@ -80,6 +86,8 @@ services:
 volumes:
   catalogue-db-data:
   people-db-data:
+  catalogue-artwork-data:
+  person-artwork-data:
 
 networks:
   internal:

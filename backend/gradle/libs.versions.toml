@@ -13,6 +13,8 @@ testcontainers = "1.21.4"
 mockk = "1.13.13"
 assertj = "3.26.3"
 uuidCreator = "6.0.0"
+imageioWebp = "3.11.0"
+junit = "5.11.3"
 
 [libraries]
 # Spring Boot starters
@@ -52,6 +54,12 @@ annotation-api = { module = "javax.annotation:javax.annotation-api", version = "
 
 # UUIDv7
 uuid-creator = { module = "com.github.f4b6a3:uuid-creator", version.ref = "uuidCreator" }
+
+# Media / image validation
+imageio-webp = { module = "com.twelvemonkeys.imageio:imageio-webp", version.ref = "imageioWebp" }
+slf4j-api = { module = "org.slf4j:slf4j-api", version = "2.0.16" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
 
 # Test
 testcontainers-junit = { module = "org.testcontainers:junit-jupiter", version.ref = "testcontainers" }

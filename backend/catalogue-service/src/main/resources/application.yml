@@ -20,6 +20,15 @@ spring:
     schema:
       printer:
         enabled: true
+  servlet:
+    multipart:
+      # Fast reject before buffering; the validator also enforces 5 MiB.
+      max-file-size: 5MB
+      max-request-size: 6MB
+
+# Artwork bytes live on a mounted volume outside Git (§10, §14).
+artwork:
+  storage-path: ${ARTWORK_STORAGE_PATH:./data/artwork}
 
 management:
   endpoint:

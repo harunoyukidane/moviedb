@@ -12,3 +12,14 @@ Hybrid model: the TMDB `profile_path` URL is captured once at import as provenan
 - Seeded people have imagery without a live TMDB dependency.
 - The create/amend/delete surface stays consistent and content-validated.
 - Person-photo upload is sequenced after the core person/movie/credit flows.
+
+## Realized (phase 4)
+- People service reuses the shared `media` module's `ArtworkStore` +
+  `ImageContentValidator` (identical validated path to movie artwork).
+- `PersonPhotoUseCases`/`PersonPhotoController`: `PUT/DELETE/GET
+  /api/people/{personId}/photo`. The uploaded storage key is written to
+  `person.profile_path`, so an uploaded photo takes precedence over the imported
+  TMDB URL; deleting an uploaded photo clears the path.
+- `PersonPhotoHttpIntegrationTest` verifies upload precedence over a stored TMDB
+  URL, identical content validation (spoofed rejected), replace-removes-old, delete,
+  and the TMDB-only fallback (no local bytes served).
