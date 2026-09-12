@@ -1,0 +1,100 @@
+:root {
+  /* One accent colour; restrained cinema palette. */
+  --accent: #e0b64a;
+  --accent-contrast: #1a1a1f;
+  --bg: #111116;
+  --surface: #1c1c24;
+  --surface-2: #24242e;
+  --text: #f2f2f4;
+  --text-muted: #a9a9b6;
+  --danger: #e5484d;
+  --border: #33333f;
+  --focus: #7cc0ff;
+  /* 8-point spacing scale */
+  --sp-1: 8px;
+  --sp-2: 16px;
+  --sp-3: 24px;
+  --sp-4: 32px;
+  --sp-5: 48px;
+  --radius: 8px;
+  --maxw: 1120px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.5;
+}
+
+a { color: var(--accent); }
+
+h1, h2, h3 { line-height: 1.2; }
+
+/* Visible keyboard focus everywhere (WCAG 2.2). */
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  padding: var(--sp-1) var(--sp-2);
+}
+button.primary {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+button.danger {
+  border-color: var(--danger);
+  color: var(--danger);
+  background: transparent;
+}
+button:disabled { opacity: 0.55; cursor: not-allowed; }
+
+input, textarea, select {
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--sp-1);
+  width: 100%;
+}
+
+label { display: block; font-weight: 600; margin-bottom: 4px; }
+
+.container { max-width: var(--maxw); margin: 0 auto; padding: var(--sp-3) var(--sp-2); }
+
+.field { margin-bottom: var(--sp-2); }
+.field-error { color: var(--danger); font-size: 0.875rem; margin-top: 4px; }
+
+.banner {
+  border-radius: var(--radius);
+  padding: var(--sp-2);
+  margin-bottom: var(--sp-2);
+}
+.banner-error { background: rgba(229, 72, 77, 0.12); border: 1px solid var(--danger); color: #ffb4b6; }
+.banner-info { background: var(--surface-2); border: 1px solid var(--border); color: var(--text-muted); }
+
+/* Poster grid, mobile-first. */
+.poster-grid {
+  display: grid;
+  gap: var(--sp-2);
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
