@@ -6,6 +6,7 @@ import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
+import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase
 import org.springframework.dao.OptimisticLockingFailureException
 import org.springframework.test.context.DynamicPropertyRegistry
@@ -44,6 +45,9 @@ class PersonRepositoryIntegrationTest {
 
     @Autowired
     lateinit var repository: PersonRepository
+
+    @Autowired
+    lateinit var entityManager: TestEntityManager
 
     private fun newPerson(name: String = "Jane Doe") =
         Person(id = UuidV7.generate(), name = name)
@@ -87,15 +91,30 @@ class PersonRepositoryIntegrationTest {
     @Test
     fun `stale update triggers optimistic lock failure`() {
         val saved = repository.saveAndFlush(newPerson())
-        // simulate a stale copy at the original version
-        val stale = repository.findById(saved.id).get()
-        // first writer wins
-        saved.name = "First"
-        repository.saveAndFlush(saved)
-        // second writer with old version
-        stale.version = 0
+        val id = saved.id
+
+        // Detach everything so we work with independent copies, not the same
+        // managed instance from the L1 cache.
+        entityManager.flush()
+        entityManager.clear()
+
+        // Writer A loads a copy (version 0), then detaches it: this is the stale copy.
+        val stale = repository.findById(id).get()
+        assertThat(stale.version).isEqualTo(0)
+        entityManager.detach(stale)
+
+        // Writer B loads a fresh copy, updates it, committing version 0 -> 1 in the DB.
+        val fresh = repository.findById(id).get()
+        fresh.name = "First"
+        repository.saveAndFlush(fresh)
+        entityManager.flush()
+        entityManager.clear()
+
+        // Writer A now tries to persist its stale copy (still version 0) -> conflict.
         stale.name = "Second"
-        assertThatThrownBy { repository.saveAndFlush(stale) }
-            .isInstanceOf(OptimisticLockingFailureException::class.java)
+        assertThatThrownBy {
+            repository.saveAndFlush(stale)
+            entityManager.flush()
+        }.isInstanceOf(OptimisticLockingFailureException::class.java)
     }
 }

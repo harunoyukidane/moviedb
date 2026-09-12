@@ -12,6 +12,9 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.TransactionDefinition
+import org.springframework.transaction.support.TransactionTemplate
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
@@ -45,6 +48,20 @@ class CatalogueSchemaIntegrationTest {
 
     @Autowired lateinit var jdbc: JdbcTemplate
     @Autowired lateinit var movies: MovieRepository
+    @Autowired lateinit var txManager: PlatformTransactionManager
+
+    /**
+     * Runs [block] in its own committed transaction (REQUIRES_NEW). Postgres aborts
+     * the whole transaction on the first failed statement (SQLSTATE 25P02), so any
+     * statement expected to violate a constraint must be isolated from the rest of
+     * the test; otherwise a caught violation would poison subsequent statements.
+     */
+    private fun <T> inNewTx(block: () -> T): T {
+        val tpl = TransactionTemplate(txManager).apply {
+            propagationBehavior = TransactionDefinition.PROPAGATION_REQUIRES_NEW
+        }
+        return tpl.execute { block() }!!
+    }
 
     private fun insertMovie(title: String = "Test Movie"): UUID {
         val id = UuidV7.generate()
@@ -68,31 +85,37 @@ class CatalogueSchemaIntegrationTest {
 
     @Test
     fun `cast credit requires character name and crew forbids it`() {
-        val movieId = insertMovie()
-        // CAST without character_name -> violates check
+        val movieId = inNewTx { insertMovie() }
+        // CAST without character_name -> violates check (isolated tx)
         assertThatThrownBy {
-            jdbc.update(
-                "INSERT INTO movie_credit (id, movie_id, person_id, role_code, category) " +
-                    "VALUES (?, ?, ?, 'ACTOR', 'CAST')",
-                UuidV7.generate(), movieId, UuidV7.generate(),
-            )
+            inNewTx {
+                jdbc.update(
+                    "INSERT INTO movie_credit (id, movie_id, person_id, role_code, category) " +
+                        "VALUES (?, ?, ?, 'ACTOR', 'CAST')",
+                    UuidV7.generate(), movieId, UuidV7.generate(),
+                )
+            }
         }.isInstanceOf(Exception::class.java)
 
-        // CREW with character_name -> violates check
+        // CREW with character_name -> violates check (isolated tx)
         assertThatThrownBy {
+            inNewTx {
+                jdbc.update(
+                    "INSERT INTO movie_credit (id, movie_id, person_id, role_code, category, character_name) " +
+                        "VALUES (?, ?, ?, 'DIRECTOR', 'CREW', 'Nope')",
+                    UuidV7.generate(), movieId, UuidV7.generate(),
+                )
+            }
+        }.isInstanceOf(Exception::class.java)
+
+        // valid CAST with character_name succeeds
+        inNewTx {
             jdbc.update(
                 "INSERT INTO movie_credit (id, movie_id, person_id, role_code, category, character_name) " +
-                    "VALUES (?, ?, ?, 'DIRECTOR', 'CREW', 'Nope')",
+                    "VALUES (?, ?, ?, 'ACTOR', 'CAST', 'Hero')",
                 UuidV7.generate(), movieId, UuidV7.generate(),
             )
-        }.isInstanceOf(Exception::class.java)
-
-        // valid CAST with character_name
-        jdbc.update(
-            "INSERT INTO movie_credit (id, movie_id, person_id, role_code, category, character_name) " +
-                "VALUES (?, ?, ?, 'ACTOR', 'CAST', 'Hero')",
-            UuidV7.generate(), movieId, UuidV7.generate(),
-        )
+        }
     }
 
     @Test
