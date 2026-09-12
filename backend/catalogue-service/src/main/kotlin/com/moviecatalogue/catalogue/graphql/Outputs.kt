@@ -73,4 +73,16 @@ data class CreditRoleCodeGql(
 
 data class DeleteResultGql(val deletedId: String)
 
-data class SearchResultGql(val movies: List<Any> = emptyList(), val people: List<Any> = emptyList())
+data class MovieSearchHitGql(
+    val id: String,
+    val title: String,
+    val releaseDate: LocalDate?,
+    val matchedPersonNames: List<String>,
+)
+
+data class PersonSearchHitGql(val id: String, val name: String)
+
+data class SearchResultGql(
+    val movies: List<MovieSearchHitGql>,
+    val people: List<PersonSearchHitGql>,
+)

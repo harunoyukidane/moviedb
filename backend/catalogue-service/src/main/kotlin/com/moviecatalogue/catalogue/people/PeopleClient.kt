@@ -16,6 +16,9 @@ interface PeopleClient {
     /** Batch fetch, returning only the people that exist, keyed by ID. Never N+1. */
     fun getPeople(ids: Collection<UUID>): Map<UUID, PersonData>
 
+    /** Name search over the People Service (§9), returning lightweight hits. */
+    fun searchPeople(query: String, limit: Int, offset: Int): List<PersonHit>
+
     fun createPerson(command: CreatePersonData): PersonData
 
     fun updatePerson(command: UpdatePersonData): PersonData
@@ -34,6 +37,12 @@ data class PersonData(
     val placeOfBirth: String?,
     val profilePath: String?,
     val version: Long,
+)
+
+/** Lightweight person search hit (§9 SearchPeople). */
+data class PersonHit(
+    val id: UUID,
+    val name: String,
 )
 
 data class CreatePersonData(

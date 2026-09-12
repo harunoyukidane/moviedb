@@ -137,6 +137,21 @@ class CatalogueRepositoryIntegrationTest {
     }
 
     @Test
+    fun `movie title search is case-insensitive and treats wildcards literally`() {
+        movies.saveAndFlush(newMovie("The Matrix"))
+        movies.saveAndFlush(newMovie("100% Legit"))
+        movies.saveAndFlush(newMovie("100 Percent"))
+
+        val page = org.springframework.data.domain.PageRequest.of(0, 20)
+        // case-insensitive substring
+        assertThat(movies.searchByTitlePattern("%matrix%", page).map { it.title })
+            .containsExactly("The Matrix")
+        // % is escaped -> literal, so "100\%" only matches "100% Legit"
+        assertThat(movies.searchByTitlePattern("%100\\%%", page).map { it.title })
+            .containsExactly("100% Legit")
+    }
+
+    @Test
     fun `reference code tables read seeded data with active and category filters`() {
         assertThat(genres.findAllByActiveTrueOrderByDisplayOrderAsc().map { it.code })
             .contains("HORROR", "PSYCHOLOGICAL_HORROR")

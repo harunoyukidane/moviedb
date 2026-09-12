@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import StateBanner from '$lib/components/StateBanner.svelte';
+  import SearchBox from '$lib/components/SearchBox.svelte';
 
   export let data: PageData;
 
@@ -15,6 +16,8 @@
   <h1>Movies</h1>
   <a class="new-link" href="/movies/new">+ New movie</a>
 </div>
+
+<SearchBox />
 
 {#if data.error}
   <StateBanner variant="error">{data.error}</StateBanner>

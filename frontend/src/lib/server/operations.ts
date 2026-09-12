@@ -192,3 +192,35 @@ export function deletePerson(id: string, ctx?: RequestContext) {
     ctx
   ).then((r) => r.deletePerson);
 }
+
+// --- search ---
+
+export interface MovieSearchHit {
+  id: string;
+  title: string;
+  releaseDate?: string | null;
+  matchedPersonNames: string[];
+}
+
+export interface PersonSearchHit {
+  id: string;
+  name: string;
+}
+
+export interface SearchResult {
+  movies: MovieSearchHit[];
+  people: PersonSearchHit[];
+}
+
+export function search(query: string, limit: number, offset: number, ctx?: RequestContext) {
+  return gql<{ search: SearchResult }>(
+    `query($query: String!, $limit: Int!, $offset: Int!) {
+      search(query: $query, page: { limit: $limit, offset: $offset }) {
+        movies { id title releaseDate matchedPersonNames }
+        people { id name }
+      }
+    }`,
+    { query, limit, offset },
+    ctx
+  ).then((r) => r.search);
+}

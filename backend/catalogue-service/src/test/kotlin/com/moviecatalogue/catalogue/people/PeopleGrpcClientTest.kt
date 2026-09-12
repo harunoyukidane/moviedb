@@ -37,9 +37,12 @@ class PeopleGrpcClientTest {
     private class FakePeople(
         var onGetPerson: (GetPersonRequest, StreamObserver<PersonResponse>) -> Unit = { _, o -> o.onError(Status.UNIMPLEMENTED.asRuntimeException()) },
         var onGetPeople: (GetPeopleRequest, StreamObserver<GetPeopleResponse>) -> Unit = { _, o -> o.onNext(GetPeopleResponse.getDefaultInstance()); o.onCompleted() },
+        var onSearchPeople: (com.moviecatalogue.people.v1.SearchPeopleRequest, StreamObserver<com.moviecatalogue.people.v1.SearchPeopleResponse>) -> Unit =
+            { _, o -> o.onNext(com.moviecatalogue.people.v1.SearchPeopleResponse.getDefaultInstance()); o.onCompleted() },
     ) : PeopleServiceGrpc.PeopleServiceImplBase() {
         override fun getPerson(request: GetPersonRequest, obs: StreamObserver<PersonResponse>) = onGetPerson(request, obs)
         override fun getPeople(request: GetPeopleRequest, obs: StreamObserver<GetPeopleResponse>) = onGetPeople(request, obs)
+        override fun searchPeople(request: com.moviecatalogue.people.v1.SearchPeopleRequest, obs: StreamObserver<com.moviecatalogue.people.v1.SearchPeopleResponse>) = onSearchPeople(request, obs)
     }
 
     private fun start(fake: FakePeople): PeopleGrpcClient {
@@ -102,6 +105,24 @@ class PeopleGrpcClientTest {
         val result = client.getPeople(listOf(a))
         assertThat(result).containsKey(a)
         assertThat(result[a]!!.name).isEqualTo("A")
+    }
+
+    @Test
+    fun `searchPeople returns hits mapped from the gRPC response`() {
+        val id = UUID.randomUUID()
+        val client = start(FakePeople(onSearchPeople = { _, o ->
+            o.onNext(
+                com.moviecatalogue.people.v1.SearchPeopleResponse.newBuilder()
+                    .addPeople(PersonResponse.newBuilder().setId(id.toString()).setName("Nolan").setBiography("").setVersion(0).build())
+                    .setTotal(1)
+                    .build(),
+            )
+            o.onCompleted()
+        }))
+        val hits = client.searchPeople("nol", 10, 0)
+        assertThat(hits).hasSize(1)
+        assertThat(hits[0].id).isEqualTo(id)
+        assertThat(hits[0].name).isEqualTo("Nolan")
     }
 
     @Test

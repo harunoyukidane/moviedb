@@ -13,6 +13,9 @@ interface CreditRepository : JpaRepository<MovieCredit, UUID> {
     /** All credits referencing a person (used for safe delete + Person.credits). */
     fun findAllByPersonId(personId: UUID): List<MovieCredit>
 
+    /** Credits referencing any of the given people (person->movie search traversal, ix_credit_person). */
+    fun findAllByPersonIdIn(personIds: Collection<UUID>): List<MovieCredit>
+
     /** Reference-protection check for person delete (§6.6). */
     fun existsByPersonId(personId: UUID): Boolean
 }

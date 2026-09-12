@@ -49,13 +49,22 @@ class ReferenceQueryController(
 }
 
 @Controller
-class SearchController {
+class SearchController(
+    private val searchUseCases: com.moviecatalogue.catalogue.application.SearchUseCases,
+) {
     /**
-     * Search is implemented in phase 6. The field is wired so the schema is
-     * complete; it returns empty results for now (blank/normal handling lands
-     * with the real implementation).
+     * Unified search (§9). Returns matching movies (with matched person names) and
+     * people. Blank queries are rejected via the error boundary (BAD_USER_INPUT).
      */
     @QueryMapping
-    fun search(@Argument query: String, @Argument page: PageInput?): SearchResultGql =
-        SearchResultGql(movies = emptyList(), people = emptyList())
+    fun search(@Argument query: String, @Argument page: PageInput?): SearchResultGql {
+        val p = page ?: PageInput()
+        val result = searchUseCases.search(query, p.limit, p.offset)
+        return SearchResultGql(
+            movies = result.movies.map {
+                MovieSearchHitGql(it.id.toString(), it.title, it.releaseDate, it.matchedPersonNames)
+            },
+            people = result.people.map { PersonSearchHitGql(it.id.toString(), it.name) },
+        )
+    }
 }

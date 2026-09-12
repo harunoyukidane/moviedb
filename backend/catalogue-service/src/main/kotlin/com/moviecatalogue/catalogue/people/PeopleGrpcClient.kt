@@ -12,6 +12,7 @@ import com.moviecatalogue.people.v1.GetPersonRequest
 import com.moviecatalogue.people.v1.PeopleServiceGrpc
 import com.moviecatalogue.people.v1.PersonPatch
 import com.moviecatalogue.people.v1.PersonResponse
+import com.moviecatalogue.people.v1.SearchPeopleRequest
 import com.moviecatalogue.people.v1.UpdatePersonRequest
 import io.grpc.Status
 import io.grpc.StatusRuntimeException
@@ -59,6 +60,15 @@ class PeopleGrpcClient(
                 data.id to data
             }
         }
+    }
+
+    override fun searchPeople(query: String, limit: Int, offset: Int): List<PersonHit> = call {
+        val request = SearchPeopleRequest.newBuilder()
+            .setQuery(query)
+            .setLimit(limit)
+            .setOffset(offset)
+            .build()
+        read().searchPeople(request).peopleList.map { PersonHit(UUID.fromString(it.id), it.name) }
     }
 
     override fun createPerson(command: CreatePersonData): PersonData = call {

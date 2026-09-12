@@ -74,6 +74,14 @@ class CatalogueGraphQlIntegrationTest {
             return ids.mapNotNull { store[it] }.associateBy { it.id }
         }
 
+        override fun searchPeople(query: String, limit: Int, offset: Int): List<com.moviecatalogue.catalogue.people.PersonHit> {
+            if (unavailable) throw DependencyUnavailableException()
+            return store.values
+                .filter { it.name.contains(query, ignoreCase = true) }
+                .drop(offset).take(limit)
+                .map { com.moviecatalogue.catalogue.people.PersonHit(it.id, it.name) }
+        }
+
         override fun createPerson(command: CreatePersonData): PersonData {
             val id = UUID.randomUUID()
             val data = PersonData(id, null, command.name, command.biography, command.birthDate, command.deathDate, command.placeOfBirth, null, 0)
@@ -99,6 +107,9 @@ class CatalogueGraphQlIntegrationTest {
     }
 
     @Autowired lateinit var fakePeople: FakePeople
+    @Autowired lateinit var movieRepo: com.moviecatalogue.catalogue.movie.MovieRepository
+    @Autowired lateinit var creditRepo: com.moviecatalogue.catalogue.credit.CreditRepository
+    @Autowired lateinit var movieGenreRepo: com.moviecatalogue.catalogue.movie.MovieGenreRepository
     @LocalServerPort var port: Int = 0
     private lateinit var tester: GraphQlTester
 
@@ -107,6 +118,10 @@ class CatalogueGraphQlIntegrationTest {
         fakePeople.store.clear()
         fakePeople.getPeopleCalls.set(0)
         fakePeople.unavailable = false
+        // isolate DB state between tests (shared context, no rollback for HTTP calls)
+        creditRepo.deleteAll()
+        movieGenreRepo.deleteAll()
+        movieRepo.deleteAll()
         val client = WebTestClient.bindToServer()
             .baseUrl("http://localhost:$port/graphql")
             .responseTimeout(java.time.Duration.ofSeconds(30))
@@ -273,5 +288,57 @@ class CatalogueGraphQlIntegrationTest {
         val cats = tester.document("""query { creditRoles(category: CAST) { code category } }""")
             .execute().path("creditRoles[*].category").entityList(String::class.java).get()
         assertThat(cats).isNotEmpty().allMatch { it == "CAST" }
+    }
+
+    @Test
+    fun `search finds movies by title`() {
+        createMovie("The Matrix")
+        createMovie("Matrix Reloaded")
+        createMovie("Unrelated Film")
+
+        val titles = tester.document(
+            """query { search(query: "matrix", page: { limit: 10, offset: 0 }) {
+                 movies { title matchedPersonNames } people { name }
+               } }""",
+        ).execute().path("search.movies[*].title").entityList(String::class.java).get()
+        assertThat(titles).containsExactlyInAnyOrder("The Matrix", "Matrix Reloaded")
+    }
+
+    @Test
+    fun `search surfaces a person and their credited movies with matchedPersonNames`() {
+        val movieId = createMovie("Directed Feature")
+        val person = fakePeople.seed("Greta Searchable")
+        addCast(movieId, person, "Herself")
+
+        val result = tester.document(
+            """query { search(query: "Greta", page: { limit: 10, offset: 0 }) {
+                 movies { title matchedPersonNames }
+                 people { name }
+               } }""",
+        ).execute()
+
+        val peopleNames = result.path("search.people[*].name").entityList(String::class.java).get()
+        assertThat(peopleNames).contains("Greta Searchable")
+
+        val movieTitles = result.path("search.movies[*].title").entityList(String::class.java).get()
+        assertThat(movieTitles).contains("Directed Feature")
+        val matched = result.path("search.movies[*].matchedPersonNames[*]").entityList(String::class.java).get()
+        assertThat(matched).contains("Greta Searchable")
+    }
+
+    @Test
+    fun `search treats percent as a literal, not a wildcard`() {
+        createMovie("100% Real")
+        createMovie("Totally Fake")
+        val titles = tester.document(
+            """query { search(query: "100%", page: { limit: 10, offset: 0 }) { movies { title } people { name } } }""",
+        ).execute().path("search.movies[*].title").entityList(String::class.java).get()
+        assertThat(titles).containsExactly("100% Real")
+    }
+
+    @Test
+    fun `blank search query is rejected as BAD_USER_INPUT`() {
+        assertThat(errorCodeOf("""query { search(query: "  ", page: { limit: 10, offset: 0 }) { movies { title } people { name } } }"""))
+            .isEqualTo("BAD_USER_INPUT")
     }
 }
