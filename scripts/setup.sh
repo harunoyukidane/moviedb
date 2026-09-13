@@ -3,8 +3,8 @@
 # Demo bootstrap (§12.2, §12.4). Brings up the stack, waits on health checks (not
 # sleeps), then runs the one-shot TMDB importer to seed a browsable catalogue.
 #
-# Windows: run this under WSL or Git Bash — it is a Docker-only workflow; there is
-# no PowerShell port. Docker Desktop must be running.
+# Windows: use scripts/setup.ps1 (native PowerShell), or run this under WSL / Git
+# Bash. Docker Desktop must be running. Everything runs locally in Docker.
 #
 # Usage:
 #   ./scripts/setup.sh              # bring up + seed (needs TMDB_READ_TOKEN)
@@ -37,7 +37,15 @@ if [ -f .env ]; then
   set -a; . ./.env; set +a
 fi
 
-# --- 2 & 3. build + start, waiting on health checks ---
+# --- 2 & 3. build the boot jars on the host, then build + start containers ---
+# The images copy host-built jars (see the Dockerfiles), so build them first.
+echo "==> Building service jars on the host…"
+( cd backend && ./gradlew :catalogue-service:bootJar :people-service:bootJar --no-daemon )
+
+# The frontend image copies a host-built adapter-node bundle.
+echo "==> Building the frontend on the host…"
+( cd frontend && { [ -d node_modules ] || npm install --no-audit --no-fund; } && npm run build )
+
 echo "==> Starting stack (building images, waiting for health)…"
 docker compose up -d --build --wait
 

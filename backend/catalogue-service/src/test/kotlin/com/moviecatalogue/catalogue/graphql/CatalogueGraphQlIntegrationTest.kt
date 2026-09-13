@@ -82,6 +82,18 @@ class CatalogueGraphQlIntegrationTest {
                 .map { com.moviecatalogue.catalogue.people.PersonHit(it.id, it.name) }
         }
 
+        override fun searchPeoplePage(query: String?, limit: Int, offset: Int): com.moviecatalogue.catalogue.people.PersonPage {
+            if (unavailable) throw DependencyUnavailableException()
+            val q = query?.trim().orEmpty()
+            val matched = store.values.filter { q.isEmpty() || it.name.contains(q, ignoreCase = true) }.sortedBy { it.name }
+            return com.moviecatalogue.catalogue.people.PersonPage(
+                items = matched.drop(offset).take(limit),
+                total = matched.size.toLong(),
+                limit = limit,
+                offset = offset,
+            )
+        }
+
         override fun createPerson(command: CreatePersonData): PersonData {
             val id = UUID.randomUUID()
             val data = PersonData(id, null, command.name, command.biography, command.birthDate, command.deathDate, command.placeOfBirth, null, 0)
@@ -321,6 +333,44 @@ class CatalogueGraphQlIntegrationTest {
             .execute()
             .path("movie.cast").entityList(Any::class.java).hasSize(1)
             .path("movie.cast[0].characterName").entity(String::class.java).isEqualTo("Hero Renamed")
+    }
+
+    @Test
+    fun `responses carry security headers and echo the correlation id`() {
+        // hit the GraphQL endpoint over raw HTTP to inspect headers
+        val client = org.springframework.web.reactive.function.client.WebClient.create("http://localhost:$port")
+        val resp = client.post().uri("/graphql")
+            .header("content-type", "application/json")
+            .header("X-Correlation-ID", "test-corr-123")
+            .bodyValue("{\"query\":\"{ genres { code } }\"}")
+            .retrieve()
+            .toBodilessEntity()
+            .block()!!
+        assertThat(resp.headers.getFirst("X-Content-Type-Options")).isEqualTo("nosniff")
+        assertThat(resp.headers.getFirst("X-Frame-Options")).isEqualTo("DENY")
+        // correlation id is echoed back (observability)
+        assertThat(resp.headers.getFirst("X-Correlation-ID")).isEqualTo("test-corr-123")
+    }
+
+    @Test
+    fun `people query lists people (blank query) and filters by query`() {
+        fakePeople.seed("Alice Walker")
+        fakePeople.seed("Bob Stone")
+        fakePeople.seed("Alicia Keys")
+
+        // blank/no query -> list all, non-null PersonPage
+        val all = tester.document(
+            """query { people(page:{limit:20,offset:0}) { total items { id name } } }""",
+        ).execute()
+        all.path("people.total").entity(Long::class.java).isEqualTo(3L)
+        val names = all.path("people.items[*].name").entityList(String::class.java).get()
+        assertThat(names).containsExactlyInAnyOrder("Alice Walker", "Bob Stone", "Alicia Keys")
+
+        // filtered by query
+        val filtered = tester.document(
+            """query { people(query: "Ali", page:{limit:20,offset:0}) { total items { name } } }""",
+        ).execute().path("people.items[*].name").entityList(String::class.java).get()
+        assertThat(filtered).containsExactlyInAnyOrder("Alice Walker", "Alicia Keys")
     }
 
     @Test

@@ -24,7 +24,7 @@ import java.util.UUID
 class PersonHydratorTest {
 
     private val peopleClient = mockk<PeopleClient>()
-    private val hydrator = PersonHydrator(peopleClient)
+    private val hydrator = PersonHydrator(peopleClient, io.micrometer.core.instrument.simple.SimpleMeterRegistry())
 
     private fun credit(personId: UUID) =
         MovieCredit(UUID.randomUUID(), UUID.randomUUID(), personId, "ACTOR", CreditCategory.CAST, characterName = "X")
@@ -78,7 +78,7 @@ class CreditUseCasesTest {
     private val movies = mockk<MovieRepository>()
     private val roleCodes = mockk<CreditRoleCodeRepository>()
     private val peopleClient = mockk<PeopleClient>()
-    private val hydrator = PersonHydrator(peopleClient)
+    private val hydrator = PersonHydrator(peopleClient, io.micrometer.core.instrument.simple.SimpleMeterRegistry())
     private val useCases = CreditUseCases(credits, movies, roleCodes, peopleClient, hydrator)
 
     private fun role(code: String, category: CreditCategory, active: Boolean = true) =

@@ -99,9 +99,17 @@ class PeopleApplicationServiceTest {
     }
 
     @Test
-    fun `searchPeople rejects blank and overlong query`() {
-        assertThatThrownBy { service.searchPeople(SearchPeopleCommand("   ", 10, 0)) }
-            .isInstanceOf(ValidationException::class.java)
+    fun `searchPeople with a blank query lists all people (paged)`() {
+        every { repository.count() } returns 2
+        every { repository.findAll(any<Pageable>()) } returns
+            org.springframework.data.domain.PageImpl(listOf(person(name = "Ada"), person(name = "Bob")))
+        val result = service.searchPeople(SearchPeopleCommand(query = "   ", limit = 10, offset = 0))
+        assertThat(result.total).isEqualTo(2)
+        assertThat(result.people.map { it.name }).containsExactly("Ada", "Bob")
+    }
+
+    @Test
+    fun `searchPeople rejects an overlong query`() {
         assertThatThrownBy { service.searchPeople(SearchPeopleCommand("a".repeat(101), 10, 0)) }
             .isInstanceOf(ValidationException::class.java)
     }

@@ -42,7 +42,7 @@ async function main(): Promise<number> {
     for (const o of report.outcomes) {
       const tag = o.status.toUpperCase().padEnd(8);
       console.log(
-        `  ${tag} tmdb=${o.tmdbId} "${o.title ?? ''}" people=${o.peopleImported} credits=${o.creditsImported} poster=${o.posterImported}` +
+        `  ${tag} tmdb=${o.tmdbId} "${o.title ?? ''}" people=${o.peopleImported} photos=${o.photosImported} credits=${o.creditsImported} poster=${o.posterImported}` +
           (o.error ? ` (${o.error})` : '')
       );
     }

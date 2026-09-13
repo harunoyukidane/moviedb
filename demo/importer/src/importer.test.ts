@@ -40,10 +40,15 @@ class FakeCatalogue implements CataloguePort {
 
 class FakeArtwork implements ArtworkPort {
   uploads = new Map<string, number>();
+  photoUploads = new Map<string, number>();
   fail = false;
   async uploadMoviePoster(movieId: string): Promise<void> {
     if (this.fail) throw new Error('upload failed');
     this.uploads.set(movieId, (this.uploads.get(movieId) ?? 0) + 1);
+  }
+  async uploadPersonPhoto(personId: string): Promise<void> {
+    if (this.fail) throw new Error('photo upload failed');
+    this.photoUploads.set(personId, (this.photoUploads.get(personId) ?? 0) + 1);
   }
 }
 
@@ -62,6 +67,10 @@ class FakeTmdb {
   getPoster() {
     return this.posterProvider();
   }
+  getProfileImage(profilePath: string | null | undefined) {
+    if (!profilePath) return Promise.resolve(null);
+    return Promise.resolve({ bytes: new Uint8Array([4, 5, 6]), contentType: 'image/jpeg' });
+  }
 }
 
 function sampleMovie(id: number): TmdbMovie {
@@ -77,7 +86,7 @@ function sampleMovie(id: number): TmdbMovie {
     genres: [{ id: 27, name: 'Horror' }, { id: 9999, name: 'Unmapped' }],
     credits: {
       cast: [
-        { id: 100, name: 'Star One', character: 'Hero', order: 0, credit_id: 'c-100' },
+        { id: 100, name: 'Star One', character: 'Hero', order: 0, credit_id: 'c-100', profile_path: '/p100.jpg' },
         { id: 100, name: 'Star One', character: 'Hero2', order: 1, credit_id: 'c-100b' }, // same person twice
         { id: 101, name: 'Star Two', character: 'Villain', order: 2, credit_id: 'c-101' }
       ],
@@ -124,6 +133,17 @@ describe('importMovie', () => {
     expect(d.people.byTmdb.has(100)).toBe(true);
     expect(outcome.posterImported).toBe(true);
     expect(outcome.creditsImported).toBeGreaterThanOrEqual(4);
+    // person 100 has a profile_path -> exactly one photo upload despite two cast rows
+    expect(d.artwork.photoUploads.get('person-100')).toBe(1);
+    expect(outcome.photosImported).toBe(1);
+  });
+
+  it('a failed person-photo upload does not fail the movie import', async () => {
+    const artwork = new FakeArtwork();
+    artwork.fail = true; // both poster and photo uploads throw
+    const outcome = await importMovie(43, deps(new FakeTmdb(async (id) => sampleMovie(id)), new FakePeople(), new FakeCatalogue(), artwork));
+    expect(outcome.status).toBe('imported');
+    expect(outcome.photosImported).toBe(0);
   });
 
   it('is idempotent: a second run produces identical record counts (no duplicates)', async () => {

@@ -38,7 +38,18 @@ management:
   endpoints:
     web:
       exposure:
-        include: health, info
+        include: health, info, metrics, prometheus
+  metrics:
+    tags:
+      service: people-service
+
+# Structured JSON logs (§15) including MDC (correlationId). No secrets/PII logged.
+logging:
+  structured:
+    format:
+      console: ecs
+  level:
+    root: INFO
 
 # gRPC server (internal network only; not published to host in compose).
 grpc:

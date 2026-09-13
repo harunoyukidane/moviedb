@@ -58,6 +58,13 @@ data class PersonCreditGql(
     val characterName: String?,
 )
 
+data class PersonPageGql(
+    val items: List<PersonGql>,
+    val total: Long,
+    val limit: Int,
+    val offset: Int,
+)
+
 data class ArtworkGql(val id: String, val url: String, val mediaType: String, val byteSize: Long)
 
 data class GenreCodeGql(val code: String, val title: String, val description: String, val active: Boolean)

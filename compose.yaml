@@ -83,6 +83,32 @@ services:
       - "${CATALOGUE_HTTP_PORT:-8080}:8080"
     networks: [internal]
 
+  # SvelteKit server-side BFF (the browser's only entry point). Calls Catalogue
+  # GraphQL + People HTTP server-side over the internal network; the browser never
+  # touches the backends directly.
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    environment:
+      CATALOGUE_GRAPHQL_URL: http://catalogue-service:8080/graphql
+      CATALOGUE_HTTP_URL: http://catalogue-service:8080
+      PEOPLE_HTTP_URL: http://people-service:8081
+      ORIGIN: http://localhost:${FRONTEND_PORT:-4173}
+      PORT: "3000"
+    depends_on:
+      catalogue-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000/movies || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    ports:
+      - "${FRONTEND_PORT:-4173}:3000"
+    networks: [internal]
+
   # One-shot TMDB importer (§12). Runs only under the `seed` profile, after the
   # app is healthy. Imports through People gRPC + Catalogue GraphQL + artwork HTTP.
   demo-importer:
@@ -94,8 +120,10 @@ services:
       TMDB_READ_TOKEN: ${TMDB_READ_TOKEN:-}
       TMDB_IMAGE_BASE_URL: ${TMDB_IMAGE_BASE_URL:-https://image.tmdb.org/t/p/}
       TMDB_POSTER_SIZE: ${TMDB_POSTER_SIZE:-w500}
+      TMDB_PROFILE_SIZE: ${TMDB_PROFILE_SIZE:-w185}
       CATALOGUE_GRAPHQL_URL: http://catalogue-service:8080/graphql
       CATALOGUE_HTTP_URL: http://catalogue-service:8080
+      PEOPLE_HTTP_URL: http://people-service:8081
       PEOPLE_GRPC_TARGET: people-service:9090
       TMDB_MANIFEST_PATH: /app/manifest/tmdb-movie-ids.txt
     volumes:

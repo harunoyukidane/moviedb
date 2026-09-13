@@ -1,0 +1,62 @@
+import { test, expect } from '@playwright/test';
+
+// Critical end-to-end journey (§16, phase 8) exercised through the BFF UI:
+//   create person -> create movie -> add credit -> upload artwork -> search ->
+//   remove credit -> delete.
+// Runs against the composed stack + the SvelteKit BFF. It is intentionally the
+// one high-value happy path; unit/component/integration tests cover the rest.
+//
+// A 1x1 PNG used for the artwork/photo upload step.
+const PNG_1x1 = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+  'base64'
+);
+
+test('full catalogue journey through the BFF UI', async ({ page }) => {
+  const stamp = Date.now();
+  const personName = `E2E Person ${stamp}`;
+  const movieTitle = `E2E Movie ${stamp}`;
+
+  // 1. create a person
+  await page.goto('/people/new');
+  await page.getByLabel('Name *').fill(personName);
+  await page.getByRole('button', { name: /create person/i }).click();
+  await expect(page.getByRole('heading', { name: personName })).toBeVisible();
+
+  // 2. create a movie
+  await page.goto('/movies/new');
+  await page.getByLabel('Title *').fill(movieTitle);
+  await page.getByRole('button', { name: /create movie/i }).click();
+  await expect(page.getByRole('heading', { name: movieTitle })).toBeVisible();
+  const movieUrl = page.url();
+
+  // 3. add a cast credit via the accessible dialog on the editor
+  await page.goto(`${movieUrl}/edit`);
+  await page.getByRole('button', { name: 'Add credit' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Person').fill(personName);
+  await dialog.getByRole('button', { name: personName }).click();
+  await dialog.getByLabel('Role').selectOption('ACTOR');
+  await dialog.getByLabel('Character name *').fill('The Lead');
+  await dialog.getByRole('button', { name: 'Add credit' }).click();
+
+  // 4. upload artwork
+  await page.setInputFiles('#artwork-file', { name: 'poster.png', mimeType: 'image/png', buffer: PNG_1x1 });
+  await page.getByRole('button', { name: 'Upload' }).click();
+  await expect(page.getByText(/Artwork uploaded/i)).toBeVisible();
+
+  // 5. search finds the movie and the person
+  await page.goto('/movies');
+  await page.getByRole('searchbox').fill(movieTitle);
+  await expect(page.getByTestId('search-results').getByText(movieTitle)).toBeVisible();
+
+  // 6. remove the credit from the movie (on the editor; never deletes the person)
+  await page.goto(`${movieUrl}/edit`);
+  await page.getByRole('button', { name: `Remove ${personName} from movie` }).click();
+  await expect(page.getByText(/Credit removed from movie/i)).toBeVisible();
+
+  // 7. delete the movie (danger zone on the editor)
+  await page.getByRole('button', { name: 'Delete movie' }).first().click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Delete movie' }).click();
+  await expect(page).toHaveURL(/\/movies$/);
+});

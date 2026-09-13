@@ -1,0 +1,13 @@
+# The image copies package.json, node_modules, and build/. Everything else is
+# excluded to keep the context small.
+.svelte-kit
+src
+e2e
+static
+*.config.ts
+*.config.js
+vitest-setup.ts
+.env
+.env.*
+!.env.example
+.gitignore

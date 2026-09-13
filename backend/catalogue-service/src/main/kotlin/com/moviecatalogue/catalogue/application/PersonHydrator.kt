@@ -4,6 +4,7 @@ import com.moviecatalogue.catalogue.credit.MovieCredit
 import com.moviecatalogue.catalogue.domain.CreditCategory
 import com.moviecatalogue.catalogue.domain.DependencyUnavailableException
 import com.moviecatalogue.catalogue.people.PeopleClient
+import io.micrometer.core.instrument.MeterRegistry
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import java.util.UUID
@@ -17,8 +18,12 @@ import java.util.UUID
 @Component
 class PersonHydrator(
     private val peopleClient: PeopleClient,
+    private val meterRegistry: MeterRegistry,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
+    // §15 metrics: unavailable-person references and degraded-hydration events.
+    private val missingRefCounter = meterRegistry.counter("catalogue.person.reference.unavailable")
+    private val degradedCounter = meterRegistry.counter("catalogue.person.hydration.degraded")
 
     /**
      * Batch-resolve [personIds] to a name+availability map. On dependency failure,
@@ -31,12 +36,17 @@ class PersonHydrator(
             peopleClient.getPeople(distinct)
         } catch (e: DependencyUnavailableException) {
             log.warn("degraded person hydration: {}", e.message)
+            degradedCounter.increment()
             emptyMap()
         }
         return distinct.associateWith { id ->
             val data = people[id]
-            if (data != null) PersonRef(id, data.name, available = true)
-            else PersonRef(id, name = "", available = false)
+            if (data != null) {
+                PersonRef(id, data.name, available = true)
+            } else {
+                missingRefCounter.increment()
+                PersonRef(id, name = "", available = false)
+            }
         }
     }
 

@@ -19,10 +19,9 @@ import java.time.Duration
 import java.util.UUID
 
 /**
- * Person profile-photo media endpoints (ADR-12 hybrid). Same validated path as
- * movie artwork. Photos are served from the People service; the GraphQL layer
- * (Catalogue) resolves the person's photo URL, preferring an uploaded photo over
- * the imported TMDB URL.
+ * Person profile-photo media endpoints. Same validated path as movie artwork.
+ * Photos are served from the People service; the GraphQL layer (Catalogue)
+ * resolves the person's photo URL via the BFF relay.
  */
 @RestController
 class PersonPhotoController(
@@ -57,7 +56,7 @@ class PersonPhotoController(
         @PathVariable personId: UUID,
         @org.springframework.web.bind.annotation.RequestHeader(value = HttpHeaders.IF_NONE_MATCH, required = false) ifNoneMatch: String?,
     ): ResponseEntity<StreamingResponseBody> {
-        val key = photoUseCases.uploadedPhotoKey(personId) ?: return ResponseEntity.notFound().build()
+        val key = photoUseCases.photoKey(personId) ?: return ResponseEntity.notFound().build()
         val etag = "\"$key\""
         val cacheControl = CacheControl.maxAge(Duration.ofDays(30)).cachePublic()
         if (ifNoneMatch != null && ifNoneMatch.split(",").map { it.trim() }.any { it == etag || it == "*" }) {

@@ -7,8 +7,10 @@ export interface ImporterConfig {
   tmdbApiBase: string;
   tmdbImageBase: string;
   tmdbPosterSize: string;
+  tmdbProfileSize: string;
   catalogueGraphqlUrl: string;
   catalogueHttpUrl: string;
+  peopleHttpUrl: string;
   peopleGrpcTarget: string;
   /** Path to the committed manifest of stable TMDB movie ids. */
   manifestPath: string;
@@ -23,8 +25,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ImporterConfig
     tmdbApiBase: env.TMDB_API_BASE ?? 'https://api.themoviedb.org',
     tmdbImageBase: env.TMDB_IMAGE_BASE_URL ?? 'https://image.tmdb.org/t/p/',
     tmdbPosterSize: env.TMDB_POSTER_SIZE ?? 'w500',
+    tmdbProfileSize: env.TMDB_PROFILE_SIZE ?? 'w185',
     catalogueGraphqlUrl: env.CATALOGUE_GRAPHQL_URL ?? 'http://localhost:8080/graphql',
     catalogueHttpUrl: env.CATALOGUE_HTTP_URL ?? 'http://localhost:8080',
+    peopleHttpUrl: env.PEOPLE_HTTP_URL ?? 'http://localhost:8081',
     peopleGrpcTarget: normalizeGrpcTarget(env.PEOPLE_GRPC_TARGET ?? 'localhost:9090'),
     manifestPath: env.TMDB_MANIFEST_PATH ?? 'demo/tmdb-movie-ids.txt',
     concurrency: Number(env.IMPORT_CONCURRENCY ?? '4'),

@@ -71,15 +71,25 @@ export class TmdbClient {
 
   /** Download poster bytes; returns null if there is no poster or it can't be fetched. */
   async getPoster(posterPath: string | null | undefined): Promise<{ bytes: Uint8Array; contentType: string } | null> {
-    if (!posterPath) return null;
-    const url = `${this.config.tmdbImageBase}${this.config.tmdbPosterSize}${posterPath}`;
+    return this.getImage(posterPath, this.config.tmdbPosterSize);
+  }
+
+  /** Download a person profile image; null if absent or unfetchable (non-fatal). */
+  async getProfileImage(profilePath: string | null | undefined): Promise<{ bytes: Uint8Array; contentType: string } | null> {
+    return this.getImage(profilePath, this.config.tmdbProfileSize);
+  }
+
+  /** Fetch an image from the TMDB CDN at the given size; null on any failure. */
+  private async getImage(path: string | null | undefined, size: string): Promise<{ bytes: Uint8Array; contentType: string } | null> {
+    if (!path) return null;
+    const url = `${this.config.tmdbImageBase}${size}${path}`;
     try {
       const res = await this.requestWithRetry(url, false);
       const buf = new Uint8Array(await res.arrayBuffer());
       const contentType = res.headers.get('content-type') ?? 'image/jpeg';
       return { bytes: buf, contentType };
     } catch {
-      // A missing/failed poster must not fail the movie import (§13).
+      // A missing/failed image must not fail the import (§13).
       return null;
     }
   }

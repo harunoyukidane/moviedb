@@ -38,13 +38,25 @@ management:
       group:
         liveness:
           include: livenessState
-        # gRPC-connectivity readiness contributor is added in phase 3.
+        # readiness includes DB and the People gRPC connectivity contributor (§15).
         readiness:
-          include: readinessState, db
+          include: readinessState, db, peopleGrpc
   endpoints:
     web:
       exposure:
-        include: health, info
+        include: health, info, metrics, prometheus
+  metrics:
+    tags:
+      service: catalogue-service
+
+# Structured JSON logs (§15). Spring Boot native structured logging (ECS) emits
+# one JSON object per line including MDC (correlationId). No secrets/PII are logged.
+logging:
+  structured:
+    format:
+      console: ecs
+  level:
+    root: INFO
 
 # People gRPC client target (internal compose network).
 grpc:

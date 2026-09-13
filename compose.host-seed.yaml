@@ -1,0 +1,15 @@
+# Opt-in override for running the importer ON THE HOST (e.g. when Docker
+# containers cannot reach the public internet — Cloudflare WARP / VPN tunnels the
+# host but not the Docker VM). It publishes People's gRPC port to localhost so a
+# host-run importer can reach both People (gRPC :9090) and Catalogue (HTTP :8080).
+#
+# Usage:
+#   docker compose -f compose.yaml -f compose.host-seed.yaml up -d --wait
+#   (then run the importer on the host — see scripts/seed-host.ps1)
+#
+# Do NOT use this in production; it exposes the internal gRPC port to the host.
+services:
+  people-service:
+    ports:
+      - "127.0.0.1:9090:9090"
+      - "127.0.0.1:8081:8081"

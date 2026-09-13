@@ -65,8 +65,8 @@ class PersonPhotoHttpIntegrationTest {
 
     private fun base() = "http://localhost:$port"
 
-    private fun newPerson(profilePath: String? = null): UUID {
-        val p = Person(id = UuidV7.generate(), name = "Star").apply { this.profilePath = profilePath }
+    private fun newPerson(): UUID {
+        val p = Person(id = UuidV7.generate(), name = "Star")
         return people.saveAndFlush(p).id
     }
 
@@ -90,14 +90,13 @@ class PersonPhotoHttpIntegrationTest {
         )
 
     @Test
-    fun `uploaded photo takes precedence over stored TMDB url`() {
-        // seeded person carries a TMDB profile_path (a URL/path, not a local key)
-        val personId = newPerson(profilePath = "/abcTMDBpath.jpg")
+    fun `upload stores the photo key and serves it locally`() {
+        val personId = newPerson()
 
         val up = upload(personId, png(), "face.png", "image/png")
         assertThat(up.statusCode).isEqualTo(HttpStatus.CREATED)
 
-        // profile_path now points at a local uploaded key (UUID.png), overriding TMDB
+        // profile_path holds the uploaded storage key (UUID.png)
         val stored = people.findById(personId).get().profilePath!!
         assertThat(stored).matches("[0-9a-f-]{36}\\.png")
 
@@ -153,9 +152,8 @@ class PersonPhotoHttpIntegrationTest {
     }
 
     @Test
-    fun `serving a person with only a TMDB url returns 404 locally (hybrid falls back to url)`() {
-        val personId = newPerson(profilePath = "/tmdbOnlyPath.jpg")
-        // no uploaded photo -> local serve 404; GraphQL layer would render the TMDB url instead
+    fun `serving a person with no uploaded photo returns 404`() {
+        val personId = newPerson()
         assertThat(rest.getForEntity("${base()}/api/people/$personId/photo", ByteArray::class.java).statusCode)
             .isEqualTo(HttpStatus.NOT_FOUND)
     }

@@ -49,8 +49,7 @@ export class PeopleGrpcClient implements PeoplePort {
       biography: person.biography,
       birthDate: person.birthDate ?? undefined,
       deathDate: person.deathDate ?? undefined,
-      placeOfBirth: person.placeOfBirth ?? undefined,
-      profilePath: person.profilePath ?? undefined
+      placeOfBirth: person.placeOfBirth ?? undefined
     };
     try {
       const created = await this.unary<any>('createPerson', req);

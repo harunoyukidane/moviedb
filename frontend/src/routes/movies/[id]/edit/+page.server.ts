@@ -1,10 +1,12 @@
 import type { PageServerLoad, Actions } from './$types';
-import { error, fail } from '@sveltejs/kit';
+import { error, fail, redirect } from '@sveltejs/kit';
 import {
   addMovieCredit,
+  deleteMovie,
   getMovie,
   listCreditRoles,
   listGenres,
+  removeMovieCredit,
   updateMovie,
   type CreateCreditInput
 } from '$lib/server/operations';
@@ -97,5 +99,29 @@ export const actions: Actions = {
       const code = e instanceof GraphQlRequestError ? e.code : 'INTERNAL_ERROR';
       return fail(isValidationError(code) ? 400 : 409, { message: messageForCode(code), section: 'credit' });
     }
+  },
+
+  removeCredit: async ({ request }) => {
+    const correlationId = request.headers.get('x-correlation-id') ?? undefined;
+    const form = await request.formData();
+    const creditId = String(form.get('creditId') ?? '');
+    try {
+      await removeMovieCredit(creditId, { correlationId });
+      return { creditRemoved: true };
+    } catch (e) {
+      const code = e instanceof GraphQlRequestError ? e.code : 'INTERNAL_ERROR';
+      return fail(503, { message: messageForCode(code), section: 'credit' });
+    }
+  },
+
+  delete: async ({ params, request }) => {
+    const correlationId = request.headers.get('x-correlation-id') ?? undefined;
+    try {
+      await deleteMovie(params.id, { correlationId });
+    } catch (e) {
+      const code = e instanceof GraphQlRequestError ? e.code : 'INTERNAL_ERROR';
+      return fail(code === 'NOT_FOUND' ? 404 : 503, { message: messageForCode(code), section: 'danger' });
+    }
+    throw redirect(303, '/movies');
   }
 };

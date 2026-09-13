@@ -1,5 +1,8 @@
-# Keep Docker build context small; the image builds from source via Gradle.
+# Keep the Docker build context small. The runtime images copy the host-built
+# boot jar from build/libs, so exclude the rest of build/ but re-include the jars.
 **/build/
+!**/build/libs/
+!**/build/libs/*.jar
 **/.gradle/
 **/.idea/
 **/*.iml

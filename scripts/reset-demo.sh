@@ -2,7 +2,7 @@
 #
 # Reset the demo (§12.2). Stops the stack and removes ONLY this project's named
 # Compose volumes (databases + artwork). Local demo data will be permanently
-# removed. Windows: run under WSL or Git Bash.
+# removed. Windows: use scripts/reset-demo.ps1, or run this under WSL / Git Bash.
 #
 # Usage:
 #   ./scripts/reset-demo.sh          # prompts for confirmation

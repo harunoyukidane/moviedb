@@ -19,6 +19,9 @@ interface PeopleClient {
     /** Name search over the People Service (§9), returning lightweight hits. */
     fun searchPeople(query: String, limit: Int, offset: Int): List<PersonHit>
 
+    /** Paged people listing/search returning full people + total (blank query = list all). */
+    fun searchPeoplePage(query: String?, limit: Int, offset: Int): PersonPage
+
     fun createPerson(command: CreatePersonData): PersonData
 
     fun updatePerson(command: UpdatePersonData): PersonData
@@ -43,6 +46,14 @@ data class PersonData(
 data class PersonHit(
     val id: UUID,
     val name: String,
+)
+
+/** A page of full people plus the total match count. */
+data class PersonPage(
+    val items: List<PersonData>,
+    val total: Long,
+    val limit: Int,
+    val offset: Int,
 )
 
 data class CreatePersonData(

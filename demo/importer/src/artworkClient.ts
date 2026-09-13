@@ -16,12 +16,21 @@ export class ArtworkHttpClient implements ArtworkPort {
 
   async uploadMoviePoster(movieId: string, bytes: Uint8Array, contentType: string): Promise<void> {
     const url = `${this.config.catalogueHttpUrl}/api/movies/${movieId}/artwork`;
+    await this.put(url, `poster upload failed for movie ${movieId}`, bytes, contentType);
+  }
+
+  async uploadPersonPhoto(personId: string, bytes: Uint8Array, contentType: string): Promise<void> {
+    const url = `${this.config.peopleHttpUrl}/api/people/${personId}/photo`;
+    await this.put(url, `photo upload failed for person ${personId}`, bytes, contentType);
+  }
+
+  private async put(url: string, failMsg: string, bytes: Uint8Array, contentType: string): Promise<void> {
     const ext = contentType.includes('png') ? 'png' : contentType.includes('webp') ? 'webp' : 'jpg';
     const form = new FormData();
     // copy into a fresh ArrayBuffer-backed Blob (avoids SharedArrayBuffer typing issues)
     const ab = new ArrayBuffer(bytes.byteLength);
     new Uint8Array(ab).set(bytes);
-    form.append('file', new Blob([ab], { type: contentType }), `poster.${ext}`);
+    form.append('file', new Blob([ab], { type: contentType }), `image.${ext}`);
 
     const res = await this.fetchFn(url, {
       method: 'PUT',
@@ -29,7 +38,7 @@ export class ArtworkHttpClient implements ArtworkPort {
       body: form
     });
     if (!res.ok) {
-      throw new Error(`poster upload failed for movie ${movieId}: HTTP ${res.status}`);
+      throw new Error(`${failMsg}: HTTP ${res.status}`);
     }
   }
 }

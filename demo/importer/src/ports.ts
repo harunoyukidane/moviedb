@@ -9,7 +9,6 @@ export interface PersonUpsert {
   birthDate: string | null;
   deathDate: string | null;
   placeOfBirth: string | null;
-  profilePath: string | null;
 }
 
 export interface PeoplePort {
@@ -48,4 +47,6 @@ export interface CataloguePort {
 export interface ArtworkPort {
   /** Upload/replace a movie poster through the artwork HTTP path. */
   uploadMoviePoster(movieId: string, bytes: Uint8Array, contentType: string): Promise<void>;
+  /** Upload/replace a person photo through the person-photo HTTP path. */
+  uploadPersonPhoto(personId: string, bytes: Uint8Array, contentType: string): Promise<void>;
 }

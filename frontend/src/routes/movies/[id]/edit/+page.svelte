@@ -5,6 +5,8 @@
   import GenreMultiSelect from '$lib/components/GenreMultiSelect.svelte';
   import ArtworkUpload from '$lib/components/ArtworkUpload.svelte';
   import CreditDialog from '$lib/components/CreditDialog.svelte';
+  import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
+  import type { MovieCredit } from '$lib/server/types';
 
   export let data: PageData;
   export let form: ActionData;
@@ -12,8 +14,20 @@
   $: movie = data.movie;
   let savingDetails = false;
   let creditOpen = false;
+  let confirmDeleteOpen = false;
 
   $: selectedGenres = movie.genres.map((g) => g.code);
+  $: allCredits = [...movie.cast, ...movie.creators];
+
+  function creditLine(c: MovieCredit): string {
+    const who = c.person.available ? c.person.name : 'Unknown person';
+    return c.category === 'CAST' ? `${who} as ${c.characterName}` : `${who} — ${c.role.title}`;
+  }
+
+  function submitDelete() {
+    const f = document.getElementById('delete-movie-form');
+    if (f instanceof HTMLFormElement) f.requestSubmit();
+  }
 </script>
 
 <a class="back" href={`/movies/${movie.id}`}>← Back to movie</a>
@@ -97,13 +111,57 @@
   {#if form?.creditAdded}
     <StateBanner variant="info">Credit added.</StateBanner>
   {/if}
+  {#if form?.creditRemoved}
+    <StateBanner variant="info">Credit removed from movie.</StateBanner>
+  {/if}
   {#if form?.message && form?.section === 'credit'}
     <StateBanner variant="error">{form.message}</StateBanner>
   {/if}
-  <p class="hint">Cast: {movie.cast.length} · Creators: {movie.creators.length}. Manage individual credits from the movie page.</p>
+
+  {#if allCredits.length === 0}
+    <p class="hint">No credits yet. Use “Add credit” to attach cast or crew.</p>
+  {:else}
+    <ul class="credit-list">
+      {#each allCredits as c (c.id)}
+        <li>
+          <span class:unavailable={!c.person.available}>
+            <span class="cat-badge">{c.category}</span>
+            {creditLine(c)}
+          </span>
+          <form method="POST" action="?/removeCredit" use:enhance>
+            <input type="hidden" name="creditId" value={c.id} />
+            <button type="submit" class="link-danger" aria-label={`Remove ${c.person.name} from movie`}>
+              Remove from movie
+            </button>
+          </form>
+        </li>
+      {/each}
+    </ul>
+  {/if}
+</section>
+
+<section class="section danger-zone" aria-label="Danger zone">
+  <h2>Danger zone</h2>
+  {#if form?.message && form?.section === 'danger'}
+    <StateBanner variant="error">{form.message}</StateBanner>
+  {/if}
+  <p class="hint">Deleting a movie permanently removes it along with its credits, genres, and artwork.</p>
+  <button type="button" class="danger" on:click={() => (confirmDeleteOpen = true)}>Delete movie</button>
 </section>
 
 <CreditDialog bind:open={creditOpen} roles={data.roles} on:close={() => (creditOpen = false)} />
+
+<ConfirmDialog
+  bind:open={confirmDeleteOpen}
+  title="Delete this movie?"
+  confirmLabel="Delete movie"
+  danger
+  on:confirm={submitDelete}
+>
+  This permanently removes “{movie.title}” and its credits, genres, and artwork. This cannot be undone.
+</ConfirmDialog>
+
+<form id="delete-movie-form" method="POST" action="?/delete" use:enhance hidden></form>
 
 <style>
   .back { display: inline-block; margin-bottom: var(--sp-2); color: var(--text-muted); }
@@ -114,4 +172,11 @@
   .current-art { width: 160px; aspect-ratio: 2/3; object-fit: cover; border-radius: var(--radius); display: block; margin-bottom: var(--sp-1); }
   .credits-head { display: flex; justify-content: space-between; align-items: center; }
   .hint { color: var(--text-muted); }
+  .credit-list { list-style: none; padding: 0; margin-top: var(--sp-2); }
+  .credit-list li { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-2); padding: var(--sp-1) 0; border-bottom: 1px solid var(--border); }
+  .cat-badge { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.05em; color: var(--text-muted); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; margin-right: 6px; }
+  .unavailable { color: var(--text-muted); font-style: italic; }
+  .link-danger { background: none; border: none; color: var(--danger); text-decoration: underline; padding: 0; white-space: nowrap; }
+  .danger-zone { border-color: var(--danger); }
+  .danger-zone h2 { color: var(--danger); }
 </style>

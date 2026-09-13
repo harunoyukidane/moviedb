@@ -20,6 +20,18 @@ class PersonQueryController(
         runCatching { personUseCases.getPerson(UUID.fromString(id)).toGql() }
             .getOrElse { if (it is NotFoundException) null else throw it }
 
+    @QueryMapping
+    fun people(@Argument query: String?, @Argument page: PageInput?): PersonPageGql {
+        val p = page ?: PageInput()
+        val result = personUseCases.listPeople(query, p.limit, p.offset)
+        return PersonPageGql(
+            items = result.items.map { it.toGql() },
+            total = result.total,
+            limit = result.limit,
+            offset = result.offset,
+        )
+    }
+
     @SchemaMapping(typeName = "Person", field = "credits")
     fun credits(person: PersonGql): List<PersonCreditGql> =
         personUseCases.creditsForPerson(UUID.fromString(person.id)).map { it.toGql() }

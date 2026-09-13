@@ -11,6 +11,7 @@ export interface MovieOutcome {
   posterImported: boolean;
   creditsImported: number;
   peopleImported: number;
+  photosImported: number;
   error?: string;
 }
 
@@ -40,7 +41,8 @@ export async function importMovie(tmdbId: number, deps: Dependencies): Promise<M
     status: 'imported',
     posterImported: false,
     creditsImported: 0,
-    peopleImported: 0
+    peopleImported: 0,
+    photosImported: 0
   };
   try {
     const movie = await deps.tmdb.getMovie(tmdbId);
@@ -74,11 +76,26 @@ export async function importMovie(tmdbId: number, deps: Dependencies): Promise<M
           biography: '',
           birthDate: null,
           deathDate: null,
-          placeOfBirth: null,
-          profilePath: c.profilePath
+          placeOfBirth: null
         });
         personIdByTmdb.set(c.personTmdbId, personId);
         outcome.peopleImported++;
+
+        // Person photo (best-effort, §13): download the TMDB profile image and
+        // upload it through the person-photo path so it is served offline after
+        // seeding — mirroring the movie-poster flow. This is what sets the
+        // person's stored photo; a failure is non-fatal.
+        if (c.profilePath) {
+          const photo = await deps.tmdb.getProfileImage(c.profilePath);
+          if (photo) {
+            try {
+              await deps.artwork.uploadPersonPhoto(personId, photo.bytes, photo.contentType);
+              outcome.photosImported++;
+            } catch {
+              // leave the person without an uploaded photo; not fatal
+            }
+          }
+        }
       }
       try {
         await deps.catalogue.upsertCredit({

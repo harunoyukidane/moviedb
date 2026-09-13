@@ -10,6 +10,7 @@
     <nav aria-label="Primary">
       <a href="/movies" aria-current={$page.url.pathname.startsWith('/movies') ? 'page' : undefined}>Movies</a>
       <a href="/people" aria-current={$page.url.pathname.startsWith('/people') ? 'page' : undefined}>People</a>
+      <a href="/about" aria-current={$page.url.pathname.startsWith('/about') ? 'page' : undefined}>About</a>
     </nav>
   </div>
 </header>
@@ -17,6 +18,12 @@
 <main id="main" class="container">
   <slot />
 </main>
+
+<footer class="site-footer">
+  <div class="container">
+    <p>This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
+  </div>
+</footer>
 
 <style>
   .skip-link {
@@ -57,4 +64,11 @@
     color: var(--accent);
     font-weight: 600;
   }
+  .site-footer {
+    border-top: 1px solid var(--border);
+    margin-top: var(--sp-5);
+    color: var(--text-muted);
+    font-size: 0.85rem;
+  }
+  .site-footer p { margin: var(--sp-2) 0; }
 </style>

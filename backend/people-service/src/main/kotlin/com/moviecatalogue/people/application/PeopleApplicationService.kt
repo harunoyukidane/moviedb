@@ -52,10 +52,28 @@ class PeopleApplicationService(
 
     @Transactional(readOnly = true)
     fun searchPeople(command: SearchPeopleCommand): SearchPeopleResult {
-        val query = PersonRules.normalizeQuery(command.query)
         val limit = PersonRules.clampLimit(command.limit)
         val offset = PersonRules.clampOffset(command.offset)
+        val raw = command.query?.trim().orEmpty()
 
+        // A blank query means "list all people" (paged), so the Catalogue's
+        // `people` list query has a backing read. A non-blank query searches names.
+        if (raw.isEmpty()) {
+            val total = repository.count()
+            val page = repository.findAll(
+                PageRequest.of(offset / limit, limit, org.springframework.data.domain.Sort.by("name").ascending()),
+            )
+            // offset may not be a multiple of limit; slice defensively.
+            val results = if (offset % limit == 0) {
+                page.content
+            } else {
+                repository.findAll(PageRequest.of(0, offset + limit, org.springframework.data.domain.Sort.by("name").ascending()))
+                    .content.drop(offset).take(limit)
+            }
+            return SearchPeopleResult(results.map { it.toView() }, total)
+        }
+
+        val query = PersonRules.normalizeQuery(raw)
         val pattern = PersonSearch.containsPattern(query)
         val total = repository.countByNamePattern(pattern)
         // offset may not be a multiple of limit, so fetch offset+limit rows in a

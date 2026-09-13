@@ -11,11 +11,10 @@ import java.io.ByteArrayInputStream
 import java.util.UUID
 
 /**
- * Person profile-photo upload/delete (ADR-12 hybrid). Uses the same validated
- * ArtworkStore path as movie artwork. The resulting storage key is written to
- * `person.profile_path`; an uploaded photo therefore takes precedence over any
- * imported TMDB URL. Replacing/deleting an uploaded photo removes the old local
- * file; a TMDB URL is external and is simply overwritten (nothing to delete).
+ * Person profile-photo upload/delete. `person.profile_path` holds the uploaded
+ * photo's storage key (or null). The importer downloads TMDB profile images and
+ * uploads them through this same validated path, so a seeded person's photo is a
+ * real uploaded key — there is no raw-TMDB-URL variant to distinguish anymore.
  */
 @Service
 class PersonPhotoUseCases(
@@ -24,9 +23,6 @@ class PersonPhotoUseCases(
     private val validator: ImageContentValidator,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
-
-    /** Storage keys are UUID + safe extension; a TMDB profile_path is a URL/path, not this. */
-    private val uploadedKeyRegex = Regex("^[0-9a-fA-F-]{36}\\.(jpg|png|webp)$")
 
     data class PhotoResult(val storageKey: String, val mediaType: String, val byteSize: Long)
 
@@ -40,8 +36,8 @@ class PersonPhotoUseCases(
         person.profilePath = stored.storageKey
         people.saveAndFlush(person)
 
-        // remove the old file only if it was a previously uploaded local key
-        if (previous != null && uploadedKeyRegex.matches(previous)) {
+        // remove the previously stored file, if any
+        if (previous != null && previous != stored.storageKey) {
             if (!store.delete(previous)) {
                 log.warn("old person photo {} not deleted; leaving for cleanup", previous)
             }
@@ -53,26 +49,19 @@ class PersonPhotoUseCases(
     fun deletePhoto(personId: UUID): UUID {
         val person = people.findById(personId).orElseThrow { PersonNotFoundException() }
         val current = person.profilePath
-        if (current == null || !uploadedKeyRegex.matches(current)) {
-            // nothing uploaded to remove; clear any value so the hybrid falls back cleanly
-            person.profilePath = null
-            people.saveAndFlush(person)
-            return personId
-        }
         person.profilePath = null
         people.saveAndFlush(person)
-        if (!store.delete(current)) {
+        if (current != null && !store.delete(current)) {
             log.warn("person photo {} not deleted on removal", current)
         }
         return personId
     }
 
-    /** Returns the storage key if the person has an uploaded photo, else null. */
+    /** The person's photo storage key, or null if they have no photo. */
     @Transactional(readOnly = true)
-    fun uploadedPhotoKey(personId: UUID): String? {
+    fun photoKey(personId: UUID): String? {
         val person = people.findById(personId).orElseThrow { PersonNotFoundException() }
-        val p = person.profilePath
-        return if (p != null && uploadedKeyRegex.matches(p)) p else null
+        return person.profilePath
     }
 
     fun openPhoto(storageKey: String) = store.open(storageKey)

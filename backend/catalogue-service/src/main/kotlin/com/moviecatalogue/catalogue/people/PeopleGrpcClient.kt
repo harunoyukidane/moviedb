@@ -71,6 +71,21 @@ class PeopleGrpcClient(
         read().searchPeople(request).peopleList.map { PersonHit(UUID.fromString(it.id), it.name) }
     }
 
+    override fun searchPeoplePage(query: String?, limit: Int, offset: Int): PersonPage = call {
+        val request = SearchPeopleRequest.newBuilder()
+            .setQuery(query ?: "")
+            .setLimit(limit)
+            .setOffset(offset)
+            .build()
+        val resp = read().searchPeople(request)
+        PersonPage(
+            items = resp.peopleList.map { it.toData() },
+            total = resp.total,
+            limit = limit,
+            offset = offset,
+        )
+    }
+
     override fun createPerson(command: CreatePersonData): PersonData = call {
         val b = CreatePersonRequest.newBuilder()
             .setName(command.name)

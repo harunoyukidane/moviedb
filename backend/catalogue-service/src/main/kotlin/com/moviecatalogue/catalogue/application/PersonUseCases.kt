@@ -2,6 +2,7 @@ package com.moviecatalogue.catalogue.application
 
 import com.moviecatalogue.catalogue.credit.CreditRepository
 import com.moviecatalogue.catalogue.domain.PersonInUseException
+import com.moviecatalogue.catalogue.domain.MovieRules
 import com.moviecatalogue.catalogue.movie.MovieRepository
 import com.moviecatalogue.catalogue.people.CreatePersonData
 import com.moviecatalogue.catalogue.people.PeopleClient
@@ -27,6 +28,10 @@ class PersonUseCases(
 ) {
 
     fun getPerson(id: UUID): PersonData = peopleClient.getPerson(id)
+
+    /** Paged people list/search (blank query = list all), backed by People gRPC. */
+    fun listPeople(query: String?, limit: Int, offset: Int): com.moviecatalogue.catalogue.people.PersonPage =
+        peopleClient.searchPeoplePage(query, MovieRules.clampLimit(limit), MovieRules.clampOffset(offset))
 
     fun createPerson(
         name: String,
