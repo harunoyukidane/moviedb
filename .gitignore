@@ -20,8 +20,10 @@ node_modules/
 .svelte-kit/
 .vite/
 
-# Artwork volume (binary demo assets are not committed)
-artwork/
+# Runtime service data (binary demo assets are not committed). Keep this
+# anchored to service data directories so source packages/routes named
+# "artwork" remain trackable.
+/backend/*/data/
 demo/downloads/
 
 # IDE / OS

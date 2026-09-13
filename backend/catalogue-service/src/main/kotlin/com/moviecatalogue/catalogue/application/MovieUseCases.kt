@@ -1,6 +1,7 @@
 package com.moviecatalogue.catalogue.application
 
 import com.moviecatalogue.catalogue.common.UuidV7
+import com.moviecatalogue.catalogue.common.OffsetPageRequest
 import com.moviecatalogue.catalogue.domain.ConflictException
 import com.moviecatalogue.catalogue.domain.CreditRules
 import com.moviecatalogue.catalogue.domain.MovieRules
@@ -11,7 +12,6 @@ import com.moviecatalogue.catalogue.movie.MovieGenreId
 import com.moviecatalogue.catalogue.movie.MovieGenreRepository
 import com.moviecatalogue.catalogue.movie.MovieRepository
 import com.moviecatalogue.catalogue.reference.GenreCodeRepository
-import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.orm.ObjectOptimisticLockingFailureException
 import org.springframework.stereotype.Service
@@ -33,8 +33,9 @@ class MovieUseCases(
     fun listMovies(limit: Int, offset: Int): MoviePageView {
         val clampedLimit = MovieRules.clampLimit(limit)
         val clampedOffset = MovieRules.clampOffset(offset)
-        val pageNumber = clampedOffset / clampedLimit
-        val page = movies.findAll(PageRequest.of(pageNumber, clampedLimit, Sort.by("title").ascending()))
+        val page = movies.findAll(
+            OffsetPageRequest(clampedLimit, clampedOffset.toLong(), Sort.by("title").ascending()),
+        )
         return MoviePageView(
             items = page.content.map { it.toView() },
             total = page.totalElements,

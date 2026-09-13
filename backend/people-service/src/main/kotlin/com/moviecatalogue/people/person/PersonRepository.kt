@@ -36,4 +36,8 @@ interface PersonRepository : JpaRepository<Person, UUID> {
         """,
     )
     fun countByNamePattern(@Param("pattern") pattern: String): Long
+
+    /** Storage keys currently referenced by person profile metadata. */
+    @Query("SELECT p.profilePath FROM Person p WHERE p.profilePath IS NOT NULL")
+    fun findAllProfilePaths(): List<String>
 }

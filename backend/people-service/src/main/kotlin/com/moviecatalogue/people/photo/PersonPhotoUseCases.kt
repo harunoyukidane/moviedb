@@ -7,6 +7,7 @@ import com.moviecatalogue.people.person.PersonRepository
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.transaction.support.TransactionTemplate
 import java.io.ByteArrayInputStream
 import java.util.UUID
 
@@ -21,22 +22,35 @@ class PersonPhotoUseCases(
     private val people: PersonRepository,
     private val store: ArtworkStore,
     private val validator: ImageContentValidator,
+    private val transactionTemplate: TransactionTemplate,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
     data class PhotoResult(val storageKey: String, val mediaType: String, val byteSize: Long)
 
-    @Transactional
     fun uploadPhoto(personId: UUID, bytes: ByteArray): PhotoResult {
-        val person = people.findById(personId).orElseThrow { PersonNotFoundException() }
+        if (!people.existsById(personId)) throw PersonNotFoundException()
         val validated = validator.validate(bytes)
         val stored = store.put(ByteArrayInputStream(validated.bytes), validated.format.extension)
 
-        val previous = person.profilePath
-        person.profilePath = stored.storageKey
-        people.saveAndFlush(person)
+        // The database swap owns the reference. If it fails, compensate the new
+        // object immediately; only delete the old object after the commit.
+        val previous = try {
+            transactionTemplate.execute {
+                val person = people.findById(personId).orElseThrow { PersonNotFoundException() }
+                val oldKey = person.profilePath
+                person.profilePath = stored.storageKey
+                people.saveAndFlush(person)
+                oldKey
+            }
+        } catch (e: Exception) {
+            if (!store.delete(stored.storageKey)) {
+                log.warn("failed to compensate new person photo {}", stored.storageKey)
+            }
+            throw e
+        }
 
-        // remove the previously stored file, if any
+        // The transaction has committed; the old object is no longer referenced.
         if (previous != null && previous != stored.storageKey) {
             if (!store.delete(previous)) {
                 log.warn("old person photo {} not deleted; leaving for cleanup", previous)
@@ -45,12 +59,14 @@ class PersonPhotoUseCases(
         return PhotoResult(stored.storageKey, validated.format.mediaType, stored.byteSize)
     }
 
-    @Transactional
     fun deletePhoto(personId: UUID): UUID {
-        val person = people.findById(personId).orElseThrow { PersonNotFoundException() }
-        val current = person.profilePath
-        person.profilePath = null
-        people.saveAndFlush(person)
+        val current = transactionTemplate.execute {
+            val person = people.findById(personId).orElseThrow { PersonNotFoundException() }
+            val oldKey = person.profilePath
+            person.profilePath = null
+            people.saveAndFlush(person)
+            oldKey
+        }
         if (current != null && !store.delete(current)) {
             log.warn("person photo {} not deleted on removal", current)
         }

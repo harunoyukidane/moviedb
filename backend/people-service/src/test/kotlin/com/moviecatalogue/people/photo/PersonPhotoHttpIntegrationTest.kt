@@ -55,6 +55,7 @@ class PersonPhotoHttpIntegrationTest {
     @Autowired lateinit var rest: TestRestTemplate
     @Autowired lateinit var people: PersonRepository
     @Autowired lateinit var store: ArtworkStore
+    @Autowired lateinit var sweeper: PersonPhotoOrphanSweeper
     @LocalServerPort var port: Int = 0
 
     @BeforeEach
@@ -156,5 +157,24 @@ class PersonPhotoHttpIntegrationTest {
         val personId = newPerson()
         assertThat(rest.getForEntity("${base()}/api/people/$personId/photo", ByteArray::class.java).statusCode)
             .isEqualTo(HttpStatus.NOT_FOUND)
+    }
+
+    @Test
+    fun `serving metadata whose object is missing returns 404`() {
+        val personId = newPerson()
+        upload(personId, png(), "face.png", "image/png")
+        val key = people.findById(personId).get().profilePath!!
+        store.delete(key)
+
+        assertThat(rest.getForEntity("${base()}/api/people/$personId/photo", ByteArray::class.java).statusCode)
+            .isEqualTo(HttpStatus.NOT_FOUND)
+    }
+
+    @Test
+    fun `orphan sweeper removes unreferenced photo objects`() {
+        val orphan = store.put(png().inputStream(), "png")
+
+        assertThat(sweeper.sweepOnce()).isEqualTo(1)
+        assertThat(store.exists(orphan.storageKey)).isFalse()
     }
 }

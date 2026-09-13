@@ -1,13 +1,8 @@
 package com.moviecatalogue.catalogue.graphql
 
 import com.moviecatalogue.catalogue.application.MovieUseCases
-import com.moviecatalogue.catalogue.application.ReferenceUseCases
-import com.moviecatalogue.catalogue.artwork.ArtworkRepository
-import com.moviecatalogue.catalogue.credit.CreditRepository
+import com.moviecatalogue.catalogue.application.MovieReadService
 import com.moviecatalogue.catalogue.domain.CreditCategory
-import com.moviecatalogue.catalogue.movie.MovieGenreRepository
-import com.moviecatalogue.catalogue.reference.CreditRoleCodeRepository
-import com.moviecatalogue.catalogue.reference.GenreCodeRepository
 import org.dataloader.DataLoader
 import org.springframework.graphql.data.method.annotation.Argument
 import org.springframework.graphql.data.method.annotation.QueryMapping
@@ -25,12 +20,7 @@ import com.moviecatalogue.catalogue.application.PersonRef
 @Controller
 class MovieController(
     private val movieUseCases: MovieUseCases,
-    private val referenceUseCases: ReferenceUseCases,
-    private val credits: CreditRepository,
-    private val movieGenres: MovieGenreRepository,
-    private val genreCodes: GenreCodeRepository,
-    private val roleCodes: CreditRoleCodeRepository,
-    private val artwork: ArtworkRepository,
+    private val movieReads: MovieReadService,
 ) {
 
     @QueryMapping
@@ -48,29 +38,22 @@ class MovieController(
     // --- Movie nested fields ---------------------------------------------
 
     @SchemaMapping(typeName = "Movie", field = "genres")
-    fun genres(movie: MovieGql): List<GenreCodeGql> {
-        val codes = movieGenres.findAllByIdMovieId(UUID.fromString(movie.id)).map { it.id.genreCode }
-        if (codes.isEmpty()) return emptyList()
-        return genreCodes.findAllById(codes).sortedBy { it.displayOrder }.map { it.toGql() }
-    }
+    fun genres(movie: MovieGql): List<GenreCodeGql> =
+        movieReads.genres(UUID.fromString(movie.id)).map { it.toGql() }
 
     @SchemaMapping(typeName = "Movie", field = "cast")
     fun cast(movie: MovieGql): List<MovieCreditGql> =
-        credits.findAllByMovieId(UUID.fromString(movie.id))
-            .filter { it.category == CreditCategory.CAST }
-            .sortedWith(compareBy({ it.billingOrder ?: Int.MAX_VALUE }, { it.id }))
+        movieReads.credits(UUID.fromString(movie.id), CreditCategory.CAST)
             .map { it.toGql() }
 
     @SchemaMapping(typeName = "Movie", field = "creators")
     fun creators(movie: MovieGql): List<MovieCreditGql> =
-        credits.findAllByMovieId(UUID.fromString(movie.id))
-            .filter { it.category == CreditCategory.CREW }
-            .sortedWith(compareBy({ it.roleCode }, { it.billingOrder ?: Int.MAX_VALUE }, { it.id }))
+        movieReads.credits(UUID.fromString(movie.id), CreditCategory.CREW)
             .map { it.toGql() }
 
     @SchemaMapping(typeName = "Movie", field = "artwork")
     fun artwork(movie: MovieGql): ArtworkGql? {
-        val asset = artwork.findByMovieId(UUID.fromString(movie.id)) ?: return null
+        val asset = movieReads.artwork(UUID.fromString(movie.id)) ?: return null
         // phase 4 serves bytes at /api/artwork/{id}; expose the stable URL now.
         return asset.toGql(url = "/api/artwork/${asset.id}")
     }
@@ -79,8 +62,8 @@ class MovieController(
 
     @SchemaMapping(typeName = "MovieCredit", field = "role")
     fun role(credit: MovieCreditGql): CreditRoleCodeGql =
-        roleCodes.findById(credit.roleCode).map { it.toGql() }
-            .orElseThrow { IllegalStateException("role ${credit.roleCode} missing") }
+        movieReads.role(credit.roleCode)?.toGql()
+            ?: error("role ${credit.roleCode} missing")
 
     /**
      * Resolves the credit's person via the DataLoader so all credits on the page

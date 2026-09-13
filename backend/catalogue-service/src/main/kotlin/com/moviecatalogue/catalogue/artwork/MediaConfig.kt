@@ -1,4 +1,4 @@
-package com.moviecatalogue.people.photo
+package com.moviecatalogue.catalogue.artwork
 
 import com.moviecatalogue.media.ArtworkStore
 import com.moviecatalogue.media.ImageContentValidator
@@ -11,21 +11,20 @@ import org.springframework.transaction.support.TransactionTemplate
 import java.nio.file.Path
 
 /**
- * Wires the shared media components for person-photo upload (ADR-12 hybrid).
- * Reuses the exact same validated ArtworkStore path as movie artwork. Photos are
- * written to the People service's own artwork volume subtree.
+ * Wires the shared media components (§10). The artwork volume path comes from
+ * config so Compose can mount a managed volume (ARTWORK_STORAGE_PATH).
  */
 @Configuration
-class PhotoMediaConfig {
+class MediaConfig {
 
     @Bean
-    fun artworkStore(@Value("\${artwork.storage-path:./data/person-artwork}") path: String): ArtworkStore =
+    fun artworkStore(@Value("\${artwork.storage-path:./data/artwork}") path: String): ArtworkStore =
         LocalArtworkStore(Path.of(path))
 
     @Bean
     fun imageContentValidator(): ImageContentValidator = ImageContentValidator()
 
     @Bean
-    fun personPhotoTransactionTemplate(txManager: PlatformTransactionManager): TransactionTemplate =
+    fun artworkTransactionTemplate(txManager: PlatformTransactionManager): TransactionTemplate =
         TransactionTemplate(txManager)
 }

@@ -57,6 +57,7 @@ class PersonPhotoController(
         @org.springframework.web.bind.annotation.RequestHeader(value = HttpHeaders.IF_NONE_MATCH, required = false) ifNoneMatch: String?,
     ): ResponseEntity<StreamingResponseBody> {
         val key = photoUseCases.photoKey(personId) ?: return ResponseEntity.notFound().build()
+        if (!store.exists(key)) return ResponseEntity.notFound().build()
         val etag = "\"$key\""
         val cacheControl = CacheControl.maxAge(Duration.ofDays(30)).cachePublic()
         if (ifNoneMatch != null && ifNoneMatch.split(",").map { it.trim() }.any { it == etag || it == "*" }) {
@@ -68,7 +69,8 @@ class PersonPhotoController(
             key.endsWith(".webp") -> "image/webp"
             else -> "image/jpeg"
         }
-        val body = StreamingResponseBody { out -> store.open(key)?.use { it.copyTo(out) } }
+        val input = store.open(key) ?: return ResponseEntity.notFound().build()
+        val body = StreamingResponseBody { out -> input.use { it.copyTo(out) } }
         return ResponseEntity.ok()
             .eTag(etag)
             .cacheControl(cacheControl)
