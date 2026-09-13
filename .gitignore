@@ -32,3 +32,5 @@ demo/downloads/
 *.iml
 .DS_Store
 Thumbs.db
+backend/build.log
+backend/media-deps.log
