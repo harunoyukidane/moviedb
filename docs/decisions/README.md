@@ -15,5 +15,7 @@ ADRs capture the significant, hard-to-reverse decisions and their rationale. Num
 11. [SvelteKit server-side BFF](0011-sveltekit-bff.md)
 12. [Person profile images — stored locally, seeded from TMDB](0012-person-image-hybrid.md)
 13. [Credit last-write-wins](0013-credit-last-write-wins.md)
+14. [Use MinIO object storage for deployed artwork](0014-minio-object-storage.md)
 
-ADRs 1–9 are recorded with evidence as their phases land.
+Accepted ADRs include implementation evidence as their phases land. ADR-14 is an
+accepted v2 design whose implementation evidence is pending the MinIO cutover.

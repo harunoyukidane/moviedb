@@ -6,7 +6,7 @@ This document specifies the "v2" enhancement set for the existing MovieDB applic
 
 The v2 scope covers seven areas: iconography for credit actions and view controls; a cluster/list view toggle for the movie listing; expanded seeded content plus genre and year filtering; a MyDramaList-style cast and credits presentation on the movie detail page; a comment section on movie detail pages; a photo-augmented people list; and a migration of artwork storage from the local filesystem to a MinIO (S3-compatible) backend behind the existing `ArtworkStore` abstraction.
 
-These requirements describe observable system behavior only. Technical realization (component structure, GraphQL schema additions, storage client selection) is deferred to the design phase, except where the existing architecture constrains the observable outcome.
+These requirements describe observable system behavior. The corresponding technical realization is now defined in `docs/architecture.md`, `docs/code_structure.md`, `docs/spec/TECHNICAL_SPECIFICATION v0.1.md` (version 0.2), ADR-14, and the prioritized `docs/movie-db-v2/tasks.md` backlog.
 
 ## Glossary
 
