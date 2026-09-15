@@ -57,9 +57,9 @@ class CatalogueGraphQlIntegrationTest {
         val getPeopleCalls = AtomicInteger(0)
         var unavailable = false
 
-        fun seed(name: String): UUID {
+        fun seed(name: String, profilePath: String? = null): UUID {
             val id = UUID.randomUUID()
-            store[id] = PersonData(id, null, name, "", null, null, null, null, 0)
+            store[id] = PersonData(id, null, name, "", null, null, null, profilePath, 0)
             return id
         }
 
@@ -378,6 +378,22 @@ class CatalogueGraphQlIntegrationTest {
             """query { people(query: "Ali", page:{limit:20,offset:0}) { total items { name } } }""",
         ).execute().path("people.items[*].name").entityList(String::class.java).get()
         assertThat(filtered).containsExactlyInAnyOrder("Alice Walker", "Alicia Keys")
+    }
+
+    @Test
+    fun `person photoUrl is the same-origin proxy path when a photo exists, null otherwise`() {
+        fakePeople.seed("Has Photo", profilePath = "stored-key-123")
+        fakePeople.seed("No Photo")
+
+        val result = tester.document(
+            """query { people(page:{limit:20,offset:0}) { items { id name photoUrl } } }""",
+        ).execute()
+        val items = result.path("people.items").entityList(Any::class.java).get()
+        @Suppress("UNCHECKED_CAST")
+        val byName = (items as List<Map<String, Any?>>).associateBy { it["name"] }
+
+        assertThat(byName["Has Photo"]!!["photoUrl"]).isEqualTo("/api/people/${byName["Has Photo"]!!["id"]}/photo")
+        assertThat(byName["No Photo"]!!["photoUrl"]).isNull()
     }
 
     @Test

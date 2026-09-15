@@ -53,6 +53,12 @@ fun CreditView.toGql() = MovieCreditGql(
     personId = person.id.toString(),
 )
 
+/**
+ * The same-origin proxy path (never a raw storage URL) that the frontend already
+ * serves person photos from (`/api/people/{id}/photo`, see interfaces.md); null when
+ * the person has no uploaded photo. Mirrors how ArtworkAsset.toGql's `url` embeds the
+ * frontend's own proxy path for movie artwork.
+ */
 fun PersonData.toGql() = PersonGql(
     id = id.toString(),
     name = name,
@@ -61,6 +67,7 @@ fun PersonData.toGql() = PersonGql(
     deathDate = deathDate,
     placeOfBirth = placeOfBirth,
     version = version,
+    photoUrl = if (profilePath != null) "/api/people/$id/photo" else null,
 )
 
 fun PersonCreditView.toGql() = PersonCreditGql(

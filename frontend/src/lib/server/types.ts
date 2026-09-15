@@ -80,6 +80,8 @@ export interface Person {
   deathDate?: string | null;
   placeOfBirth?: string | null;
   version: number;
+  /** Same-origin proxy path (`/api/people/{id}/photo`), or null when the person has no uploaded photo. */
+  photoUrl?: string | null;
   credits: PersonCredit[];
 }
 

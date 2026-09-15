@@ -1,11 +1,18 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import StateBanner from '$lib/components/StateBanner.svelte';
+  import PersonListRow from '$lib/features/people/PersonListRow.svelte';
 
   export let data: PageData;
   $: page = data.page;
   $: hasPrev = page.offset > 0;
   $: hasNext = page.offset + page.limit < page.total;
+
+  function datesFor(person: { birthDate?: string | null; deathDate?: string | null }): string | null {
+    if (!person.birthDate) return null;
+    const born = person.birthDate.slice(0, 4);
+    return person.deathDate ? `${born}–${person.deathDate.slice(0, 4)}` : born;
+  }
 </script>
 
 <div class="head-row">
@@ -21,10 +28,7 @@
   <ul class="people-list" aria-label="People">
     {#each page.items as person (person.id)}
       <li>
-        <a href={`/people/${person.id}`}>
-          <span class="name">{person.name}</span>
-          {#if person.birthDate}<span class="dates">{person.birthDate.slice(0, 4)}{person.deathDate ? `–${person.deathDate.slice(0, 4)}` : ''}</span>{/if}
-        </a>
+        <PersonListRow id={person.id} name={person.name} photoUrl={person.photoUrl} dates={datesFor(person)} />
       </li>
     {/each}
   </ul>
@@ -39,9 +43,6 @@
   .head-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--sp-2); }
   .new-link { background: var(--accent); color: var(--accent-contrast); padding: var(--sp-1) var(--sp-2); border-radius: var(--radius); font-weight: 600; text-decoration: none; }
   .people-list { list-style: none; padding: 0; }
-  .people-list li a { display: flex; justify-content: space-between; padding: var(--sp-2); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: var(--sp-1); text-decoration: none; color: var(--text); background: var(--surface); }
-  .name { font-weight: 600; }
-  .dates { color: var(--text-muted); }
   .pager { display: flex; gap: var(--sp-2); align-items: center; justify-content: center; margin-top: var(--sp-3); }
   .pager .count { color: var(--text-muted); }
 </style>

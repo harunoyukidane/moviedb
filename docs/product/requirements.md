@@ -130,9 +130,13 @@ No `movie_comment` table or GraphQL fields exist yet.
 3. IF text is empty/whitespace-only or exceeds the maximum length, THEN the submission is rejected with a validation message/error.
 4. Comments are displayed in reverse chronological order; an empty state invites the first comment.
 
-### Requirement 6: People List Photo Display — status: not started
+### Requirement 6: People List Photo Display — status: done (pending backend rebuild/deploy)
 
-No `photoUrl` field exists on the People list projection yet.
+`Person.photoUrl` in `schema.graphqls`; `PersonListRow.svelte`. See
+[frontend.md](../plans/v2/frontend.md) (V2-11) and
+[verification/v2-acceptance.md](../verification/v2-acceptance.md) — the
+running Catalogue container has not yet been rebuilt with this schema
+change (Gradle build unavailable in the authoring sandbox).
 
 1. WHERE the People Listing displays a person, THE People Listing SHALL display the person's photo (or placeholder) on the left and name on the right.
 2. Existing pagination controls and displayed total count are retained.

@@ -48,6 +48,7 @@ data class PersonGql(
     val deathDate: LocalDate?,
     val placeOfBirth: String?,
     val version: Long,
+    val photoUrl: String?,
 )
 
 data class PersonCreditGql(

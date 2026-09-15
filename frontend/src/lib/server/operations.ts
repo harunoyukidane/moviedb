@@ -152,7 +152,7 @@ export function listPeople(query: string | null, limit: number, offset: number, 
     `query($query: String, $limit: Int!, $offset: Int!) {
       people(query: $query, page: { limit: $limit, offset: $offset }) {
         total limit offset
-        items { id name birthDate deathDate version }
+        items { id name birthDate deathDate version photoUrl }
       }
     }`,
     { query, limit, offset },

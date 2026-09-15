@@ -26,7 +26,7 @@ flowchart LR
 |---|---|---|
 | MinIO storage adapter, config-driven selection, Compose cutover, failure/rollback verification | [storage.md](storage.md) | ✅ done |
 | Movie filters, expanded seed, comments | [catalogue.md](catalogue.md) | 🟡 partial (filters + seed done; comments remain) |
-| View toggle, cast/credits presentation, people photos, action icons | [frontend.md](frontend.md) | 🟡 partial (view toggle + credits done; photos/icons remain) |
+| View toggle, cast/credits presentation, people photos, action icons | [frontend.md](frontend.md) | 🟡 partial (view toggle + credits + people photos done, backend deploy pending; icons remain) |
 | E2E, accessibility, Compose smoke test, docs/release checklist | [release.md](release.md) | ☐ not started (blocked on the above) |
 
 Filters/frontend/photos may proceed independently now that MinIO is stable.

@@ -6,9 +6,10 @@ canonical_for: v2-frontend-plan
 last_verified: 2026-09-15
 ```
 
-Status: 🟡 in progress — V2-08/V2-09/V2-10 done (requirements 2 and 4
-complete); V2-11/V2-12 remain. The icon SVG assets themselves already exist
-under `frontend/src/resources/`. Corresponds to
+Status: 🟡 in progress — V2-08/V2-09/V2-10/V2-11 done (requirements 2, 4, and
+6 complete; V2-11's backend rebuild/deploy is still pending, see its section
+below); V2-12 remains. The icon SVG assets themselves already exist under
+`frontend/src/resources/`. Corresponds to
 [requirements.md](../../product/requirements.md) requirements 1, 2, 4, and 6.
 
 ## V2-08: Movie-list feature components — done
@@ -94,12 +95,40 @@ states, unavailable-person handling, order preservation). Manually verified
 against the live seeded stack: cast/creator tabs render real TMDB photos,
 and a person with no photo (e.g. "Beau Marks") shows the fallback cleanly.
 
-## V2-11: People listing photos
+## V2-11: People listing photos — done (backend rebuild pending)
 
-- Extend the People list projection/GraphQL shape with a nullable same-origin `photoUrl` (or sufficient profile-photo state for the BFF to construct it).
-- Render a linked person row with photo left and name right.
-- Preserve search, pagination, total count, missing-photo fallback, and keyboard navigation.
-- Add People contract, GraphQL, route, and component tests.
+Added a nullable `Person.photoUrl: String` to the GraphQL schema, computed in
+`PersonData.toGql()` as the existing same-origin proxy path
+(`/api/people/{id}/photo`) when `profilePath != null`, else `null` — mirrors
+how `ArtworkAsset.toGql`'s `url` already embeds the frontend's own proxy
+path for movie artwork. Unlike V2-10 (where the movie-detail credit list
+just attempts the photo URL and falls back on `on:error`), the people
+*listing* needed to know up front whether a photo exists, so a list of many
+rows doesn't fire a 404 request per photo-less person. `operations.ts#listPeople`
+selects `photoUrl`; `lib/features/people/PersonListRow.svelte` renders the
+photo only when present (else the shared `PersonPhotoFallback`), name, and
+optional birth/death-year text, all inside one link — search (`query` param,
+still used by `/api/people-search` autocomplete), pagination, and total
+count are all unchanged since only a field was added to the existing query.
+
+Covered by `MappersTest.kt` (`photoUrl` computation), a
+`CatalogueGraphQlIntegrationTest` case (`photoUrl` present/absent over
+GraphQL), `PersonListRow.test.ts`, and `people/page.server.test.ts`.
+
+**Not yet live-verified**: rebuilding `catalogue-service` requires a host
+Gradle build (`./gradlew :catalogue-service:bootJar`), which fails in this
+sandbox with the same `Unable to establish loopback connection` error seen
+earlier for other backend tasks (confirmed via both Bash and PowerShell, so
+it's environment-level, not tool-specific) — the Docker image only copies a
+host-built jar, it doesn't build inside the container. The frontend
+container was intentionally left on its pre-V2-11 build (which doesn't
+query `photoUrl`) so the live `/people` page keeps working against the
+currently-running, older backend. To finish verifying:
+```
+cd backend && ./gradlew :catalogue-service:bootJar
+cd ../frontend && npm run build
+cd .. && docker compose up -d --build catalogue-service frontend
+```
 
 ## V2-12: Action icons
 
