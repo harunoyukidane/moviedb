@@ -108,6 +108,19 @@ describe('mapping helpers', () => {
     expect(mapGenres(sampleMovie(1))).toEqual(['HORROR']);
   });
 
+  it('maps a movie tagged with several TMDB genre ids to all their controlled codes', () => {
+    const movie = {
+      ...sampleMovie(2),
+      genres: [
+        { id: 28, name: 'Action' },
+        { id: 80, name: 'Crime' },
+        { id: 53, name: 'Thriller' },
+        { id: 9999, name: 'Unmapped' },
+      ],
+    };
+    expect(mapGenres(movie).sort()).toEqual(['ACTION', 'CRIME', 'THRILLER']);
+  });
+
   it('selects top cast + mapped crew, skipping unmapped crew jobs', () => {
     const sel = selectCredits(sampleMovie(1));
     const roles = sel.map((s) => s.roleCode);

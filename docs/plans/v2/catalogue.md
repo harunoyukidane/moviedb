@@ -6,8 +6,9 @@ canonical_for: v2-catalogue-plan
 last_verified: 2026-09-15
 ```
 
-Status: not started. Corresponds to [requirements.md](../../product/requirements.md)
-requirements 3 and 5.
+Status: 🟡 in progress — V2-05/V2-06/V2-07 done (requirement 3 complete);
+V2-13/V2-14 (requirement 5, comments) remain. Corresponds to
+[requirements.md](../../product/requirements.md) requirements 3 and 5.
 
 ## V2-05: Extend the movie-list GraphQL contract — done
 
@@ -47,13 +48,26 @@ preselection, clear-filters link) and `movies/page.server.test.ts`
 (valid/invalid/combined filters, unknown genre and out-of-range year
 ignored, offset retained across pagination, degraded genre-list fallback).
 
-## V2-07: Expand deterministic demo content
+## V2-07: Expand deterministic demo content — done
 
-- Add an append-only Flyway reference-data migration and matching importer mappings for a useful breadth of genres — at minimum Action, Comedy, Crime, Drama, Horror, Mystery, Romance, Thriller — retaining Psychological Horror as the existing editorial genre.
-- Extend the committed TMDB ID manifest to cover the expanded genre set and several release years.
-- Keep importer concurrency, mappings, retry behavior, and idempotency unchanged.
-- Add assertions that the seeded set makes both filters demonstrable.
-- Do not commit downloaded JSON or images; all image bytes go to MinIO through service endpoints.
+Added `V3__expand_genre_reference_data.sql` (append-only; `V2` untouched) with
+seven new controlled genres — Action, Comedy, Crime, Drama, Mystery, Romance,
+Thriller — alongside the existing Horror and the editorial Psychological
+Horror. `demo/importer/src/mappings.ts#GENRE_MAP` gained the matching TMDB
+genre-id mappings (28/35/80/18/9648/10749/53); `mapGenres` already assigns
+every matching id a movie carries, so a multi-genre TMDB movie now gets
+multiple codes automatically. `demo/tmdb-movie-ids.txt` grew from 12
+(Horror-only) to 26 curated, TMDB-verified ids spanning 1922–2019 and every
+mapped genre, keeping the original Horror set untouched. Importer
+concurrency/retry/idempotency logic (`importer.ts`, `tmdb.ts`) is unchanged —
+only the mapping table and manifest content moved. Demonstrability is
+covered by tests rather than a live TMDB run: a Catalogue schema integration
+test asserts all nine genre codes are seeded; importer tests assert
+`GENRE_MAP` covers every non-editorial genre, a multi-genre TMDB payload maps
+to multiple codes, and the committed manifest parses cleanly with no
+silently-dropped lines and stays above a minimum size. No downloaded
+JSON/images are committed; posters and photos still go to MinIO through the
+existing service endpoints at import time.
 
 ## V2-13: Comment persistence model
 

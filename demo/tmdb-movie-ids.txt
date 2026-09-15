@@ -1,19 +1,37 @@
-# Stable TMDB movie IDs for the demo catalogue (§12.1).
-# Chosen as well-known horror titles so their TMDB genre (27 = Horror) maps to the
-# seeded controlled GenreCode. Fixed IDs => a semantically stable catalogue.
-# One id per line; blank lines and '#' comments are ignored.
+# Stable TMDB movie IDs for the demo catalogue (§12.1, V2-07).
+# Fixed IDs => a semantically stable catalogue. Chosen to exercise every
+# controlled genre (demo/importer/src/mappings.ts GENRE_MAP) across several
+# distinct release years, so both the genre and release-year filters are
+# demonstrable. One id per line; blank lines and '#' comments are ignored.
 #
-# Do NOT use the full daily TMDB id export; keep this to ~10-15 curated ids.
+# Keep this curated (well-known, stable titles) rather than a bulk export.
 
-694    # The Shining
-539    # Psycho
-348    # Alien
-9552   # The Exorcist
-11423  # The Thing
+# --- Horror (original curated set; TMDB genre 27) ---
+694    # The Shining (1980)
+539    # Psycho (1960)
+348    # Alien (1979)
+9552   # The Exorcist (1973)
+11423  # The Thing (1982)
 609    # Nosferatu (1922)
-4488   # Friday the 13th
-10331  # Rosemary's Baby
-805    # The Silence of the Lambs
-1092   # The Birds
+4488   # Friday the 13th (1978)
+10331  # Rosemary's Baby (1968)
+805    # The Silence of the Lambs (1991)
+1092   # The Birds (1963)
 3010   # Suspiria (1977)
 1091   # The Fly (1986)
+
+# --- Action / Thriller / Crime / Drama / Comedy / Mystery / Romance (V2-07) ---
+562    # Die Hard (1988) - Action, Thriller
+76341  # Mad Max: Fury Road (2015) - Action
+155    # The Dark Knight (2008) - Action, Crime, Thriller
+137    # Groundhog Day (1993) - Comedy, Romance
+120467 # The Grand Budapest Hotel (2014) - Comedy, Drama
+680    # Pulp Fiction (1994) - Comedy, Crime, Thriller
+238    # The Godfather (1972) - Crime, Drama
+13     # Forrest Gump (1994) - Comedy, Drama, Romance
+278    # The Shawshank Redemption (1994) - Crime, Drama
+807    # Se7en (1995) - Crime, Mystery, Thriller
+546554 # Knives Out (2019) - Comedy, Crime, Mystery
+597    # Titanic (1997) - Drama, Romance
+313369 # La La Land (2016) - Comedy, Drama, Romance
+213    # North by Northwest (1959) - Thriller

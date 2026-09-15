@@ -1,7 +1,11 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { TmdbClient, type FetchFn } from './tmdb.js';
 import { InvalidTokenError, NotFoundError, TransientError, MalformedResponseError, parseManifest } from './errors.js';
 import { loadConfig } from './config.js';
+import { GENRE_MAP } from './mappings.js';
 
 const config = loadConfig({ TMDB_READ_TOKEN: 'test-token', IMPORT_MAX_RETRIES: '3', IMPORT_REQUEST_TIMEOUT_MS: '50' });
 
@@ -104,5 +108,32 @@ describe('parseManifest', () => {
   it('parses ids, ignoring comments/blanks and de-duplicating', () => {
     const ids = parseManifest('# header\n694  # The Shining\n\n539\n694\nnot-a-number\n');
     expect(ids).toEqual([694, 539]);
+  });
+});
+
+describe('committed demo manifest (V2-07: genre/year filters demonstrable)', () => {
+  const manifestPath = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'tmdb-movie-ids.txt');
+  const contents = readFileSync(manifestPath, 'utf8');
+  const ids = parseManifest(contents);
+
+  it('has no malformed/duplicate id lines silently dropped', () => {
+    const nonCommentLines = contents
+      .split(/\r?\n/)
+      .map((l) => l.replace(/#.*$/, '').trim())
+      .filter((l) => l.length > 0);
+    expect(ids.length).toBe(nonCommentLines.length);
+  });
+
+  it('is broad enough to exercise every mapped genre and several release years', () => {
+    // Broadened well past the original single-genre curated set (§12.1) so the
+    // movie-listing genre/year filters (V2-05/V2-06) have demonstrable data.
+    expect(ids.length).toBeGreaterThanOrEqual(24);
+  });
+
+  it('GENRE_MAP covers every non-editorial controlled genre (PSYCHOLOGICAL_HORROR is editorial-only)', () => {
+    const mappedCodes = new Set(Object.values(GENRE_MAP));
+    expect(mappedCodes).toEqual(
+      new Set(['HORROR', 'ACTION', 'COMEDY', 'CRIME', 'DRAMA', 'MYSTERY', 'ROMANCE', 'THRILLER']),
+    );
   });
 });

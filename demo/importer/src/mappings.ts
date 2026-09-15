@@ -2,17 +2,24 @@
 // GenreCode / CreditRoleCode tables (§12.3). Anything not mapped here is skipped
 // rather than creating uncontrolled code rows from arbitrary remote strings.
 //
-// The seeded controlled codes (Flyway V2) are intentionally small:
-//   Genres: HORROR, PSYCHOLOGICAL_HORROR
+// The seeded controlled codes (Flyway V2 + V3) are:
+//   Genres: HORROR, PSYCHOLOGICAL_HORROR, ACTION, COMEDY, CRIME, DRAMA,
+//           MYSTERY, ROMANCE, THRILLER
 //   Roles:  ACTOR (CAST), DIRECTOR, WRITER, PRODUCER (CREW)
 // The demo manifest is chosen to exercise these. Extend both the code tables and
 // these maps together if you broaden the manifest.
 
 /** TMDB numeric genre id -> internal GenreCode. Unmapped ids are ignored. */
 export const GENRE_MAP: Record<number, string> = {
-  27: 'HORROR'
-  // 9648 (Mystery), 53 (Thriller) etc. intentionally unmapped until the code
-  // table grows; PSYCHOLOGICAL_HORROR has no TMDB id and is assigned editorially.
+  27: 'HORROR',
+  28: 'ACTION',
+  35: 'COMEDY',
+  80: 'CRIME',
+  18: 'DRAMA',
+  9648: 'MYSTERY',
+  10749: 'ROMANCE',
+  53: 'THRILLER'
+  // PSYCHOLOGICAL_HORROR has no TMDB id and is assigned editorially.
 };
 
 /**

@@ -93,9 +93,11 @@ Icon SVGs exist under `frontend/src/resources/` but are not yet wired into the U
 2. WHEN a user selects a View Mode, THE Movie Listing SHALL re-render the current set of movies without changing the current pagination offset.
 3. WHILE List View and a movie has no artwork, THE Movie Listing SHALL display the existing poster fallback placeholder.
 
-### Requirement 3: Expanded Content and Movie Filtering — status: not started
+### Requirement 3: Expanded Content and Movie Filtering — status: done
 
-No `MovieFilterInput` exists in the GraphQL schema yet.
+`MovieFilterInput` in `schema.graphqls`; filter controls on `/movies`; expanded
+genre seed and TMDB manifest. See [catalogue.md](../plans/v2/catalogue.md)
+(V2-05/V2-06/V2-07) and [verification/v2-acceptance.md](../verification/v2-acceptance.md).
 
 1. THE Catalogue Service SHALL provide a seed dataset spanning multiple distinct Genre Codes.
 2. Genre and release-year filters SHALL combine with AND semantics.

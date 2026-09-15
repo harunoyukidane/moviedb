@@ -84,6 +84,17 @@ class CatalogueSchemaIntegrationTest {
     }
 
     @Test
+    fun `expanded genre seed (V2-07) makes genre and year filters demonstrable`() {
+        val codes = jdbc.queryForList("SELECT code FROM genre_code", String::class.java)
+        // Enough distinct controlled genres for the movie-listing genre filter (§8.1) to be meaningful.
+        assertThat(codes).contains(
+            "HORROR", "PSYCHOLOGICAL_HORROR", "ACTION", "COMEDY", "CRIME", "DRAMA",
+            "MYSTERY", "ROMANCE", "THRILLER",
+        )
+        assertThat(codes.distinct()).hasSameSizeAs(codes)
+    }
+
+    @Test
     fun `cast credit requires character name and crew forbids it`() {
         val movieId = inNewTx { insertMovie() }
         // CAST without character_name -> violates check (isolated tx)
