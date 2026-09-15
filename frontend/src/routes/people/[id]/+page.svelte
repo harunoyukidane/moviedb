@@ -3,6 +3,7 @@
   import { enhance } from '$app/forms';
   import StateBanner from '$lib/components/StateBanner.svelte';
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
+  import IconLink from '$lib/components/IconLink.svelte';
 
   export let data: PageData;
   export let form: ActionData;
@@ -33,7 +34,7 @@
     <div class="title-row">
       <h1>{person.name}</h1>
       <div class="actions">
-        <a class="btn" href={`/people/${person.id}/edit`}>Edit</a>
+        <IconLink icon="edit" href={`/people/${person.id}/edit`} label="Edit person" />
         <button type="button" class="danger" on:click={() => (confirmDeleteOpen = true)}>Delete</button>
       </div>
     </div>
@@ -86,8 +87,7 @@
   .photo-fallback { display: grid; place-items: center; font-size: 3rem; background: var(--surface-2); }
   .edit-link { display: inline-block; margin-top: var(--sp-1); }
   .title-row { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--sp-2); }
-  .actions { display: flex; gap: var(--sp-1); }
-  .btn { background: var(--surface-2); border: 1px solid var(--border); color: var(--text); padding: var(--sp-1) var(--sp-2); border-radius: var(--radius); text-decoration: none; }
+  .actions { display: flex; align-items: center; gap: var(--sp-1); }
   .meta { display: grid; grid-template-columns: auto 1fr; gap: 4px var(--sp-2); }
   .meta dt { color: var(--text-muted); }
   .meta dd { margin: 0; }

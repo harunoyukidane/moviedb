@@ -26,7 +26,7 @@ flowchart LR
 |---|---|---|
 | MinIO storage adapter, config-driven selection, Compose cutover, failure/rollback verification | [storage.md](storage.md) | ✅ done |
 | Movie filters, expanded seed, comments | [catalogue.md](catalogue.md) | 🟡 partial (filters + seed done; comments remain) |
-| View toggle, cast/credits presentation, people photos, action icons | [frontend.md](frontend.md) | 🟡 partial (view toggle + credits + people photos done, backend deploy pending; icons remain) |
+| View toggle, cast/credits presentation, people photos, action icons | [frontend.md](frontend.md) | ✅ done |
 | E2E, accessibility, Compose smoke test, docs/release checklist | [release.md](release.md) | ☐ not started (blocked on the above) |
 
 Filters/frontend/photos may proceed independently now that MinIO is stable.
@@ -44,3 +44,11 @@ comments technically depend on storage or filtering.
 4. Comments use an unauthenticated display name because authentication remains
    out of scope; names limited to 50 Unicode characters, text to 2,000.
 5. V2 comments can be created and read but not edited or individually deleted.
+6. Credit mutation (add/remove) lives only inside the Credit Editor, reached
+   via an edit Icon Asset control on the movie/person detail page — matching
+   the pre-existing read-only-detail-page structure. There is no separate
+   per-Credit edit control for changing an existing credit's
+   role/character/billing; add + remove together are the editing capability.
+   Removing a credit requires confirmation (low-stakes/reversible — the
+   person is not deleted); movie/person deletion keep their own
+   higher-stakes labeled confirmation dialogs, never icon-only.

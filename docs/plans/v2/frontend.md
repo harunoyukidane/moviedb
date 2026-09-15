@@ -6,11 +6,10 @@ canonical_for: v2-frontend-plan
 last_verified: 2026-09-15
 ```
 
-Status: 🟡 in progress — V2-08/V2-09/V2-10/V2-11 done (requirements 2, 4, and
-6 complete; V2-11's backend rebuild/deploy is still pending, see its section
-below); V2-12 remains. The icon SVG assets themselves already exist under
-`frontend/src/resources/`. Corresponds to
-[requirements.md](../../product/requirements.md) requirements 1, 2, 4, and 6.
+**Status: done.** Kept for the record of what was built and tested; see
+[verification/v2-acceptance.md](../../verification/v2-acceptance.md) for
+evidence. Corresponds to [requirements.md](../../product/requirements.md)
+requirements 1, 2, 4, and 6 — all four now satisfied and live-verified.
 
 ## V2-08: Movie-list feature components — done
 
@@ -95,7 +94,7 @@ states, unavailable-person handling, order preservation). Manually verified
 against the live seeded stack: cast/creator tabs render real TMDB photos,
 and a person with no photo (e.g. "Beau Marks") shows the fallback cleanly.
 
-## V2-11: People listing photos — done (backend rebuild pending)
+## V2-11: People listing photos — done
 
 Added a nullable `Person.photoUrl: String` to the GraphQL schema, computed in
 `PersonData.toGql()` as the existing same-origin proxy path
@@ -115,24 +114,59 @@ Covered by `MappersTest.kt` (`photoUrl` computation), a
 `CatalogueGraphQlIntegrationTest` case (`photoUrl` present/absent over
 GraphQL), `PersonListRow.test.ts`, and `people/page.server.test.ts`.
 
-**Not yet live-verified**: rebuilding `catalogue-service` requires a host
-Gradle build (`./gradlew :catalogue-service:bootJar`), which fails in this
-sandbox with the same `Unable to establish loopback connection` error seen
-earlier for other backend tasks (confirmed via both Bash and PowerShell, so
-it's environment-level, not tool-specific) — the Docker image only copies a
-host-built jar, it doesn't build inside the container. The frontend
-container was intentionally left on its pre-V2-11 build (which doesn't
-query `photoUrl`) so the live `/people` page keeps working against the
-currently-running, older backend. To finish verifying:
-```
-cd backend && ./gradlew :catalogue-service:bootJar
-cd ../frontend && npm run build
-cd .. && docker compose up -d --build catalogue-service frontend
-```
+The `catalogue-service` rebuild needed to deploy this schema change required
+a host Gradle build, which could not run in the authoring sandbox (same
+`Unable to establish loopback connection` error seen for other backend
+tasks, confirmed via both Bash and PowerShell — environment-level, not
+tool-specific). The user ran `./gradlew :catalogue-service:bootJar` and
+`docker compose up -d --build catalogue-service frontend` themselves; once
+that was live, photos were confirmed rendering correctly for people with a
+profile photo (real TMDB images) and the shared fallback for people without
+one (verified via the accessibility tree — screenshot capture was flaky at
+the time on this long, lazy-image-loading list, but the DOM/a11y evidence is
+authoritative for correctness).
 
-## V2-12: Action icons
+## V2-12: Action icons — done
 
-- Introduce a small accessible icon-control component or a consistent inline-SVG pattern.
-- Replace credit edit/delete text controls where required, retaining explicit accessible names/tooltips where useful.
-- Keep movie deletion a labeled destructive confirmation, never an icon-only action.
-- Verify focus return, confirmation behavior, contrast, target size, and screen-reader names.
+Added `lib/components/Icon.svelte` (the one place mapping a short name to
+path data from `frontend/src/resources/*.svg`, `fill="currentColor"`),
+`IconButton.svelte` (real `<button>`, required `label` prop becomes both
+`aria-label` and `title`, `danger` variant, 44×44px — WCAG 2.5.5 minimum
+target size), and `IconLink.svelte` (the same pattern for a real `<a>`).
+Refactored `MovieViewToggle` (V2-09) to use `Icon` instead of duplicated
+inline SVG, for one consistent pattern app-wide.
+
+Wired in three places:
+- Movie/person detail "Edit" text buttons → `IconLink` (pencil icon,
+  `label="Edit movie"`/`"Edit person"`), navigating to the same
+  `/edit` routes as before.
+- Per-credit "Remove from movie" text link → `IconButton` (trash icon,
+  danger variant), same accessible name as before
+  (`Remove {name} from movie}`) so the existing Playwright e2e assertion
+  keeps working unchanged in substance.
+- Movie/person deletion stayed a labeled text button + `ConfirmDialog` —
+  deliberately never converted to an icon (requirement 1 criterion 4).
+
+While verifying against `requirements.md` (Requirement 1) rather than just
+the informal task bullets above, found the formal requirement also asks for
+confirmation before a credit-removal icon actually removes the credit,
+which the app didn't have (direct submit). Clarified the intended design
+with the user: credit mutations (add/remove) live only behind the Edit
+icon on the Credit Editor — matching the existing structure, where the
+detail page is already read-only and all mutations already lived on
+`/edit` — and per-credit removal now goes through a `ConfirmDialog`
+("Remove this credit? ... The person themselves is not deleted, and the
+credit can be added back later.") before submitting, using one shared
+hidden form + dialog rather than one per row. `journey.spec.ts`'s e2e step
+6 updated to click through the added confirmation step. A per-credit "edit
+fields" dialog (changing role/character/billing) was explicitly **not**
+built — add + remove is the credit "editing" capability, consistent with
+what the user described as the intended UX.
+
+Verified live end-to-end against the seeded stack: the delete icon and the
+edit-navigation icons measure exactly 44×44px (`getBoundingClientRect`);
+clicking the delete icon opens the confirm dialog with the exact expected
+copy; confirming actually removes the credit, shows the "Credit removed"
+banner, and moves focus to the "Add credit" button rather than losing it to
+`<body>`; the edit icons on both movie and person detail pages link to the
+correct `/edit` routes with accessible names "Edit movie"/"Edit person".

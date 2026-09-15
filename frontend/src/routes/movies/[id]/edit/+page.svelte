@@ -6,6 +6,7 @@
   import ArtworkUpload from '$lib/components/ArtworkUpload.svelte';
   import CreditDialog from '$lib/components/CreditDialog.svelte';
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
+  import IconButton from '$lib/components/IconButton.svelte';
   import type { MovieCredit } from '$lib/server/types';
 
   export let data: PageData;
@@ -15,6 +16,10 @@
   let savingDetails = false;
   let creditOpen = false;
   let confirmDeleteOpen = false;
+  let addCreditButton: HTMLButtonElement;
+  let removeCreditForm: HTMLFormElement;
+  let confirmRemoveOpen = false;
+  let pendingRemoveCredit: MovieCredit | null = null;
 
   $: selectedGenres = movie.genres.map((g) => g.code);
   $: allCredits = [...movie.cast, ...movie.creators];
@@ -27,6 +32,15 @@
   function submitDelete() {
     const f = document.getElementById('delete-movie-form');
     if (f instanceof HTMLFormElement) f.requestSubmit();
+  }
+
+  function confirmRemoveCredit(credit: MovieCredit) {
+    pendingRemoveCredit = credit;
+    confirmRemoveOpen = true;
+  }
+
+  function submitRemoveCredit() {
+    removeCreditForm?.requestSubmit();
   }
 </script>
 
@@ -106,7 +120,9 @@
 <section class="section" aria-label="Credits">
   <div class="credits-head">
     <h2>Credits</h2>
-    <button type="button" class="primary" on:click={() => (creditOpen = true)}>Add credit</button>
+    <button type="button" class="primary" bind:this={addCreditButton} on:click={() => (creditOpen = true)}>
+      Add credit
+    </button>
   </div>
   {#if form?.creditAdded}
     <StateBanner variant="info">Credit added.</StateBanner>
@@ -128,12 +144,12 @@
             <span class="cat-badge">{c.category}</span>
             {creditLine(c)}
           </span>
-          <form method="POST" action="?/removeCredit" use:enhance>
-            <input type="hidden" name="creditId" value={c.id} />
-            <button type="submit" class="link-danger" aria-label={`Remove ${c.person.name} from movie`}>
-              Remove from movie
-            </button>
-          </form>
+          <IconButton
+            icon="delete"
+            variant="danger"
+            label={`Remove ${c.person.name} from movie`}
+            on:click={() => confirmRemoveCredit(c)}
+          />
         </li>
       {/each}
     </ul>
@@ -161,7 +177,33 @@
   This permanently removes “{movie.title}” and its credits, genres, and artwork. This cannot be undone.
 </ConfirmDialog>
 
+<ConfirmDialog
+  bind:open={confirmRemoveOpen}
+  title="Remove this credit?"
+  confirmLabel="Remove from movie"
+  danger
+  on:confirm={submitRemoveCredit}
+>
+  This removes {pendingRemoveCredit?.person.name ?? 'this person'} from “{movie.title}”. The person themselves is not
+  deleted, and the credit can be added back later.
+</ConfirmDialog>
+
 <form id="delete-movie-form" method="POST" action="?/delete" use:enhance hidden></form>
+
+<form
+  bind:this={removeCreditForm}
+  method="POST"
+  action="?/removeCredit"
+  use:enhance={() => async ({ update }) => {
+    await update();
+    // The removed row's button is gone from the DOM; move focus somewhere
+    // stable and meaningful instead of letting it silently fall to <body>.
+    addCreditButton?.focus();
+  }}
+  hidden
+>
+  <input type="hidden" name="creditId" value={pendingRemoveCredit?.id ?? ''} />
+</form>
 
 <style>
   .back { display: inline-block; margin-bottom: var(--sp-2); color: var(--text-muted); }
@@ -176,7 +218,6 @@
   .credit-list li { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-2); padding: var(--sp-1) 0; border-bottom: 1px solid var(--border); }
   .cat-badge { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.05em; color: var(--text-muted); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; margin-right: 6px; }
   .unavailable { color: var(--text-muted); font-style: italic; }
-  .link-danger { background: none; border: none; color: var(--danger); text-decoration: underline; padding: 0; white-space: nowrap; }
   .danger-zone { border-color: var(--danger); }
   .danger-zone h2 { color: var(--danger); }
 </style>

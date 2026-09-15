@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import CreditSection from '$lib/features/credits/CreditSection.svelte';
+  import IconLink from '$lib/components/IconLink.svelte';
 
   export let data: PageData;
 
@@ -22,7 +23,7 @@
   <section class="info-section">
     <div class="title-row">
       <h1>{movie.title}</h1>
-      <a class="btn" href={`/movies/${movie.id}/edit`}>Edit</a>
+      <IconLink icon="edit" href={`/movies/${movie.id}/edit`} label="Edit movie" />
     </div>
     {#if movie.originalTitle}<p class="original">{movie.originalTitle}</p>{/if}
 
@@ -68,7 +69,6 @@
   .artwork-section img, .poster-fallback { width: 100%; aspect-ratio: 2/3; object-fit: cover; border-radius: var(--radius); }
   .poster-fallback { display: grid; place-items: center; font-size: 3rem; background: var(--surface-2); }
   .title-row { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--sp-2); }
-  .btn { background: var(--surface-2); border: 1px solid var(--border); color: var(--text); padding: var(--sp-1) var(--sp-2); border-radius: var(--radius); text-decoration: none; }
   .original { color: var(--text-muted); margin-top: 0; }
   .meta { display: grid; grid-template-columns: auto 1fr; gap: 4px var(--sp-2); }
   .meta dt { color: var(--text-muted); }

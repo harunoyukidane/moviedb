@@ -77,9 +77,24 @@ Requirement text below is the acceptance-criteria form; each requirement carries
 an implementation status. See [plans/v2/README.md](../plans/v2/README.md) for the
 task-level backlog and dependency order.
 
-### Requirement 1: Action and View Icons — status: not started
+### Requirement 1: Action and View Icons — status: done
 
-Icon SVGs exist under `frontend/src/resources/` but are not yet wired into the UI.
+`lib/components/Icon.svelte`/`IconButton.svelte`/`IconLink.svelte`. See
+[frontend.md](../plans/v2/frontend.md) (V2-12) and
+[verification/v2-acceptance.md](../verification/v2-acceptance.md).
+
+**Confirmed design decision** (amends criterion 2 below): credit mutation —
+adding and removing a credit — happens only inside the Credit Editor, which
+is reached via the edit Icon Asset control on the movie (or person) detail
+page; this matches the pre-existing structure where the detail page was
+already read-only and all mutations already lived on `/edit`. Within the
+Credit Editor, each Credit carries a delete Icon Asset control; there is no
+separate per-Credit edit Icon Asset control for changing an existing
+credit's role/character/billing — add + remove together are the credit
+editing capability. Criterion 2 below is satisfied at the level of "the
+Credit Editor is reached via an edit Icon Asset control, and each Credit
+within it has a delete Icon Asset control," not literally per-Credit edit
+controls.
 
 1. THE Frontend SHALL provide Icon Assets under `frontend/src/resources` for edit, delete, list view, and cluster view.
 2. WHERE a Credit is displayed in the Credit Editor, THE Frontend SHALL display edit and delete Icon Asset controls for that Credit.
@@ -130,13 +145,11 @@ No `movie_comment` table or GraphQL fields exist yet.
 3. IF text is empty/whitespace-only or exceeds the maximum length, THEN the submission is rejected with a validation message/error.
 4. Comments are displayed in reverse chronological order; an empty state invites the first comment.
 
-### Requirement 6: People List Photo Display — status: done (pending backend rebuild/deploy)
+### Requirement 6: People List Photo Display — status: done
 
 `Person.photoUrl` in `schema.graphqls`; `PersonListRow.svelte`. See
 [frontend.md](../plans/v2/frontend.md) (V2-11) and
-[verification/v2-acceptance.md](../verification/v2-acceptance.md) — the
-running Catalogue container has not yet been rebuilt with this schema
-change (Gradle build unavailable in the authoring sandbox).
+[verification/v2-acceptance.md](../verification/v2-acceptance.md).
 
 1. WHERE the People Listing displays a person, THE People Listing SHALL display the person's photo (or placeholder) on the left and name on the right.
 2. Existing pagination controls and displayed total count are retained.

@@ -50,9 +50,10 @@ test('full catalogue journey through the BFF UI', async ({ page }) => {
   await page.getByRole('searchbox').fill(movieTitle);
   await expect(page.getByTestId('search-results').getByText(movieTitle)).toBeVisible();
 
-  // 6. remove the credit from the movie (on the editor; never deletes the person)
+  // 6. remove the credit from the movie (on the editor; confirmation required; never deletes the person)
   await page.goto(`${movieUrl}/edit`);
   await page.getByRole('button', { name: `Remove ${personName} from movie` }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Remove from movie' }).click();
   await expect(page.getByText(/Credit removed from movie/i)).toBeVisible();
 
   // 7. delete the movie (danger zone on the editor)
