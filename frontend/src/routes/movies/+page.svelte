@@ -2,6 +2,7 @@
   import type { PageData } from './$types';
   import StateBanner from '$lib/components/StateBanner.svelte';
   import SearchBox from '$lib/components/SearchBox.svelte';
+  import MovieFilters from '$lib/features/movies/MovieFilters.svelte';
 
   export let data: PageData;
 
@@ -10,6 +11,17 @@
   $: hasNext = page.offset + page.limit < page.total;
   $: prevOffset = Math.max(0, page.offset - page.limit);
   $: nextOffset = page.offset + page.limit;
+  $: hasActiveFilter = !!data.filter.genreCode || data.filter.releaseYear != null;
+
+  // Pagination must retain the active filters (offset resets to 0 on filter change instead).
+  function pagerHref(offset: number): string {
+    const params = new URLSearchParams();
+    if (data.filter.genreCode) params.set('genreCode', data.filter.genreCode);
+    if (data.filter.releaseYear != null) params.set('releaseYear', String(data.filter.releaseYear));
+    if (offset > 0) params.set('offset', String(offset));
+    const qs = params.toString();
+    return qs ? `/movies?${qs}` : '/movies';
+  }
 </script>
 
 <div class="head-row">
@@ -19,10 +31,23 @@
 
 <SearchBox />
 
+<MovieFilters
+  genres={data.genres}
+  years={data.years}
+  selectedGenre={data.filter.genreCode}
+  selectedYear={data.filter.releaseYear}
+/>
+
 {#if data.error}
   <StateBanner variant="error">{data.error}</StateBanner>
 {:else if page.items.length === 0}
-  <StateBanner variant="info">No movies yet. Create your first one to get started.</StateBanner>
+  <StateBanner variant="info">
+    {#if hasActiveFilter}
+      No movies match the selected filters.
+    {:else}
+      No movies yet. Create your first one to get started.
+    {/if}
+  </StateBanner>
 {:else}
   <ul class="poster-grid" aria-label="Movies">
     {#each page.items as movie (movie.id)}
@@ -41,9 +66,9 @@
   </ul>
 
   <nav class="pager" aria-label="Pagination">
-    {#if hasPrev}<a href={`/movies?offset=${prevOffset}`}>← Previous</a>{/if}
+    {#if hasPrev}<a href={pagerHref(prevOffset)}>← Previous</a>{/if}
     <span class="count">{page.offset + 1}–{Math.min(page.offset + page.limit, page.total)} of {page.total}</span>
-    {#if hasNext}<a href={`/movies?offset=${nextOffset}`}>Next →</a>{/if}
+    {#if hasNext}<a href={pagerHref(nextOffset)}>Next →</a>{/if}
   </nav>
 {/if}
 

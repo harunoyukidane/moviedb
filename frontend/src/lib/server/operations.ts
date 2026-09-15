@@ -28,15 +28,25 @@ const PERSON_FIELDS = `
     role { code title category department description active } }
 `;
 
-export function listMovies(limit: number, offset: number, ctx?: RequestContext) {
+export interface MovieFilterInput {
+  genreCode?: string | null;
+  releaseYear?: number | null;
+}
+
+export function listMovies(
+  limit: number,
+  offset: number,
+  filter?: MovieFilterInput | null,
+  ctx?: RequestContext
+) {
   return gql<{ movies: MoviePage }>(
-    `query($limit: Int!, $offset: Int!) {
-      movies(page: { limit: $limit, offset: $offset }) {
+    `query($limit: Int!, $offset: Int!, $filter: MovieFilterInput) {
+      movies(page: { limit: $limit, offset: $offset }, filter: $filter) {
         total limit offset
         items { id title releaseDate runtimeMinutes version artwork { id url mediaType byteSize } }
       }
     }`,
-    { limit, offset },
+    { limit, offset, filter: filter ?? null },
     ctx
   ).then((r) => r.movies);
 }

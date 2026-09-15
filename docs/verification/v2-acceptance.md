@@ -14,7 +14,7 @@ below.
 |---|---|---|
 | Catalogue and People use MinIO in Compose through `ArtworkStore`, separate buckets, no service-local artwork mounts | ✅ done | `backend/media/.../MinioArtworkStore.kt`; `ObjectStorageHealthIndicator.kt`; `ArtworkMinioHttpIntegrationTest`, `ArtworkOrphanSweeperTest`, `MinioArtworkStoreTest` |
 | Existing media HTTP behavior, validation, ETag/cache headers, compensation, orphan cleanup pass against MinIO | ✅ done | `ArtworkExceptionAdviceTest`, `ArtworkOrphanSweeperTest` |
-| Genre/year filters compose correctly, reset offset, preserve accurate totals | ☐ not started | no `MovieFilterInput` in `schema.graphqls` yet |
+| Genre/year filters compose correctly, reset offset, preserve accurate totals | ✅ done | `MovieFilterInput` in `schema.graphqls`; `MovieRepository.findAllByFilter`, `MovieUseCasesTest`, `CatalogueRepositoryIntegrationTest`, `CatalogueGraphQlIntegrationTest` (backend); `movies/+page.server.ts`, `MovieFilters.svelte`, `page.server.test.ts`, `MovieFilters.test.ts` (frontend BFF/UI) |
 | Movie listing switches between accessible cluster and list views without changing offset | ☐ not started | icon SVGs present under `frontend/src/resources/`; no `$lib/features/movies` view toggle yet |
 | Movie credits and People rows display photos/fallbacks; unavailable People references degrade gracefully | ☐ not started | v1 batched hydration exists; photo-forward UI does not |
 | Comments are validated, persisted, reverse-chronological, movie-owned, visible after submission | ☐ not started | no `movie_comment` migration yet |

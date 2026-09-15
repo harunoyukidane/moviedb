@@ -26,13 +26,26 @@ by repository integration tests (genre-only, year-only, combined, cleared,
 empty, paginated, dedup) and GraphQL integration tests (combined filter,
 total reporting, unknown genre code, out-of-range year).
 
-## V2-06: Add filter controls to `/movies`
+## V2-06: Add filter controls to `/movies` — done
 
-- Load active genres and available/configured year choices.
-- Store filter state in query parameters so results are linkable and browser navigation works.
-- Reset `offset=0` whenever a filter changes; retain filters during pagination.
-- Display the matching total and a specific no-results state.
-- Update `$lib/server` types/operations and add component/route tests.
+`movies/+page.server.ts` loads active genres via `listGenres` and a configured
+release-year range (1900–current year + 1, generated in the load function
+rather than queried, since there is no backend distinct-years aggregate) and
+passes both to a new `lib/features/movies/MovieFilters.svelte` component.
+Filter state lives entirely in `genreCode`/`releaseYear` query params — a
+plain `method="GET"` form with no `offset` field, so submitting a filter
+change always lands on `offset=0`, and pagination links
+(`pagerHref` in `+page.svelte`) always carry the current filter params
+forward. `+page.server.ts` only accepts a `genreCode` that matches a
+currently loaded genre and a `releaseYear` that is an integer in range,
+silently dropping anything else rather than erroring on a stale/tampered
+query string. The listing shows the filtered `total` (unchanged pager UI)
+and a filter-specific empty-state message distinct from the "no movies yet"
+one. `$lib/server/operations.ts#listMovies` gained an optional
+`MovieFilterInput` parameter. Covered by `MovieFilters.test.ts` (rendering,
+preselection, clear-filters link) and `movies/page.server.test.ts`
+(valid/invalid/combined filters, unknown genre and out-of-range year
+ignored, offset retained across pagination, degraded genre-list fallback).
 
 ## V2-07: Expand deterministic demo content
 
