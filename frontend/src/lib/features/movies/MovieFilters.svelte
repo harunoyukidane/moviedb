@@ -5,6 +5,8 @@
   export let years: number[] = [];
   export let selectedGenre: string | null = null;
   export let selectedYear: number | null = null;
+  /** Carried through as a hidden field so switching genre/year doesn't reset the view preference. */
+  export let view: 'cluster' | 'list' = 'cluster';
 
   let form: HTMLFormElement;
 
@@ -38,9 +40,13 @@
     </select>
   </label>
 
+  {#if view !== 'cluster'}
+    <input type="hidden" name="view" value={view} />
+  {/if}
+
   <button type="submit">Apply filters</button>
   {#if hasActiveFilter}
-    <a class="clear" href="/movies">Clear filters</a>
+    <a class="clear" href={view !== 'cluster' ? `/movies?view=${view}` : '/movies'}>Clear filters</a>
   {/if}
 </form>
 

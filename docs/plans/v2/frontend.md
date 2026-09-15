@@ -6,10 +6,10 @@ canonical_for: v2-frontend-plan
 last_verified: 2026-09-15
 ```
 
-Status: 🟡 in progress — V2-08 done; V2-09/V2-10/V2-11/V2-12 remain. The icon
-SVG assets themselves already exist under `frontend/src/resources/`.
-Corresponds to [requirements.md](../../product/requirements.md) requirements
-1, 2, 4, and 6.
+Status: 🟡 in progress — V2-08/V2-09 done; V2-10/V2-11/V2-12 remain (requirement 2
+complete). The icon SVG assets themselves already exist under
+`frontend/src/resources/`. Corresponds to
+[requirements.md](../../product/requirements.md) requirements 1, 2, 4, and 6.
 
 ## V2-08: Movie-list feature components — done
 
@@ -27,13 +27,41 @@ remains the only rendered view, unchanged from before this refactor.
 Covered by `MovieClusterView.test.ts`, `MovieListView.test.ts`, and
 `MovieListToolbar.test.ts`; full frontend suite green, `svelte-check` clean.
 
-## V2-09: Cluster/list view switching
+## V2-09: Cluster/list view switching — done
 
-- Provide accessible cluster and list controls using the existing SVG resources.
-- Render list rows with poster, title, release year, genres, and truncated synopsis.
-- Switch without fetching a different page or changing the current offset.
-- Default to cluster. Persist preference in a `view` query parameter or progressive-enhancement-safe local preference; query parameters are preferred for deterministic SSR.
-- Add responsive behavior, placeholder behavior, accessible names, keyboard focus, and component tests.
+Added `MovieViewToggle.svelte` (inlines the existing `view_cozy`/`view_list`
+SVGs from `frontend/src/resources/` with `fill="currentColor"` so they adapt
+to the theme) as a pair of real `<a>` links — not JS-dispatched buttons —
+consistent with the pager/"Clear filters" links elsewhere on this page: works
+without JS, and a plain click never re-runs `load` because the `view` param
+is never read by `+page.server.ts` (view is presentation-only; `+page.svelte`
+reads it straight from `$page.url`). `MovieListView` now renders genres and
+a 2-line-clamped truncated synopsis (`operations.ts#listMovies` extended to
+select `synopsis`/`genres`). The preference lives in the `view` query
+param, defaults to cluster, and is carried through every navigational link
+on the page — pager prev/next, the toggle itself, and `MovieFilters`' hidden
+field — so switching filters, paging, or the view never resets any of the
+others or the current offset.
+
+Caught and fixed a real bug via manual browser verification (not by the
+initial unit tests): the pager/toggle hrefs were built by a plain function
+that read `view`/`filter` via closure instead of as explicit arguments —
+Svelte's reactivity tracking is per-statement and purely syntactic, so it
+couldn't see that dependency, and a pure client-side navigation that changed
+only `view` left those hrefs stale (a full page reload masked it, since that
+always recomputes everything fresh). Fixed by passing every true input
+explicitly to `$: hrefName = buildMovieHref(offset, view, filter)` style
+statements. Added a regression test that updates the mounted component's
+URL store in place (`page.test.ts`) rather than only rendering fresh per
+case, since a fresh `render()` cannot reproduce this class of bug.
+
+Covered by `MovieViewToggle.test.ts`, extended `MovieListView.test.ts`
+(genres/synopsis), and `movies/page.test.ts` (default/list rendering,
+aria-current, filter/offset carried through, the in-place-update regression
+case). Manually verified end-to-end against the live seeded stack: toggling
+persists across pagination, works at mobile width (375px, synopsis clamps to
+one line), and keyboard/screen-reader semantics (`role="group"`,
+`aria-current`, accessible link names) are correct.
 
 ## V2-10: Movie cast/crew presentation
 

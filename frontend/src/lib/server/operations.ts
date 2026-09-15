@@ -43,7 +43,11 @@ export function listMovies(
     `query($limit: Int!, $offset: Int!, $filter: MovieFilterInput) {
       movies(page: { limit: $limit, offset: $offset }, filter: $filter) {
         total limit offset
-        items { id title releaseDate runtimeMinutes version artwork { id url mediaType byteSize } }
+        items {
+          id title synopsis releaseDate runtimeMinutes version
+          artwork { id url mediaType byteSize }
+          genres { code title description active }
+        }
       }
     }`,
     { limit, offset, filter: filter ?? null },

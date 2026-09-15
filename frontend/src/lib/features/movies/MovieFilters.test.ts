@@ -35,6 +35,21 @@ describe('MovieFilters', () => {
     expect(screen.getByRole('link', { name: 'Clear filters' })).toHaveAttribute('href', '/movies');
   });
 
+  it('carries the current view through as a hidden field and into "Clear filters"', () => {
+    render(MovieFilters, {
+      props: { genres, years, selectedGenre: 'HORROR', view: 'list' }
+    });
+    const form = screen.getByRole('form', { name: 'Filter movies' }) as HTMLFormElement;
+    expect(form.querySelector('input[type="hidden"][name="view"]')).toHaveValue('list');
+    expect(screen.getByRole('link', { name: 'Clear filters' })).toHaveAttribute('href', '/movies?view=list');
+  });
+
+  it('omits the hidden view field for the default cluster view', () => {
+    render(MovieFilters, { props: { genres, years } });
+    const form = screen.getByRole('form', { name: 'Filter movies' }) as HTMLFormElement;
+    expect(form.querySelector('input[name="view"]')).toBeNull();
+  });
+
   it('submits the form (GET, no offset field) as a real navigation when a select changes', async () => {
     const user = userEvent.setup();
     render(MovieFilters, { props: { genres, years } });

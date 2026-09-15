@@ -87,7 +87,11 @@ Icon SVGs exist under `frontend/src/resources/` but are not yet wired into the U
 4. THE Frontend SHALL render the movie delete action as a labeled confirmation dialog that states the movie title and warns that deletion is permanent, rather than as an icon-only control.
 5. THE Frontend SHALL provide a text alternative for each Icon Asset control that names the action it performs.
 
-### Requirement 2: Movie Listing View Mode Toggle — status: not started
+### Requirement 2: Movie Listing View Mode Toggle — status: done
+
+`MovieViewToggle.svelte`; view persisted in the `view` query param. See
+[frontend.md](../plans/v2/frontend.md) (V2-09) and
+[verification/v2-acceptance.md](../verification/v2-acceptance.md).
 
 1. THE Movie Listing SHALL provide a View Mode control offering Cluster View (poster grid, default) and List View (one row per movie: poster left, title/year/genres/truncated summary right).
 2. WHEN a user selects a View Mode, THE Movie Listing SHALL re-render the current set of movies without changing the current pagination offset.

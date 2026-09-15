@@ -7,11 +7,12 @@
   export let years: number[] = [];
   export let selectedGenre: string | null = null;
   export let selectedYear: number | null = null;
+  export let view: 'cluster' | 'list' = 'cluster';
 </script>
 
 <div class="movie-list-toolbar">
   <SearchBox />
-  <MovieFilters {genres} {years} {selectedGenre} {selectedYear} />
+  <MovieFilters {genres} {years} {selectedGenre} {selectedYear} {view} />
 </div>
 
 <style>
