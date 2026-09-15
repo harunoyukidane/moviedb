@@ -10,6 +10,11 @@ import java.time.LocalDate
 
 data class PageInput(val limit: Int = 20, val offset: Int = 0)
 
+data class MovieFilterInput(
+    val genreCode: String? = null,
+    val releaseYear: Int? = null,
+)
+
 data class CreateMovieInput(
     val title: String,
     val originalTitle: String? = null,

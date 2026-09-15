@@ -38,6 +38,18 @@ class MovieRulesTest {
         assertThat(MovieRules.clampOffset(-9)).isZero()
         assertThat(MovieRules.clampOffset(7)).isEqualTo(7)
     }
+
+    @Test
+    fun `validateReleaseYear allows null and bounded four-digit years, rejects out of range`() {
+        MovieRules.validateReleaseYear(null)
+        MovieRules.validateReleaseYear(MovieRules.RELEASE_YEAR_MIN)
+        MovieRules.validateReleaseYear(MovieRules.RELEASE_YEAR_MAX)
+        MovieRules.validateReleaseYear(2020)
+        assertThatThrownBy { MovieRules.validateReleaseYear(MovieRules.RELEASE_YEAR_MIN - 1) }
+            .isInstanceOf(ValidationException::class.java)
+        assertThatThrownBy { MovieRules.validateReleaseYear(MovieRules.RELEASE_YEAR_MAX + 1) }
+            .isInstanceOf(ValidationException::class.java)
+    }
 }
 
 class CreditRulesTest {
@@ -88,6 +100,13 @@ class CreditRulesTest {
             .isInstanceOf(ValidationException::class.java)
         // active + existing is fine
         CreditRules.requireActiveCode(exists = true, active = true, "genre", "HORROR")
+    }
+
+    @Test
+    fun `requireExistingCode rejects only missing codes, active or inactive both pass`() {
+        assertThatThrownBy { CreditRules.requireExistingCode(exists = false, "genre", "GHOST") }
+            .isInstanceOf(ValidationException::class.java)
+        CreditRules.requireExistingCode(exists = true, "genre", "HORROR")
     }
 
     @Test

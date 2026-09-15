@@ -29,6 +29,36 @@ interface MovieRepository : JpaRepository<Movie, UUID> {
         """,
     )
     fun searchByTitlePattern(@Param("pattern") pattern: String, pageable: Pageable): List<Movie>
+
+    /**
+     * Paged listing filtered by an optional genre code and/or release year,
+     * combined with AND semantics (§8.1). The genre match is an EXISTS
+     * subquery against `movie_genre` rather than a join, so a movie with
+     * multiple matching rows is never duplicated in the result.
+     */
+    @Query(
+        value = """
+        SELECT m FROM Movie m
+        WHERE (:genreCode IS NULL OR EXISTS (
+            SELECT 1 FROM MovieGenre mg
+            WHERE mg.id.movieId = m.id AND mg.id.genreCode = :genreCode
+        ))
+        AND (:releaseYear IS NULL OR YEAR(m.releaseDate) = :releaseYear)
+        """,
+        countQuery = """
+        SELECT COUNT(m) FROM Movie m
+        WHERE (:genreCode IS NULL OR EXISTS (
+            SELECT 1 FROM MovieGenre mg
+            WHERE mg.id.movieId = m.id AND mg.id.genreCode = :genreCode
+        ))
+        AND (:releaseYear IS NULL OR YEAR(m.releaseDate) = :releaseYear)
+        """,
+    )
+    fun findAllByFilter(
+        @Param("genreCode") genreCode: String?,
+        @Param("releaseYear") releaseYear: Int?,
+        pageable: Pageable,
+    ): Page<Movie>
 }
 
 interface MovieGenreRepository : JpaRepository<MovieGenre, MovieGenreId> {

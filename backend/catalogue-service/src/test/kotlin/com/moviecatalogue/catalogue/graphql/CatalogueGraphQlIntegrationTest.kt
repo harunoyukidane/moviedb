@@ -148,6 +148,13 @@ class CatalogueGraphQlIntegrationTest {
         ).execute().path("createMovie.id").entity(String::class.java).get()
     }
 
+    private fun createMovie(title: String, genreCodes: List<String>, releaseDate: LocalDate): String {
+        val codes = genreCodes.joinToString(",") { "\"$it\"" }
+        return tester.document(
+            """mutation { createMovie(input: { title: "$title", genreCodes: [$codes], releaseDate: "$releaseDate" }) { id version } }""",
+        ).execute().path("createMovie.id").entity(String::class.java).get()
+    }
+
     private fun addCast(movieId: String, personId: UUID, character: String): String =
         tester.document(
             """mutation { addMovieCredit(movieId: "$movieId", input: { personId: "$personId", roleCode: "ACTOR", characterName: "$character" }) { id category person { id name available } } }""",
@@ -430,5 +437,57 @@ class CatalogueGraphQlIntegrationTest {
     fun `blank search query is rejected as BAD_USER_INPUT`() {
         assertThat(errorCodeOf("""query { search(query: "  ", page: { limit: 10, offset: 0 }) { movies { title } people { name } } }"""))
             .isEqualTo("BAD_USER_INPUT")
+    }
+
+    @Test
+    fun `movies filter combines genre and year, resets cleanly, and reports total`() {
+        createMovie("Horror 2020", listOf("HORROR"), LocalDate.of(2020, 5, 1))
+        createMovie("Horror Comedy 2020", listOf("HORROR", "PSYCHOLOGICAL_HORROR"), LocalDate.of(2020, 6, 1))
+        createMovie("Horror 2021", listOf("HORROR"), LocalDate.of(2021, 1, 1))
+        createMovie("Comedy 2020", emptyList(), LocalDate.of(2020, 7, 1))
+
+        fun titlesFor(filter: String) = tester.document(
+            """query { movies(page: { limit: 20, offset: 0 }, filter: $filter) { total items { title } } }""",
+        ).execute().path("movies.items[*].title").entityList(String::class.java).get()
+
+        assertThat(titlesFor("""{ genreCode: "HORROR" }"""))
+            .containsExactlyInAnyOrder("Horror 2020", "Horror Comedy 2020", "Horror 2021")
+        assertThat(titlesFor("""{ releaseYear: 2020 }"""))
+            .containsExactlyInAnyOrder("Horror 2020", "Horror Comedy 2020", "Comedy 2020")
+        assertThat(titlesFor("""{ genreCode: "HORROR", releaseYear: 2020 }"""))
+            .containsExactlyInAnyOrder("Horror 2020", "Horror Comedy 2020")
+
+        // cleared filter (omitted) returns everything, and total matches
+        val all = tester.document("""query { movies(page: { limit: 20, offset: 0 }) { total items { title } } }""")
+            .execute()
+        assertThat(all.path("movies.total").entity(Long::class.java).get()).isEqualTo(4L)
+
+        // empty result
+        val empty = tester.document(
+            """query { movies(page: { limit: 20, offset: 0 }, filter: { genreCode: "HORROR", releaseYear: 1999 }) { total items { title } } }""",
+        ).execute()
+        assertThat(empty.path("movies.total").entity(Long::class.java).get()).isZero()
+        empty.path("movies.items").entityList(Any::class.java).hasSize(0)
+
+        // paginated
+        val page1 = tester.document(
+            """query { movies(page: { limit: 2, offset: 0 }, filter: { genreCode: "HORROR" }) { total items { title } } }""",
+        ).execute()
+        assertThat(page1.path("movies.items").entityList(Any::class.java).get()).hasSize(2)
+        assertThat(page1.path("movies.total").entity(Long::class.java).get()).isEqualTo(3L)
+    }
+
+    @Test
+    fun `movies filter with unknown genre code is BAD_USER_INPUT`() {
+        assertThat(
+            errorCodeOf("""query { movies(filter: { genreCode: "GHOST" }) { total } }"""),
+        ).isEqualTo("BAD_USER_INPUT")
+    }
+
+    @Test
+    fun `movies filter with out-of-range release year is BAD_USER_INPUT`() {
+        assertThat(
+            errorCodeOf("""query { movies(filter: { releaseYear: 999 }) { total } }"""),
+        ).isEqualTo("BAD_USER_INPUT")
     }
 }

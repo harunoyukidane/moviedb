@@ -168,3 +168,60 @@ class PersonUseCasesTest {
         verify(exactly = 1) { peopleClient.deletePerson(id) }
     }
 }
+
+class MovieUseCasesTest {
+
+    private val movies = mockk<MovieRepository>()
+    private val movieGenres = mockk<com.moviecatalogue.catalogue.movie.MovieGenreRepository>()
+    private val genreCodes = mockk<com.moviecatalogue.catalogue.reference.GenreCodeRepository>()
+    private val useCases = MovieUseCases(movies, movieGenres, genreCodes)
+
+    private fun genre(code: String) =
+        com.moviecatalogue.catalogue.reference.GenreCode(code, null, code, "d", true, 0)
+
+    @Test
+    fun `listMovies with no filter queries with null genre and year`() {
+        every { movies.findAllByFilter(null, null, any()) } returns
+            org.springframework.data.domain.PageImpl(emptyList())
+
+        val result = useCases.listMovies(20, 0, null)
+        assertThat(result.items).isEmpty()
+        verify(exactly = 1) { movies.findAllByFilter(null, null, any()) }
+    }
+
+    @Test
+    fun `listMovies validates genre code exists before querying`() {
+        every { genreCodes.findById("GHOST") } returns java.util.Optional.empty()
+        assertThatThrownBy {
+            useCases.listMovies(20, 0, MovieFilter(genreCode = "GHOST"))
+        }.isInstanceOf(ValidationException::class.java)
+        verify(exactly = 0) { movies.findAllByFilter(any(), any(), any()) }
+    }
+
+    @Test
+    fun `listMovies allows an existing but inactive genre code`() {
+        val inactive = genre("RETIRED").also { it.active = false }
+        every { genreCodes.findById("RETIRED") } returns java.util.Optional.of(inactive)
+        every { movies.findAllByFilter("RETIRED", null, any()) } returns org.springframework.data.domain.PageImpl(emptyList())
+
+        useCases.listMovies(20, 0, MovieFilter(genreCode = "RETIRED"))
+        verify(exactly = 1) { movies.findAllByFilter("RETIRED", null, any()) }
+    }
+
+    @Test
+    fun `listMovies rejects an out-of-range release year before querying`() {
+        assertThatThrownBy {
+            useCases.listMovies(20, 0, MovieFilter(releaseYear = 1800))
+        }.isInstanceOf(ValidationException::class.java)
+        verify(exactly = 0) { movies.findAllByFilter(any(), any(), any()) }
+    }
+
+    @Test
+    fun `listMovies combines genre and year filters`() {
+        every { genreCodes.findById("HORROR") } returns java.util.Optional.of(genre("HORROR"))
+        every { movies.findAllByFilter("HORROR", 2020, any()) } returns org.springframework.data.domain.PageImpl(emptyList())
+
+        useCases.listMovies(20, 0, MovieFilter(genreCode = "HORROR", releaseYear = 2020))
+        verify(exactly = 1) { movies.findAllByFilter("HORROR", 2020, any()) }
+    }
+}

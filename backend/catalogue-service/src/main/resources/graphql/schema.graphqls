@@ -5,7 +5,7 @@ scalar Long
 
 type Query {
   movie(id: ID!): Movie
-  movies(page: PageInput = { limit: 20, offset: 0 }): MoviePage!
+  movies(page: PageInput = { limit: 20, offset: 0 }, filter: MovieFilterInput): MoviePage!
   person(id: ID!): Person
   people(query: String, page: PageInput = { limit: 20, offset: 0 }): PersonPage!
   search(query: String!, page: PageInput = { limit: 10, offset: 0 }): SearchResult!
@@ -66,6 +66,7 @@ type PersonPage { items: [Person!]!, total: Long!, limit: Int!, offset: Int! }
 
 enum CreditCategory { CAST CREW }
 input PageInput { limit: Int! = 20, offset: Int! = 0 }
+input MovieFilterInput { genreCode: ID, releaseYear: Int }
 input CreateMovieInput { title: String!, originalTitle: String, synopsis: String = "", releaseDate: Date, runtimeMinutes: Int, originalLanguage: String, genreCodes: [ID!]! = [], tmdbId: Long }
 input UpdateMovieInput { title: String, originalTitle: String, synopsis: String, releaseDate: Date, runtimeMinutes: Int, originalLanguage: String, genreCodes: [ID!] }
 input CreatePersonInput { name: String!, biography: String = "", birthDate: Date, deathDate: Date, placeOfBirth: String }

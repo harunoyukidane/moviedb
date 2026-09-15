@@ -2,6 +2,7 @@ package com.moviecatalogue.catalogue.graphql
 
 import com.moviecatalogue.catalogue.application.MovieUseCases
 import com.moviecatalogue.catalogue.application.MovieReadService
+import com.moviecatalogue.catalogue.application.MovieFilter
 import com.moviecatalogue.catalogue.domain.CreditCategory
 import org.dataloader.DataLoader
 import org.springframework.graphql.data.method.annotation.Argument
@@ -29,9 +30,10 @@ class MovieController(
             .getOrElse { if (it is com.moviecatalogue.catalogue.domain.NotFoundException) null else throw it }
 
     @QueryMapping
-    fun movies(@Argument page: PageInput?): MoviePageGql {
+    fun movies(@Argument page: PageInput?, @Argument filter: MovieFilterInput?): MoviePageGql {
         val p = page ?: PageInput()
-        val view = movieUseCases.listMovies(p.limit, p.offset)
+        val f = filter?.let { MovieFilter(it.genreCode, it.releaseYear) }
+        val view = movieUseCases.listMovies(p.limit, p.offset, f)
         return MoviePageGql(view.items.map { it.toGql() }, view.total, view.limit, view.offset)
     }
 

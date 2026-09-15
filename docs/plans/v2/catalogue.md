@@ -9,14 +9,22 @@ last_verified: 2026-09-15
 Status: not started. Corresponds to [requirements.md](../../product/requirements.md)
 requirements 3 and 5.
 
-## V2-05: Extend the movie-list GraphQL contract
+## V2-05: Extend the movie-list GraphQL contract — done
 
-- Add `MovieFilterInput { genreCode, releaseYear }` and an optional `filter` argument to `movies`.
-- Validate genre codes against controlled reference data and validate a bounded four-digit release year.
-- Add repository/application queries that combine genre and year with AND semantics.
-- Preserve exact `total`, arbitrary offset behavior, stable ordering, and the 1–100 limit clamp.
-- Avoid duplicate movie rows when filtering through `movie_genre`.
-- Add repository and GraphQL integration tests for genre-only, year-only, combined, cleared, empty, and paginated results.
+Added `MovieFilterInput { genreCode, releaseYear }` and an optional `filter`
+argument to `movies` (schema, `graphql/Inputs.kt`, `MovieController`).
+`MovieRepository.findAllByFilter` combines genre and year with AND semantics
+via an `EXISTS` subquery against `movie_genre` (never a join), so a movie
+assigned to multiple matching genres is never duplicated; an explicit
+`countQuery` keeps `total` exact. `MovieUseCases.listMovies` validates the
+genre code against `GenreCodeRepository` (existence only — inactive genres
+still filter correctly since older movies may carry them) and the release
+year against a bounded four-digit range (`MovieRules.RELEASE_YEAR_MIN`/`MAX`,
+1888–2100) before querying; both map to `BAD_USER_INPUT`. Stable title
+ordering, arbitrary offset, and the 1–100 limit clamp are unchanged. Covered
+by repository integration tests (genre-only, year-only, combined, cleared,
+empty, paginated, dedup) and GraphQL integration tests (combined filter,
+total reporting, unknown genre code, out-of-range year).
 
 ## V2-06: Add filter controls to `/movies`
 

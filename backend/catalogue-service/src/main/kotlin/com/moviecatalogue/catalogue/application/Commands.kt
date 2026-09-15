@@ -69,6 +69,12 @@ data class MoviePageView(
     val offset: Int,
 )
 
+/** Optional AND-combined movie-listing filter (§8.1). */
+data class MovieFilter(
+    val genreCode: String? = null,
+    val releaseYear: Int? = null,
+)
+
 /** A credit plus the resolved (possibly unavailable) person reference. */
 data class CreditView(
     val id: UUID,

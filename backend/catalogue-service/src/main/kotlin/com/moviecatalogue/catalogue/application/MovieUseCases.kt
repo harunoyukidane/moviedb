@@ -30,12 +30,18 @@ class MovieUseCases(
         movies.findById(id).orElseThrow { NotFoundException("movie '$id' not found") }
 
     @Transactional(readOnly = true)
-    fun listMovies(limit: Int, offset: Int): MoviePageView {
+    fun listMovies(limit: Int, offset: Int, filter: MovieFilter? = null): MoviePageView {
         val clampedLimit = MovieRules.clampLimit(limit)
         val clampedOffset = MovieRules.clampOffset(offset)
-        val page = movies.findAll(
-            OffsetPageRequest(clampedLimit, clampedOffset.toLong(), Sort.by("title").ascending()),
-        )
+        val genreCode = filter?.genreCode
+        if (genreCode != null) {
+            val genre = genreCodes.findById(genreCode).orElse(null)
+            CreditRules.requireExistingCode(genre != null, "genre", genreCode)
+        }
+        MovieRules.validateReleaseYear(filter?.releaseYear)
+
+        val pageable = OffsetPageRequest(clampedLimit, clampedOffset.toLong(), Sort.by("title").ascending())
+        val page = movies.findAllByFilter(genreCode, filter?.releaseYear, pageable)
         return MoviePageView(
             items = page.content.map { it.toView() },
             total = page.totalElements,

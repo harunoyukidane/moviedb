@@ -17,6 +17,10 @@ object MovieRules {
     const val PAGE_LIMIT_MAX = 100
     const val PAGE_LIMIT_DEFAULT = 20
 
+    // Bounded four-digit release year for movie filtering.
+    const val RELEASE_YEAR_MIN = 1888
+    const val RELEASE_YEAR_MAX = 2100
+
     fun normalizeTitle(raw: String?): String {
         val t = raw?.trim().orEmpty()
         if (t.isEmpty()) throw ValidationException("title must not be blank")
@@ -45,6 +49,12 @@ object MovieRules {
     }
 
     fun clampOffset(requested: Int): Int = if (requested < 0) 0 else requested
+
+    fun validateReleaseYear(year: Int?) {
+        if (year != null && (year < RELEASE_YEAR_MIN || year > RELEASE_YEAR_MAX)) {
+            throw ValidationException("releaseYear must be between $RELEASE_YEAR_MIN and $RELEASE_YEAR_MAX")
+        }
+    }
 }
 
 object CreditRules {
@@ -85,6 +95,11 @@ object CreditRules {
     fun requireActiveCode(exists: Boolean, active: Boolean, kind: String, code: String) {
         if (!exists) throw ValidationException("$kind code '$code' does not exist")
         if (!active) throw ValidationException("$kind code '$code' is inactive")
+    }
+
+    /** A code must exist in controlled reference data, e.g. for filtering (active/inactive both allowed). */
+    fun requireExistingCode(exists: Boolean, kind: String, code: String) {
+        if (!exists) throw ValidationException("$kind code '$code' does not exist")
     }
 
     fun normalizeCharacterName(raw: String?): String? {

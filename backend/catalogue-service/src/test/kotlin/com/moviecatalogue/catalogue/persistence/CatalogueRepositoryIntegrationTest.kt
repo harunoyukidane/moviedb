@@ -152,6 +152,61 @@ class CatalogueRepositoryIntegrationTest {
     }
 
     @Test
+    fun `movie filter combines genre and year with AND semantics without duplicates`() {
+        val horrorOnly2020 = movies.saveAndFlush(
+            Movie(id = UuidV7.generate(), title = "Horror 2020", releaseDate = java.time.LocalDate.of(2020, 5, 1)),
+        )
+        val horrorAndComedy2020 = movies.saveAndFlush(
+            Movie(id = UuidV7.generate(), title = "Horror Comedy 2020", releaseDate = java.time.LocalDate.of(2020, 6, 1)),
+        )
+        val horror2021 = movies.saveAndFlush(
+            Movie(id = UuidV7.generate(), title = "Horror 2021", releaseDate = java.time.LocalDate.of(2021, 1, 1)),
+        )
+        val comedyOnly2020 = movies.saveAndFlush(
+            Movie(id = UuidV7.generate(), title = "Comedy 2020", releaseDate = java.time.LocalDate.of(2020, 7, 1)),
+        )
+        movieGenres.saveAndFlush(MovieGenre(MovieGenreId(horrorOnly2020.id, "HORROR")))
+        movieGenres.saveAndFlush(MovieGenre(MovieGenreId(horrorAndComedy2020.id, "HORROR")))
+        movieGenres.saveAndFlush(MovieGenre(MovieGenreId(horrorAndComedy2020.id, "PSYCHOLOGICAL_HORROR")))
+        movieGenres.saveAndFlush(MovieGenre(MovieGenreId(horror2021.id, "HORROR")))
+
+        val page = PageRequest.of(0, 20, Sort.by("title"))
+
+        // genre-only: a movie assigned to two genres appears exactly once
+        val byGenre = movies.findAllByFilter("HORROR", null, page)
+        assertThat(byGenre.totalElements).isEqualTo(3)
+        assertThat(byGenre.content.map { it.id }).containsExactlyInAnyOrder(
+            horrorOnly2020.id, horrorAndComedy2020.id, horror2021.id,
+        )
+
+        // year-only
+        val byYear = movies.findAllByFilter(null, 2020, page)
+        assertThat(byYear.content.map { it.id }).containsExactlyInAnyOrder(
+            horrorOnly2020.id, horrorAndComedy2020.id, comedyOnly2020.id,
+        )
+
+        // combined AND
+        val combined = movies.findAllByFilter("HORROR", 2020, page)
+        assertThat(combined.content.map { it.id }).containsExactlyInAnyOrder(
+            horrorOnly2020.id, horrorAndComedy2020.id,
+        )
+
+        // cleared filter (both null) returns everything
+        val cleared = movies.findAllByFilter(null, null, page)
+        assertThat(cleared.totalElements).isEqualTo(4)
+
+        // empty result
+        val empty = movies.findAllByFilter("HORROR", 1999, page)
+        assertThat(empty.totalElements).isZero()
+        assertThat(empty.content).isEmpty()
+
+        // paginated
+        val firstPage = movies.findAllByFilter("HORROR", null, PageRequest.of(0, 2, Sort.by("title")))
+        assertThat(firstPage.content).hasSize(2)
+        assertThat(firstPage.totalElements).isEqualTo(3)
+    }
+
+    @Test
     fun `reference code tables read seeded data with active and category filters`() {
         assertThat(genres.findAllByActiveTrueOrderByDisplayOrderAsc().map { it.code })
             .contains("HORROR", "PSYCHOLOGICAL_HORROR")
