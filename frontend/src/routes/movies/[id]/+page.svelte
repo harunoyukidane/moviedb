@@ -1,17 +1,11 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import StateBanner from '$lib/components/StateBanner.svelte';
-  import type { MovieCredit } from '$lib/server/types';
+  import CreditSection from '$lib/features/credits/CreditSection.svelte';
 
   export let data: PageData;
 
   $: movie = data.movie;
   let tab: 'cast' | 'creators' = 'cast';
-
-  function creditLine(c: MovieCredit): string {
-    const who = c.person.available ? c.person.name : 'Unknown person';
-    return c.category === 'CAST' ? `${who} as ${c.characterName}` : `${who} — ${c.role.title}`;
-  }
 </script>
 
 <a class="back" href="/movies">← All movies</a>
@@ -55,21 +49,15 @@
       </button>
     </div>
 
-    {#each [{ key: 'cast', items: movie.cast }, { key: 'creators', items: movie.creators }] as group}
-      {#if tab === group.key}
-        <div role="tabpanel">
-          {#if group.items.length === 0}
-            <StateBanner variant="info">No {group.key} yet. Add credits from the editor.</StateBanner>
-          {:else}
-            <ul class="credit-list">
-              {#each group.items as c (c.id)}
-                <li><span class:unavailable={!c.person.available}>{creditLine(c)}</span></li>
-              {/each}
-            </ul>
-          {/if}
-        </div>
-      {/if}
-    {/each}
+    {#if tab === 'cast'}
+      <div role="tabpanel">
+        <CreditSection credits={movie.cast} emptyMessage="No cast yet. Add credits from the editor." />
+      </div>
+    {:else}
+      <div role="tabpanel">
+        <CreditSection credits={movie.creators} emptyMessage="No creators yet. Add credits from the editor." />
+      </div>
+    {/if}
   </section>
 </div>
 
@@ -89,7 +77,4 @@
   .tag { background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 2px var(--sp-1); font-size: 0.875rem; }
   .tabs { display: flex; gap: var(--sp-1); margin: var(--sp-2) 0; }
   .tabs button.active { background: var(--accent); color: var(--accent-contrast); border-color: var(--accent); }
-  .credit-list { list-style: none; padding: 0; }
-  .credit-list li { padding: var(--sp-1) 0; border-bottom: 1px solid var(--border); }
-  .unavailable { color: var(--text-muted); font-style: italic; }
 </style>

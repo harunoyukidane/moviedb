@@ -6,9 +6,9 @@ canonical_for: v2-frontend-plan
 last_verified: 2026-09-15
 ```
 
-Status: 🟡 in progress — V2-08/V2-09 done; V2-10/V2-11/V2-12 remain (requirement 2
-complete). The icon SVG assets themselves already exist under
-`frontend/src/resources/`. Corresponds to
+Status: 🟡 in progress — V2-08/V2-09/V2-10 done (requirements 2 and 4
+complete); V2-11/V2-12 remain. The icon SVG assets themselves already exist
+under `frontend/src/resources/`. Corresponds to
 [requirements.md](../../product/requirements.md) requirements 1, 2, 4, and 6.
 
 ## V2-08: Movie-list feature components — done
@@ -63,14 +63,36 @@ persists across pagination, works at mobile width (375px, synopsis clamps to
 one line), and keyboard/screen-reader semantics (`role="group"`,
 `aria-current`, accessible link names) are correct.
 
-## V2-10: Movie cast/crew presentation
+## V2-10: Movie cast/crew presentation — done
 
-- Extract `CreditPersonRow` and cast/crew section components.
-- Show photo left; name and character/role title right.
-- Use person-photo proxy URLs and the shared placeholder.
-- Keep cast ordered by billing order with deterministic null/tie handling.
-- Render unavailable People references explicitly without failing the movie page.
-- Confirm person hydration remains one batched gRPC operation per request; add regression coverage.
+Added `lib/features/credits/CreditPersonRow.svelte` (photo left, name +
+character/role title right) and `CreditSection.svelte` (empty state +
+maps a credit list to rows, in the given order), plus a shared
+`lib/features/people/PersonPhotoFallback.svelte` (👤, ahead of V2-11's need
+for the same thing). `movies/[id]/+page.svelte`'s cast/creators tab panels
+now compose `CreditSection` instead of inline markup; the old
+`creditLine()` string-building helper is gone. Photos are same-origin proxy
+URLs built directly from `person.id` (`/api/people/{id}/photo}`, already
+existing from v1) — no new GraphQL field, no extra request beyond the
+browser's native `<img>` load; a 404 or an unavailable person both fall
+back to the shared placeholder via `on:error`/a conditional, and an
+unavailable person is labeled "Unknown person" without failing the page.
+Credits are rendered in exactly the order the GraphQL API returns them
+(cast by billing order, nulls last, id tie-break; crew by role/billing/id,
+§8.1) — deliberately not re-sorted client-side, since that already-tested
+ordering lives in `MovieReadService.credits()` and re-sorting here risks
+silently diverging from it.
+
+Regression coverage for "one batched gRPC operation per request": since
+photos are plain `<img src>` (not `fetch`), `CreditSection.hydration.test.ts`
+renders 8 credit rows and asserts zero `fetch` calls are made by the
+component tree, and `operations.test.ts` asserts `getMovie` still issues
+exactly one GraphQL request containing both `cast`/`creators` blocks (i.e.
+no second query was introduced for photos). Also covered by
+`CreditPersonRow.test.ts` and `CreditSection.test.ts` (photo/fallback
+states, unavailable-person handling, order preservation). Manually verified
+against the live seeded stack: cast/creator tabs render real TMDB photos,
+and a person with no photo (e.g. "Beau Marks") shows the fallback cleanly.
 
 ## V2-11: People listing photos
 

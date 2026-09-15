@@ -109,10 +109,12 @@ genre seed and TMDB manifest. See [catalogue.md](../plans/v2/catalogue.md)
 4. WHEN a filter combination matches no movies, THE Movie Listing SHALL display an empty-result message.
 5. THE Movie Listing SHALL report the total count of movies matching the active filter values.
 
-### Requirement 4: MyDramaList-Style Cast and Credits Display — status: not started
+### Requirement 4: MyDramaList-Style Cast and Credits Display — status: done
 
-Batched person hydration (no N+1 gRPC) already exists from v1; the photo-forward
-presentation layer does not yet.
+`CreditPersonRow`/`CreditSection` in `lib/features/credits/`. See
+[frontend.md](../plans/v2/frontend.md) (V2-10) and
+[verification/v2-acceptance.md](../verification/v2-acceptance.md). Batched
+person hydration (no N+1 gRPC) already existed from v1.
 
 1. WHERE a Movie Detail displays a Credit, THE Movie Detail SHALL display the person's photo on the left and name/role on the right.
 2. CAST credits show character name as the role text; CREW credits show the credit role title.
