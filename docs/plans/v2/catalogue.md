@@ -56,16 +56,24 @@ Thriller — alongside the existing Horror and the editorial Psychological
 Horror. `demo/importer/src/mappings.ts#GENRE_MAP` gained the matching TMDB
 genre-id mappings (28/35/80/18/9648/10749/53); `mapGenres` already assigns
 every matching id a movie carries, so a multi-genre TMDB movie now gets
-multiple codes automatically. `demo/tmdb-movie-ids.txt` grew from 12
-(Horror-only) to 26 curated, TMDB-verified ids spanning 1922–2019 and every
-mapped genre, keeping the original Horror set untouched. Importer
+multiple codes automatically. `demo/tmdb-movie-ids.txt` grew from 12 to 26
+curated ids spanning 1949–2019 and every mapped genre; the original 12 ids
+were kept, but a live import run against real TMDB (see below) turned up 8
+stale title comments on that original set (e.g. id `609` is actually
+"Poltergeist" (1982), not "Nosferatu") — those comments are now corrected
+to verified titles/years/genres, the ids themselves are unchanged. Importer
 concurrency/retry/idempotency logic (`importer.ts`, `tmdb.ts`) is unchanged —
 only the mapping table and manifest content moved. Demonstrability is
 covered by tests rather than a live TMDB run: a Catalogue schema integration
 test asserts all nine genre codes are seeded; importer tests assert
 `GENRE_MAP` covers every non-editorial genre, a multi-genre TMDB payload maps
 to multiple codes, and the committed manifest parses cleanly with no
-silently-dropped lines and stays above a minimum size. No downloaded
+silently-dropped lines and stays above a minimum size. A live seed run was
+also performed (host-side importer, `scripts/seed-host.ps1`, needed because
+this environment's network TLS-intercepts api.themoviedb.org and the
+in-container importer can't trust that proxy CA): all 26 movies imported
+with posters, and the genre/year filters were confirmed against real data —
+see [v2-acceptance.md](../../verification/v2-acceptance.md). No downloaded
 JSON/images are committed; posters and photos still go to MinIO through the
 existing service endpoints at import time.
 

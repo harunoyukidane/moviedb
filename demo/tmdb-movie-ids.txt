@@ -5,22 +5,24 @@
 # demonstrable. One id per line; blank lines and '#' comments are ignored.
 #
 # Keep this curated (well-known, stable titles) rather than a bulk export.
+# Titles/years/genres below were verified against a live TMDB import
+# (V2-07) — earlier comments on some of the original 12 ids were stale.
 
-# --- Horror (original curated set; TMDB genre 27) ---
-694    # The Shining (1980)
-539    # Psycho (1960)
-348    # Alien (1979)
-9552   # The Exorcist (1973)
-11423  # The Thing (1982)
-609    # Nosferatu (1922)
-4488   # Friday the 13th (1978)
-10331  # Rosemary's Baby (1968)
-805    # The Silence of the Lambs (1991)
-1092   # The Birds (1963)
-3010   # Suspiria (1977)
-1091   # The Fly (1986)
+# --- Original curated set (pre-V2-07); mostly Horror, some Crime/Mystery/Drama ---
+694    # The Shining (1980) - Horror, Thriller
+539    # Psycho (1960) - Horror, Mystery, Thriller
+348    # Alien (1979) - Horror
+9552   # The Exorcist (1973) - Horror
+11423  # Memories of Murder (2003) - Crime, Drama, Thriller
+609    # Poltergeist (1982) - Horror
+4488   # Friday the 13th (1980) - Horror
+10331  # Night of the Living Dead (1968) - Horror, Thriller
+805    # Rosemary's Baby (1968) - Horror, Drama, Thriller
+1092   # The Third Man (1949) - Mystery, Thriller
+3010   # The Cardinal (1963) - Drama
+1091   # The Thing (1982) - Horror, Mystery
 
-# --- Action / Thriller / Crime / Drama / Comedy / Mystery / Romance (V2-07) ---
+# --- Action / Comedy / Crime / Drama / Mystery / Romance / Thriller (V2-07) ---
 562    # Die Hard (1988) - Action, Thriller
 76341  # Mad Max: Fury Road (2015) - Action
 155    # The Dark Knight (2008) - Action, Crime, Thriller
