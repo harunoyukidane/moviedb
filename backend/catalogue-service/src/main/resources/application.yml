@@ -26,9 +26,20 @@ spring:
       max-file-size: 5MB
       max-request-size: 6MB
 
-# Artwork bytes live on a mounted volume outside Git (§10, §14).
+# Artwork bytes live on a mounted volume outside Git (§10, §14) when storage.type=local.
 artwork:
   storage-path: ${ARTWORK_STORAGE_PATH:./data/artwork}
+  # Storage backend selection (V2-02). MinIO properties are required only when
+  # type=minio; left unset here means startup fails clearly if type=minio is
+  # selected without them (see MediaConfig).
+  storage:
+    type: ${ARTWORK_STORAGE_TYPE:local}
+    minio:
+      endpoint: ${MINIO_ENDPOINT:}
+      access-key: ${CATALOGUE_MINIO_ACCESS_KEY:}
+      secret-key: ${CATALOGUE_MINIO_SECRET_KEY:}
+      bucket: ${ARTWORK_MINIO_BUCKET:catalogue-artwork}
+      region: ${MINIO_REGION:us-east-1}
 
 management:
   endpoint:
@@ -38,9 +49,12 @@ management:
       group:
         liveness:
           include: livenessState
-        # readiness includes DB and the People gRPC connectivity contributor (§15).
+        # readiness includes DB, People gRPC connectivity (§15), and object storage. The
+        # "objectStorage" bean is registered under both storage.type=minio (real MinIO probe)
+        # and type=local (always-UP stub) - see MediaConfig - because Spring Boot validates
+        # readiness-group membership eagerly and would otherwise fail startup for local mode.
         readiness:
-          include: readinessState, db, peopleGrpc
+          include: readinessState, db, peopleGrpc, objectStorage
   endpoints:
     web:
       exposure:

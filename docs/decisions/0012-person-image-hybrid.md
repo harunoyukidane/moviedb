@@ -1,6 +1,6 @@
 # ADR-12: Person profile images — stored locally, seeded from TMDB
 
-Status: accepted (supersedes the original "hybrid" framing)
+Status: accepted (supersedes the original "hybrid" framing); **amended by [ADR-14](0014-minio-object-storage.md) in v2** — "stored locally" now means "stored through `ArtworkStore`, backed by MinIO," not the local filesystem. The single-storage-key model, no-runtime-TMDB-dependency guarantee, and importer-uploads-the-photo decision below are unchanged.
 
 ## Context
 Seeded people have a TMDB `profile_path`. Rendering it live would create a runtime

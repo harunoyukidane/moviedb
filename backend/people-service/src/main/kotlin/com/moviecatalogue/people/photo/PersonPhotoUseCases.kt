@@ -23,8 +23,14 @@ class PersonPhotoUseCases(
     private val store: ArtworkStore,
     private val validator: ImageContentValidator,
     private val transactionTemplate: TransactionTemplate,
+    private val meterRegistry: io.micrometer.core.instrument.MeterRegistry =
+        io.micrometer.core.instrument.simple.SimpleMeterRegistry(),
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
+    // compensating delete (new object, after a swap failure) itself failed.
+    private val compensationFailureCounter = meterRegistry.counter("people.photo.compensation.failure")
+    // best-effort post-commit/post-delete object removal failed (old object leaks to the sweeper).
+    private val deleteFailureCounter = meterRegistry.counter("people.photo.delete.failure")
 
     data class PhotoResult(val storageKey: String, val mediaType: String, val byteSize: Long)
 
@@ -44,17 +50,24 @@ class PersonPhotoUseCases(
                 oldKey
             }
         } catch (e: Exception) {
-            if (!store.delete(stored.storageKey)) {
-                log.warn("failed to compensate new person photo {}", stored.storageKey)
+            try {
+                if (!store.delete(stored.storageKey)) {
+                    log.warn("failed to compensate new person photo {}", stored.storageKey)
+                }
+            } catch (storageError: com.moviecatalogue.media.ArtworkStorageException) {
+                log.warn(
+                    "compensation failed for person photo {}; orphan will remain for sweeper: {}",
+                    stored.storageKey,
+                    storageError.message,
+                )
+                compensationFailureCounter.increment()
             }
             throw e
         }
 
         // The transaction has committed; the old object is no longer referenced.
         if (previous != null && previous != stored.storageKey) {
-            if (!store.delete(previous)) {
-                log.warn("old person photo {} not deleted; leaving for cleanup", previous)
-            }
+            deleteBestEffort(previous, "old person photo")
         }
         return PhotoResult(stored.storageKey, validated.format.mediaType, stored.byteSize)
     }
@@ -67,10 +80,24 @@ class PersonPhotoUseCases(
             people.saveAndFlush(person)
             oldKey
         }
-        if (current != null && !store.delete(current)) {
-            log.warn("person photo {} not deleted on removal", current)
-        }
+        if (current != null) deleteBestEffort(current, "person photo")
         return personId
+    }
+
+    /**
+     * Best-effort object removal after the metadata change has already committed. Never
+     * propagates: a transient storage failure here must not surface as an error for a request
+     * that already succeeded — the orphan sweeper is the safety net.
+     */
+    private fun deleteBestEffort(key: String, what: String) {
+        try {
+            if (!store.delete(key)) {
+                log.warn("{} {} not deleted; leaving for cleanup", what, key)
+            }
+        } catch (e: com.moviecatalogue.media.ArtworkStorageException) {
+            log.warn("{} {} not deleted (storage backend threw); leaving for cleanup: {}", what, key, e.message)
+            deleteFailureCounter.increment()
+        }
     }
 
     /** The person's photo storage key, or null if they have no photo. */

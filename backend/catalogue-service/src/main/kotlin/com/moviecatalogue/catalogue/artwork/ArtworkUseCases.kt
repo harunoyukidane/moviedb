@@ -32,6 +32,10 @@ class ArtworkUseCases(
     private val log = LoggerFactory.getLogger(javaClass)
     // §15 metric: artwork metadata-swap failures (bytes written but DB failed).
     private val artworkFailureCounter = meterRegistry.counter("catalogue.artwork.swap.failure")
+    // compensating delete (new object, after a swap failure) itself failed.
+    private val compensationFailureCounter = meterRegistry.counter("catalogue.artwork.compensation.failure")
+    // best-effort post-commit/post-delete object removal failed (old file leaks to the sweeper).
+    private val deleteFailureCounter = meterRegistry.counter("catalogue.artwork.delete.failure")
 
     /**
      * Upload or replace the movie's primary artwork.
@@ -68,16 +72,21 @@ class ArtworkUseCases(
         } catch (e: Exception) {
             log.warn("artwork metadata swap failed for movie {}; compensating new file", movieId)
             artworkFailureCounter.increment()
-            store.delete(stored.storageKey) // compensating delete of the just-written bytes
+            try {
+                store.delete(stored.storageKey) // compensating delete of the just-written bytes
+            } catch (storageError: com.moviecatalogue.media.ArtworkStorageException) {
+                log.warn(
+                    "compensation failed for artwork file {}; orphan will remain for sweeper: {}",
+                    stored.storageKey,
+                    storageError.message,
+                )
+                compensationFailureCounter.increment()
+            }
             throw e
         }
 
         // 7. delete the previous file only after commit; best-effort (sweeper retries)
-        previous?.let {
-            if (!store.delete(it.storageKey)) {
-                log.warn("old artwork file {} not deleted; leaving for orphan sweeper", it.storageKey)
-            }
-        }
+        previous?.let { deleteBestEffort(it.storageKey, "old artwork file") }
         return saved
     }
 
@@ -89,10 +98,24 @@ class ArtworkUseCases(
         artworkRepository.delete(asset)
         artworkRepository.flush()
         // remove bytes after the association is gone; sweeper covers a failed delete
-        if (!store.delete(key)) {
-            log.warn("artwork file {} not deleted on removal; leaving for orphan sweeper", key)
-        }
+        deleteBestEffort(key, "artwork file")
         return asset.id
+    }
+
+    /**
+     * Best-effort object removal after the metadata change has already committed. Never
+     * propagates: a transient storage failure here must not surface as an error for a request
+     * that already succeeded — the orphan sweeper is the safety net.
+     */
+    private fun deleteBestEffort(key: String, what: String) {
+        try {
+            if (!store.delete(key)) {
+                log.warn("{} {} not deleted; leaving for orphan sweeper", what, key)
+            }
+        } catch (e: com.moviecatalogue.media.ArtworkStorageException) {
+            log.warn("{} {} not deleted (storage backend threw); leaving for orphan sweeper: {}", what, key, e.message)
+            deleteFailureCounter.increment()
+        }
     }
 
     private fun safeFilename(original: String?, extension: String): String {

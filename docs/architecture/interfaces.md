@@ -1,0 +1,144 @@
+# Interfaces
+
+```yaml
+status: current
+canonical_for: api-semantics
+last_verified: 2026-09-15
+```
+
+This file explains *semantics and contracts that aren't obvious from reading the
+schema/proto alone* — error codes, batching guarantees, media endpoints. For exact
+current field shapes, read the source:
+
+- GraphQL SDL: [`schema.graphqls`](../../backend/catalogue-service/src/main/resources/graphql/schema.graphqls)
+- gRPC/protobuf: [`people.proto`](../../backend/contracts/src/main/proto/catalogue/people/v1/people.proto)
+
+## GraphQL conventions
+
+- Input types for movie/person fields are explicit rather than reusing output
+  types.
+- Pagination `limit` is clamped to 1–100.
+- Blank search text is rejected or treated as a normal list, consistently.
+- Movie filters combine with AND semantics; changing a filter is a frontend
+  navigation concern that resets offset to zero.
+- Comments are ordered by `(createdAt DESC, id DESC)`, use server-generated
+  timestamps, and reject blank/over-limit author or text values.
+
+### Error contract
+
+Expected errors use stable `extensions.code` values:
+
+| Code | Meaning |
+|---|---|
+| `BAD_USER_INPUT` | Field/rule validation failed; includes field errors |
+| `NOT_FOUND` | Requested movie/person/credit does not exist |
+| `CONFLICT` | Duplicate record or stale optimistic-lock version |
+| `PERSON_IN_USE` | Delete rejected because credits exist |
+| `PAYLOAD_TOO_LARGE` | Artwork exceeds the configured limit |
+| `UNSUPPORTED_MEDIA_TYPE` | Artwork signature/type is not allowed |
+| `DEPENDENCY_UNAVAILABLE` | People Service failed or timed out |
+| `INTERNAL_ERROR` | Unexpected failure; no stack trace exposed |
+
+## Artwork/photo HTTP endpoints
+
+Binary bytes never go through GraphQL — streaming, multipart transfer,
+range/caching semantics, and binary responses fit HTTP better. GraphQL returns
+only the resulting metadata and URL.
+
+```text
+PUT    /api/movies/{movieId}/artwork   multipart/form-data field `file`
+GET    /api/artwork/{artworkId}        cacheable binary response
+DELETE /api/movies/{movieId}/artwork   remove association and stored bytes
+PUT    /api/people/{personId}/photo    multipart/form-data field `file`
+GET    /api/people/{personId}/photo    cacheable binary response
+DELETE /api/people/{personId}/photo    clear reference and remove stored bytes
+```
+
+## gRPC conventions
+
+- Version the protobuf package (`v1`) and never reuse field numbers.
+- Set deadlines on every client call (e.g. 1s for reads, 2s for mutations,
+  locally).
+- Map `INVALID_ARGUMENT`, `NOT_FOUND`, `ALREADY_EXISTS`, `ABORTED`,
+  `FAILED_PRECONDITION`, and `UNAVAILABLE` deliberately.
+- Cap batch size (e.g. 200 IDs), deduplicate IDs at the caller, and return
+  results keyed by ID.
+- Generate code during the build; do not hand-write duplicate DTO contracts.
+- `CreatePersonRequest` includes `death_date` so a person can be created deceased
+  in a single call — matches `PersonPatch` (update) and the `person` table.
+
+## Request lifecycles
+
+### Movie details (read)
+
+1. Browser requests `/movies/{id}`.
+2. SvelteKit sends a GraphQL query for the fields needed by the page.
+3. Catalogue GraphQL resolver delegates to `GetMovieDetails`.
+4. Catalogue repository loads the movie, credits, and artwork metadata in bounded
+   queries.
+5. The use case extracts distinct person IDs.
+6. **One** batched `GetPeople` gRPC call is made with a deadline — no gRPC call
+   per credit.
+7. People Service queries its database in one `WHERE id IN (...)` query.
+8. Catalogue maps people onto credits and returns the GraphQL projection.
+9. Missing person IDs are represented as unavailable references and logged,
+   rather than failing the whole movie page.
+10. Svelte renders data and loads poster bytes from the media URL.
+
+### Adding a credit (write)
+
+1. UI selects an existing person, a controlled role code, and any role-specific
+   character/order data.
+2. GraphQL validates shape and required fields.
+3. Catalogue calls `GetPerson` via gRPC to validate the logical reference.
+4. A Catalogue DB transaction inserts the credit subject to uniqueness
+   constraints.
+5. The new credit is returned with hydrated person data.
+
+There is no atomic transaction covering both services. The person can
+theoretically be deleted after validation and before insertion; the race is made
+very small because person deletion is orchestrated through the Catalogue GraphQL
+API and rejected when referenced (see [data-model.md](data-model.md)). At
+production scale, use a durable person-deletion workflow/event with idempotent
+consumers rather than a distributed database transaction.
+
+## Search
+
+`search(query)` performs two operations within one bounded request: Catalogue DB
+searches movie title/original title; People Service searches person names;
+Catalogue DB also finds movies with credits for the returned person IDs. Results
+are deduplicated and ranked: exact prefix title/name, substring title/name, then
+related credit match. The frontend debounces input (~300ms) and cancels stale
+requests; the server validates min/max query length and paginates results. `%`
+and `_` are escaped so user input is literal. Escaped case-insensitive matching is
+sufficient at the assumed scale (ADR-9); trigram indexing is the next step if
+measured latency requires it.
+
+## Media/MinIO upload path
+
+1. Reject missing, empty, or oversized streams before fully buffering them.
+2. Inspect magic bytes using an image decoder; do not trust filename or
+   `Content-Type` alone.
+3. Allow only JPEG, PNG, and WebP; decode to validate the file is an image.
+4. Generate a server-side UUID storage key and safe extension — never the client
+   path.
+5. Stream to the object store through `ArtworkStore`, computing SHA-256 and byte
+   size without trusting client-supplied metadata.
+6. Insert/swap artwork metadata or the person photo reference in a service-local
+   database transaction.
+7. If the transaction rolls back, delete the new object as compensation. Delete
+   the previous object only after commit; retry orphan cleanup later if needed.
+8. Serve with correct `Content-Type`, `Content-Length`, caching/ETag, and
+   `X-Content-Type-Options: nosniff`.
+
+`ArtworkStore` (`put`, `open`, `delete`, `exists`, `listKeys`) is implemented by
+`MinioArtworkStore` (deployed, ADR-14) and `LocalArtworkStore` (test adapter
+only). Storage selection is configuration-driven; use cases and HTTP routes never
+depend on MinIO SDK types directly. See [operations/runbook.md](../operations/runbook.md)
+for bucket/identity topology.
+
+## Related
+
+- [Data model](data-model.md)
+- [Requirements](../product/requirements.md)
+- [ADR-3](../decisions/0003-graphql-external-grpc-internal.md), [ADR-4](../decisions/0004-artwork-local-store-http.md) (amended by ADR-14), [ADR-14](../decisions/0014-minio-object-storage.md)

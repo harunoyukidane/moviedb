@@ -24,7 +24,7 @@ Set-Location $repoRoot
 
 Write-Host 'WARNING: this will remove this project''s containers AND its named volumes:'
 Write-Host '  - catalogue-db-data, people-db-data            (all movies, people, credits)'
-Write-Host '  - catalogue-artwork-data, person-artwork-data  (all uploaded images)'
+Write-Host '  - minio-data                                   (all uploaded images/artwork)'
 Write-Host 'Local demo data will be permanently deleted. Other Docker projects are untouched.'
 
 if (-not $Yes) {

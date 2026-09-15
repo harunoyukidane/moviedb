@@ -2,6 +2,7 @@ package com.moviecatalogue.catalogue.artwork
 
 import com.moviecatalogue.catalogue.domain.NotFoundException
 import com.moviecatalogue.catalogue.domain.ValidationException
+import com.moviecatalogue.media.ArtworkStorageException
 import com.moviecatalogue.media.PayloadTooLargeException
 import com.moviecatalogue.media.UnsupportedMediaTypeException
 import org.springframework.http.HttpStatus
@@ -38,4 +39,9 @@ class ArtworkExceptionAdvice {
     fun badInput(e: ValidationException) =
         ResponseEntity.status(HttpStatus.BAD_REQUEST)
             .body(body("BAD_USER_INPUT", e.message ?: "invalid input"))
+
+    @ExceptionHandler(ArtworkStorageException::class)
+    fun storageUnavailable(e: ArtworkStorageException) =
+        ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+            .body(body("STORAGE_UNAVAILABLE", e.message ?: "artwork storage backend is unavailable"))
 }

@@ -1,6 +1,6 @@
 # ADR-4: Store artwork locally behind an abstraction and serve bytes over HTTP
 
-Status: accepted
+Status: accepted; **deployed storage superseded by [ADR-14](0014-minio-object-storage.md) in v2** — `LocalArtworkStore` is now a test-only adapter, `MinioArtworkStore` is deployed. The `ArtworkStore` abstraction, HTTP endpoint shape, and content-validation rules decided here are unchanged and still current.
 
 ## Context
 Movies (and person photos) need binary imagery. Pushing bytes through GraphQL is

@@ -1,7 +1,14 @@
-# MovieDB code structure
+# MovieDB code map
 
-Status: v1 structure and v2 placement guide
-Last updated: 2026-09-13
+```yaml
+status: current
+canonical_for: file-placement
+last_verified: 2026-09-15
+```
+
+v1 structure and v2 placement guide. Layer *purpose* and dependency direction are
+normative in [overview.md](overview.md); this file only answers "where does this
+code belong?" — don't duplicate the former here.
 
 ## 1. Design concept
 
@@ -202,7 +209,7 @@ Use this sequence to keep dependencies clean:
 6. Add/update `$lib/server` types and operations.
 7. Compose the route from feature/shared components.
 8. Add boundary integration tests and the smallest valuable E2E coverage.
-9. Update the technical specification and add an ADR for a hard-to-reverse decision.
+9. Update [requirements.md](../product/requirements.md)/this doc as needed and add an ADR for a hard-to-reverse decision.
 
 This order keeps UI and transport code from becoming the accidental source of business truth.
 

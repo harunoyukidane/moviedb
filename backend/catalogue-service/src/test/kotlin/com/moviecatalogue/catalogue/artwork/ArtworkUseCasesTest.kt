@@ -1,13 +1,16 @@
 package com.moviecatalogue.catalogue.artwork
 
 import com.moviecatalogue.catalogue.movie.MovieRepository
+import com.moviecatalogue.media.ArtworkStorageException
 import com.moviecatalogue.media.ArtworkStore
 import com.moviecatalogue.media.ImageContentValidator
 import com.moviecatalogue.media.StoredObject
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import io.mockk.verifyOrder
+import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 import org.springframework.transaction.support.TransactionCallback
@@ -23,11 +26,12 @@ class ArtworkUseCasesTest {
     private val artworkRepository = mockk<ArtworkRepository>(relaxed = true)
     private val store = mockk<ArtworkStore>()
     private val validator = ImageContentValidator()
+    private val meterRegistry = SimpleMeterRegistry()
 
     // A TransactionTemplate that just runs the callback (no real tx) but can be made to "fail".
     private val txTemplate = mockk<TransactionTemplate>()
 
-    private val useCases = ArtworkUseCases(movies, artworkRepository, store, validator, txTemplate)
+    private val useCases = ArtworkUseCases(movies, artworkRepository, store, validator, txTemplate, meterRegistry)
 
     private fun pngBytes(): ByteArray {
         val out = ByteArrayOutputStream()
@@ -79,6 +83,41 @@ class ArtworkUseCasesTest {
         }
         // the new file is NOT deleted on the success path
         verify(exactly = 0) { store.delete("new-key.png") }
+    }
+
+    @Test
+    fun `old file delete throwing after commit does not fail the request`() {
+        val movieId = UUID.randomUUID()
+        val old = ArtworkAsset(
+            id = UUID.randomUUID(), movieId = movieId, storageKey = "old-key.png",
+            originalFilename = "old.png", mediaType = "image/png", byteSize = 50, sha256 = "b".repeat(64),
+        )
+        every { movies.existsById(movieId) } returns true
+        every { store.put(any(), any()) } returns StoredObject("new-key.png", 100, "c".repeat(64))
+        every { artworkRepository.findByMovieId(movieId) } returns old
+        every { txTemplate.execute(any<TransactionCallback<ArtworkAsset>>()) } answers { slotAsset() }
+        every { store.delete("old-key.png") } throws ArtworkStorageException()
+
+        val result = useCases.uploadMovieArtwork(movieId, pngBytes(), "poster.png")
+
+        assertThat(result.storageKey).isEqualTo("new-key.png")
+        assertThat(meterRegistry.counter("catalogue.artwork.delete.failure").count()).isEqualTo(1.0)
+    }
+
+    @Test
+    fun `compensating delete throwing does not mask the original db failure`() {
+        val movieId = UUID.randomUUID()
+        every { movies.existsById(movieId) } returns true
+        every { store.put(any(), any()) } returns StoredObject("new-key.png", 100, "a".repeat(64))
+        every { artworkRepository.findByMovieId(movieId) } returns null
+        every { txTemplate.execute(any<TransactionCallback<*>>()) } throws RuntimeException("db down")
+        every { store.delete("new-key.png") } throws ArtworkStorageException()
+
+        assertThatThrownBy { useCases.uploadMovieArtwork(movieId, pngBytes(), "poster.png") }
+            .isInstanceOf(RuntimeException::class.java)
+            .hasMessage("db down")
+
+        assertThat(meterRegistry.counter("catalogue.artwork.compensation.failure").count()).isEqualTo(1.0)
     }
 
     private fun slotAsset() = ArtworkAsset(

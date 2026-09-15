@@ -21,9 +21,21 @@ spring:
       max-file-size: 5MB
       max-request-size: 6MB
 
-# Person photos live on a mounted volume outside Git (ADR-12 hybrid, §14).
+# Person photos live on a mounted volume outside Git (ADR-12 hybrid, §14) when
+# storage.type=local.
 artwork:
   storage-path: ${PERSON_ARTWORK_STORAGE_PATH:./data/person-artwork}
+  # Storage backend selection (V2-02). MinIO properties are required only when
+  # type=minio; left unset here means startup fails clearly if type=minio is
+  # selected without them (see PhotoMediaConfig).
+  storage:
+    type: ${ARTWORK_STORAGE_TYPE:local}
+    minio:
+      endpoint: ${MINIO_ENDPOINT:}
+      access-key: ${PEOPLE_MINIO_ACCESS_KEY:}
+      secret-key: ${PEOPLE_MINIO_SECRET_KEY:}
+      bucket: ${ARTWORK_MINIO_BUCKET:people-photos}
+      region: ${MINIO_REGION:us-east-1}
 
 management:
   endpoint:
@@ -34,7 +46,7 @@ management:
         liveness:
           include: livenessState
         readiness:
-          include: readinessState, db
+          include: readinessState, db, objectStorage
   endpoints:
     web:
       exposure:

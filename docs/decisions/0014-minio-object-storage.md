@@ -1,6 +1,6 @@
 # ADR-14: Use MinIO object storage for deployed artwork
 
-Status: accepted for v2; implementation pending
+Status: implemented
 Date: 2026-09-13
 
 ## Context
@@ -25,6 +25,10 @@ The database remains the authority for media ownership and metadata. MinIO store
 ## Migration assumption
 
 Existing v1 local media is assessment/demo data and will be discarded during cutover. Stale media references/data are cleared and the expanded deterministic importer reseeds posters and profile photos through service endpoints into MinIO. A future deployment with irreplaceable media must instead add a resumable copy-and-verify migration before switching configuration. Such a utility must preserve keys, verify size/SHA-256, and leave source files intact until the cutover is confirmed.
+
+## Rollback
+
+Switching `ARTWORK_STORAGE_TYPE` back to `local` is safe only when no `artwork_asset`/person `profile_path` row references an object that exists solely in MinIO. Once real uploads have gone to MinIO, flipping the config back without a data migration leaves metadata pointing at keys that don't exist on the local filesystem — every affected artwork/photo immediately 404s. Safe rollback requires either (a) reverting before any post-cutover MinIO uploads occurred, or (b) building the resumable copy-and-verify migration utility this ADR already defers (see "Migration assumption") to copy objects back to local storage first.
 
 ## Consequences
 

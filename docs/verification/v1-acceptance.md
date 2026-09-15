@@ -1,4 +1,16 @@
-# Acceptance checklist sign-off (§19)
+# V1 acceptance sign-off
+
+```yaml
+status: current
+canonical_for: v1-acceptance-evidence
+last_verified: 2026-09-15
+```
+
+Scope: v1 only, signed off before any v2 work started. Frozen at sign-off time —
+item 11's evidence names `LocalArtworkStore`, which v2 replaced with
+`MinioArtworkStore` behind the same `ArtworkStore` port (ADR-14); that's expected,
+not a discrepancy. See [v2-acceptance.md](v2-acceptance.md) for what's changed
+since.
 
 Each acceptance item, with cited evidence in code/tests/config. Test counts at
 sign-off: **backend 160**, **frontend 24**, **importer 24** — all green.

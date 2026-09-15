@@ -1,7 +1,21 @@
 # MovieDB architecture
 
-Status: current v1 architecture with the approved v2 evolution
-Last updated: 2026-09-13
+```yaml
+status: current
+canonical_for: system-boundaries
+last_verified: 2026-09-15
+```
+
+Current v1 architecture with the approved v2 evolution. Quality priorities and
+technology-choice rationale live here too; data ownership/DDL is in
+[data-model.md](data-model.md) and API semantics are in [interfaces.md](interfaces.md).
+
+## Quality priorities
+
+Ordered: 1) correctness and domain clarity, 2) reproducibility, 3) testability,
+4) maintainability, 5) good failure behaviour, 6) reasonable performance,
+7) evolution (storage/service clients sit behind interfaces — see ADR-4/ADR-14
+for why this mattered in practice).
 
 ## 1. Architecture at a glance
 
@@ -198,8 +212,9 @@ The cutover intentionally discards current local demo artwork and reruns the imp
 
 ## 8. Related documentation
 
-- [Code structure](code_structure.md)
-- [V2 requirements](movie-db-v2/requirements.md)
-- [V2 implementation tasks](movie-db-v2/tasks.md)
-- [Technical specification](spec/TECHNICAL_SPECIFICATION%20v0.1.md)
-- [Architecture decision records](decisions/README.md)
+- [Code map](code-map.md)
+- [Data model](data-model.md)
+- [Interfaces](interfaces.md)
+- [Requirements](../product/requirements.md)
+- [V2 plan](../plans/v2/README.md)
+- [Architecture decision records](../decisions/README.md)

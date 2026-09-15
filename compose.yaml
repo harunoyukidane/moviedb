@@ -1,4 +1,44 @@
 services:
+  minio:
+    image: quay.io/minio/minio:RELEASE.2023-09-04T19-57-37Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      # Local/dev convenience only: direct mc/aws-cli access and the admin console.
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    networks: [internal]
+
+  # One-shot administrative bootstrap (ADR-14): idempotently creates the per-service
+  # buckets, identities, and least-privilege policies. Root credentials never reach
+  # catalogue-service/people-service - only this container and `minio` itself see them.
+  minio-init:
+    image: quay.io/minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      CATALOGUE_MINIO_ACCESS_KEY: ${CATALOGUE_MINIO_ACCESS_KEY:-change-me-catalogue-key}
+      CATALOGUE_MINIO_SECRET_KEY: ${CATALOGUE_MINIO_SECRET_KEY:-change-me-catalogue-secret}
+      PEOPLE_MINIO_ACCESS_KEY: ${PEOPLE_MINIO_ACCESS_KEY:-change-me-people-key}
+      PEOPLE_MINIO_SECRET_KEY: ${PEOPLE_MINIO_SECRET_KEY:-change-me-people-secret}
+    entrypoint: ["/bin/sh", "/init/provision-minio.sh"]
+    volumes:
+      - ./scripts/minio-provision.sh:/init/provision-minio.sh:ro
+    restart: "no"
+    networks: [internal]
+
   catalogue-db:
     image: postgres:16-alpine
     environment:
@@ -39,12 +79,16 @@ services:
       PEOPLE_DB_PASSWORD: ${PEOPLE_DB_PASSWORD:-people}
       PEOPLE_GRPC_PORT: "9090"
       PEOPLE_HTTP_PORT: "8081"
-      PERSON_ARTWORK_STORAGE_PATH: /var/lib/artwork
-    volumes:
-      - person-artwork-data:/var/lib/artwork
+      ARTWORK_STORAGE_TYPE: minio
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_REGION: ${MINIO_REGION:-us-east-1}
+      PEOPLE_MINIO_ACCESS_KEY: ${PEOPLE_MINIO_ACCESS_KEY:-change-me-people-key}
+      PEOPLE_MINIO_SECRET_KEY: ${PEOPLE_MINIO_SECRET_KEY:-change-me-people-secret}
     depends_on:
       people-db:
         condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8081/actuator/health/readiness | grep -q UP"]
       interval: 10s
@@ -64,14 +108,18 @@ services:
       CATALOGUE_DB_PASSWORD: ${CATALOGUE_DB_PASSWORD:-catalogue}
       PEOPLE_GRPC_TARGET: static://people-service:9090
       CATALOGUE_HTTP_PORT: "8080"
-      ARTWORK_STORAGE_PATH: /var/lib/artwork
-    volumes:
-      - catalogue-artwork-data:/var/lib/artwork
+      ARTWORK_STORAGE_TYPE: minio
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_REGION: ${MINIO_REGION:-us-east-1}
+      CATALOGUE_MINIO_ACCESS_KEY: ${CATALOGUE_MINIO_ACCESS_KEY:-change-me-catalogue-key}
+      CATALOGUE_MINIO_SECRET_KEY: ${CATALOGUE_MINIO_SECRET_KEY:-change-me-catalogue-secret}
     depends_on:
       catalogue-db:
         condition: service_healthy
       people-service:
         condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health/readiness | grep -q UP"]
       interval: 10s
@@ -140,8 +188,7 @@ services:
 volumes:
   catalogue-db-data:
   people-db-data:
-  catalogue-artwork-data:
-  person-artwork-data:
+  minio-data:
 
 networks:
   internal:

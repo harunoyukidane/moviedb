@@ -23,7 +23,7 @@ done
 cat <<EOF
 WARNING: this will remove this project's containers AND its named volumes:
   - catalogue-db-data, people-db-data      (all movies, people, credits)
-  - catalogue-artwork-data, person-artwork-data  (all uploaded images)
+  - minio-data                                   (all uploaded images/artwork)
 Local demo data will be permanently deleted. Other Docker projects are untouched.
 EOF
 

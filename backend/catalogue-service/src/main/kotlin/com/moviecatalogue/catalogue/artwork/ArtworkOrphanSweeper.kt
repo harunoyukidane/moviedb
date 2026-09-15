@@ -16,8 +16,12 @@ import org.springframework.stereotype.Component
 class ArtworkOrphanSweeper(
     private val artworkRepository: ArtworkRepository,
     private val store: ArtworkStore,
+    private val meterRegistry: io.micrometer.core.instrument.MeterRegistry =
+        io.micrometer.core.instrument.simple.SimpleMeterRegistry(),
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
+    private val removedCounter = meterRegistry.counter("catalogue.artwork.sweep.removed")
+    private val failureCounter = meterRegistry.counter("catalogue.artwork.sweep.failure")
 
     /** Runs periodically; the first run is delayed to let the app settle. */
     @Scheduled(initialDelayString = "PT2M", fixedDelayString = "PT30M")
@@ -25,20 +29,39 @@ class ArtworkOrphanSweeper(
         return sweepOnce()
     }
 
-    /** Exposed for tests and manual triggering; returns the number of files removed. */
+    /**
+     * Exposed for tests and manual triggering; returns the number of files removed. Tolerates a
+     * transient object-store failure: a failed listing skips this run cleanly (the next
+     * scheduled run retries); a failed per-key delete is logged/counted but does not abort the
+     * rest of the sweep.
+     */
     fun sweepOnce(): Int {
         val referenced = artworkRepository.findAllStorageKeys().toHashSet()
-        val onDisk = store.listKeys()
+        val onDisk = try {
+            store.listKeys()
+        } catch (e: com.moviecatalogue.media.ArtworkStorageException) {
+            log.warn("orphan sweep skipped this run; storage listing failed: {}", e.message)
+            failureCounter.increment()
+            return 0
+        }
         var removed = 0
         for (key in onDisk) {
             if (key !in referenced) {
-                if (store.delete(key)) {
-                    removed++
-                    log.info("orphan sweeper removed unreferenced artwork file {}", key)
+                try {
+                    if (store.delete(key)) {
+                        removed++
+                        log.info("orphan sweeper removed unreferenced artwork file {}", key)
+                    }
+                } catch (e: com.moviecatalogue.media.ArtworkStorageException) {
+                    log.warn("orphan sweeper failed to remove artwork file {}: {}", key, e.message)
+                    failureCounter.increment()
                 }
             }
         }
-        if (removed > 0) log.info("orphan sweeper removed {} unreferenced artwork file(s)", removed)
+        if (removed > 0) {
+            log.info("orphan sweeper removed {} unreferenced artwork file(s)", removed)
+            removedCounter.increment(removed.toDouble())
+        }
         return removed
     }
 }

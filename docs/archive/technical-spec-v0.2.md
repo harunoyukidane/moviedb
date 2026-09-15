@@ -1,4 +1,11 @@
-# Movie Catalogue — Technical Specification
+> **Archived 2026-09-15.** This umbrella document has been split into
+> [product/requirements.md](../product/requirements.md), [architecture/](../architecture/overview.md),
+> [operations/runbook.md](../operations/runbook.md), [verification/](../verification/README.md),
+> and [decisions/README.md](../decisions/README.md). See [../README.md](../README.md)
+> for routing. Kept here temporarily as a reference only — do not load this file
+> as project context; it is not maintained going forward.
+
+# Movie Catalogue — Technical Specification (archived)
 
 Version: 0.2 (v2 design revision; filename retained for stable links)
 

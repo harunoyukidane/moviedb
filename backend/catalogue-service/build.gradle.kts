@@ -30,12 +30,19 @@ dependencies {
     implementation(libs.grpc.netty.shaded)
 
     implementation(libs.uuid.creator)
+    // minio's default okhttp 5.x transitive is compiled with Kotlin 2.2 metadata,
+    // unreadable by this project's 1.9.25 compiler; pin the 4.x line it also supports.
+    implementation(libs.minio) {
+        exclude(group = "com.squareup.okhttp3", module = "okhttp")
+    }
+    implementation(libs.okhttp)
 
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(libs.spring.graphql.test)
     testImplementation("org.springframework.boot:spring-boot-starter-webflux")
     testImplementation(libs.testcontainers.junit)
     testImplementation(libs.testcontainers.postgresql)
+    testImplementation(libs.testcontainers.minio)
     testImplementation(libs.mockk)
     testImplementation(libs.assertj.core)
     testImplementation(libs.grpc.inprocess)

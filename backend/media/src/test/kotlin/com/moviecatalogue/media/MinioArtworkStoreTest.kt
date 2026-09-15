@@ -6,6 +6,8 @@ import io.mockk.verify
 import io.minio.MinioClient
 import io.minio.ObjectWriteResponse
 import io.minio.PutObjectArgs
+import io.minio.Result
+import io.minio.messages.Item
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
@@ -66,6 +68,34 @@ class MinioArtworkStoreTest {
                 assertThat(e.message).doesNotContain(secret)
                 assertThat((e as ArtworkStorageException).cause).hasMessage(secret)
             })
+    }
+
+    @Test
+    fun `listKeys wraps a mid-page listing failure as ArtworkStorageException`() {
+        val client = mockk<MinioClient>()
+        val item = mockk<Item>()
+        every { item.objectName() } returns "kept.png"
+        val goodResult = mockk<Result<Item>>()
+        every { goodResult.get() } returns item
+
+        // simulates the SDK's lazy iterator failing partway through a page (transient
+        // network failure), after already having yielded one item successfully
+        val iterable = Iterable<Result<Item>> {
+            object : Iterator<Result<Item>> {
+                var count = 0
+                override fun hasNext() = true
+                override fun next(): Result<Item> {
+                    count++
+                    if (count == 1) return goodResult
+                    throw IOException("connection reset mid-page")
+                }
+            }
+        }
+        every { client.listObjects(any()) } returns iterable
+        val store = MinioArtworkStore(client, BUCKET)
+
+        assertThatThrownBy { store.listKeys() }
+            .isInstanceOf(ArtworkStorageException::class.java)
     }
 
     @Test

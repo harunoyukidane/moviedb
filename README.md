@@ -121,9 +121,29 @@ frontend/              SvelteKit BFF + UI (TypeScript)
 demo/importer/         TMDB importer (TypeScript)
 demo/tmdb-movie-ids.txt  committed manifest of stable TMDB movie ids
 scripts/               setup.sh, reset-demo.sh
-docs/decisions/        Architecture Decision Records (ADR-1..13)
+docs/                  Docs — start at docs/README.md for what to load
+docs/decisions/        Architecture Decision Records (ADR-1..14)
 compose.yaml           full topology (+ seed profile for the importer)
 ```
+
+---
+
+## Object storage (MinIO)
+
+Movie artwork and person photos are stored in MinIO (ADR-14), not on service-local
+volumes. Compose runs one MinIO deployment with two buckets — `catalogue-artwork`
+and `people-photos` — each accessible only via its own least-privilege identity;
+a one-shot `minio-init` service provisions both buckets/identities/policies on
+`docker compose up` and is safe to rerun.
+
+- All uploaded images live in the `minio-data` named volume. `./scripts/reset-demo.sh`
+  (or `.ps1`) removes it along with the databases — reseed afterwards via
+  `./scripts/setup.sh`.
+- Recreating `catalogue-service`/`people-service` containers (e.g.
+  `docker compose restart`) no longer touches media bytes — they live in MinIO,
+  decoupled from the application containers.
+- Root/admin MinIO credentials are bootstrap-only (used by `minio-init`) and are
+  never given to either application service.
 
 ---
 
@@ -191,9 +211,10 @@ Highlights:
 - **Credit last-write-wins** (ADR-13): movies and people use optimistic locking
   (`expectedVersion`); credits are small and subordinate, so `updateMovieCredit`
   intentionally has no `expectedVersion`.
-- **Person images** (ADR-12): person photos are stored locally through the same
-  validated artwork path as movie posters; the importer downloads each person's
-  TMDB image at seed time, so there is no runtime TMDB dependency.
+- **Person images** (ADR-12, amended by ADR-14): person photos go through the
+  same validated `ArtworkStore` path as movie posters, now backed by MinIO; the
+  importer downloads each person's TMDB image at seed time, so there is no
+  runtime TMDB dependency.
 - **Physical deletion with reference protection** (ADR-6): deleting a person who is
   still credited is rejected (`PERSON_IN_USE`); removing a person from a movie is a
   credit removal, never a person delete.
@@ -218,9 +239,10 @@ pair-programmer under human direction. Specifically:
   diagnosed and fixed environment issues (e.g. the Docker Desktop / docker-java API
   mismatch) and iterated until builds and tests were green.
 - **How it was directed:** work proceeded phase by phase against a written technical
-  specification and per-phase implementation plans (`spec/`). Each phase was
-  reviewed, built, and tested before moving on; failing tests and design gaps were
-  fed back for correction.
+  specification and per-phase implementation plans (archived under
+  `docs/archive/v1-implementation-phases/`). Each phase was reviewed, built, and
+  tested before moving on; failing tests and design gaps were fed back for
+  correction.
 - **How generated code can be explained:** every non-trivial decision is captured
   in an ADR with context/consequences, and the code is commented at the points
   where a rule or trade-off matters (e.g. batched hydration, compensation ordering,
