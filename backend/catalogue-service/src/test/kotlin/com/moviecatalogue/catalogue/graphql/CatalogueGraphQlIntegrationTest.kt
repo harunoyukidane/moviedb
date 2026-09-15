@@ -506,4 +506,111 @@ class CatalogueGraphQlIntegrationTest {
             errorCodeOf("""query { movies(filter: { releaseYear: 999 }) { total } }"""),
         ).isEqualTo("BAD_USER_INPUT")
     }
+
+    // --- Comments (V2-14) ---------------------------------------------------
+
+    private fun addComment(movieId: String, author: String, text: String): String =
+        tester.document(
+            """mutation { addMovieComment(movieId: "$movieId", input: { authorDisplayName: "$author", text: "$text" }) {
+                 id authorDisplayName text createdAt } }""",
+        ).execute().path("addMovieComment.id").entity(String::class.java).get()
+
+    @Test
+    fun `addMovieComment persists and trims fields, comments query returns it`() {
+        val movieId = createMovie("Commentable")
+        val result = tester.document(
+            """mutation { addMovieComment(movieId: "$movieId", input: { authorDisplayName: "  Alice  ", text: "  Great movie!  " }) {
+                 id authorDisplayName text createdAt } }""",
+        ).execute()
+        result.path("addMovieComment.authorDisplayName").entity(String::class.java).isEqualTo("Alice")
+        result.path("addMovieComment.text").entity(String::class.java).isEqualTo("Great movie!")
+        val createdAt = result.path("addMovieComment.createdAt").entity(String::class.java).get()
+        assertThat(createdAt).isNotBlank()
+
+        tester.document("""query { comments(movieId: "$movieId") { total items { authorDisplayName text } } }""")
+            .execute()
+            .path("comments.total").entity(Long::class.java).isEqualTo(1L)
+            .path("comments.items[0].authorDisplayName").entity(String::class.java).isEqualTo("Alice")
+    }
+
+    @Test
+    fun `comments are returned in reverse chronological order with pagination`() {
+        val movieId = createMovie("Chatty")
+        val ids = (1..3).map { addComment(movieId, "Author $it", "Comment $it") }
+
+        val all = tester.document(
+            """query { comments(movieId: "$movieId", page: { limit: 20, offset: 0 }) { total items { id } } }""",
+        ).execute()
+        assertThat(all.path("comments.total").entity(Long::class.java).get()).isEqualTo(3L)
+        // most recently added first
+        assertThat(all.path("comments.items[*].id").entityList(String::class.java).get())
+            .containsExactly(ids[2], ids[1], ids[0])
+
+        val page1 = tester.document(
+            """query { comments(movieId: "$movieId", page: { limit: 2, offset: 0 }) { total items { id } } }""",
+        ).execute()
+        assertThat(page1.path("comments.items[*].id").entityList(String::class.java).get())
+            .containsExactly(ids[2], ids[1])
+
+        val page2 = tester.document(
+            """query { comments(movieId: "$movieId", page: { limit: 2, offset: 2 }) { total items { id } } }""",
+        ).execute()
+        assertThat(page2.path("comments.items[*].id").entityList(String::class.java).get())
+            .containsExactly(ids[0])
+    }
+
+    @Test
+    fun `blank author or text on a comment is BAD_USER_INPUT`() {
+        val movieId = createMovie("BadComment")
+        assertThat(
+            errorCodeOf(
+                """mutation { addMovieComment(movieId: "$movieId", input: { authorDisplayName: "   ", text: "fine" }) { id } }""",
+            ),
+        ).isEqualTo("BAD_USER_INPUT")
+        assertThat(
+            errorCodeOf(
+                """mutation { addMovieComment(movieId: "$movieId", input: { authorDisplayName: "Alice", text: "   " }) { id } }""",
+            ),
+        ).isEqualTo("BAD_USER_INPUT")
+    }
+
+    @Test
+    fun `over-limit author or text on a comment is BAD_USER_INPUT`() {
+        val movieId = createMovie("LongComment")
+        val longAuthor = "a".repeat(51)
+        val longText = "a".repeat(2001)
+        assertThat(
+            errorCodeOf(
+                """mutation { addMovieComment(movieId: "$movieId", input: { authorDisplayName: "$longAuthor", text: "fine" }) { id } }""",
+            ),
+        ).isEqualTo("BAD_USER_INPUT")
+        assertThat(
+            errorCodeOf(
+                """mutation { addMovieComment(movieId: "$movieId", input: { authorDisplayName: "Alice", text: "$longText" }) { id } }""",
+            ),
+        ).isEqualTo("BAD_USER_INPUT")
+    }
+
+    @Test
+    fun `commenting on or listing comments for a missing movie is NOT_FOUND`() {
+        val ghost = UUID.randomUUID()
+        assertThat(
+            errorCodeOf("""mutation { addMovieComment(movieId: "$ghost", input: { authorDisplayName: "Alice", text: "Hi" }) { id } }"""),
+        ).isEqualTo("NOT_FOUND")
+        assertThat(
+            errorCodeOf("""query { comments(movieId: "$ghost") { total } }"""),
+        ).isEqualTo("NOT_FOUND")
+    }
+
+    @Test
+    fun `deleting a movie cascades to its comments`() {
+        val movieId = createMovie("Doomed")
+        addComment(movieId, "Alice", "Bye")
+
+        tester.document("""mutation { deleteMovie(id: "$movieId") { deletedId } }""").executeAndVerify()
+
+        assertThat(
+            errorCodeOf("""query { comments(movieId: "$movieId") { total } }"""),
+        ).isEqualTo("NOT_FOUND")
+    }
 }

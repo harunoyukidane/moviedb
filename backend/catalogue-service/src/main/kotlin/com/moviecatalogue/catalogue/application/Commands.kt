@@ -2,6 +2,7 @@ package com.moviecatalogue.catalogue.application
 
 import com.moviecatalogue.catalogue.domain.CreditCategory
 import java.time.LocalDate
+import java.time.OffsetDateTime
 import java.util.UUID
 
 /** Application commands/results, independent of GraphQL and JPA types. */
@@ -92,4 +93,21 @@ data class PersonRef(
     val id: UUID,
     val name: String,
     val available: Boolean,
+)
+
+// --- comments (V2-14) ---------------------------------------------------------
+
+data class CommentView(
+    val id: UUID,
+    val movieId: UUID,
+    val authorDisplayName: String,
+    val text: String,
+    val createdAt: OffsetDateTime,
+)
+
+data class CommentPageView(
+    val items: List<CommentView>,
+    val total: Long,
+    val limit: Int,
+    val offset: Int,
 )

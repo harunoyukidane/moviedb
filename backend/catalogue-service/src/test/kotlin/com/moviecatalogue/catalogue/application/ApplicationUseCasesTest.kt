@@ -1,5 +1,7 @@
 package com.moviecatalogue.catalogue.application
 
+import com.moviecatalogue.catalogue.comment.CommentRepository
+import com.moviecatalogue.catalogue.comment.MovieComment
 import com.moviecatalogue.catalogue.credit.CreditRepository
 import com.moviecatalogue.catalogue.credit.MovieCredit
 import com.moviecatalogue.catalogue.domain.CreditCategory
@@ -223,5 +225,75 @@ class MovieUseCasesTest {
 
         useCases.listMovies(20, 0, MovieFilter(genreCode = "HORROR", releaseYear = 2020))
         verify(exactly = 1) { movies.findAllByFilter("HORROR", 2020, any()) }
+    }
+}
+
+class CommentUseCasesTest {
+
+    private val comments = mockk<CommentRepository>()
+    private val movies = mockk<MovieRepository>()
+    private val useCases = CommentUseCases(comments, movies)
+
+    @Test
+    fun `addComment normalizes fields then inserts, validating the movie exists`() {
+        val movieId = UUID.randomUUID()
+        every { movies.existsById(movieId) } returns true
+        every { comments.saveAndFlush(any()) } answers { firstArg() }
+
+        val view = useCases.addComment(movieId, "  Alice  ", "  Great movie!  ")
+
+        assertThat(view.authorDisplayName).isEqualTo("Alice")
+        assertThat(view.text).isEqualTo("Great movie!")
+        verify(exactly = 1) { comments.saveAndFlush(any()) }
+    }
+
+    @Test
+    fun `addComment rejects an unknown movie before validating or writing`() {
+        val movieId = UUID.randomUUID()
+        every { movies.existsById(movieId) } returns false
+
+        assertThatThrownBy { useCases.addComment(movieId, "Alice", "Great!") }
+            .isInstanceOf(NotFoundException::class.java)
+        verify(exactly = 0) { comments.saveAndFlush(any()) }
+    }
+
+    @Test
+    fun `addComment rejects blank author or text`() {
+        val movieId = UUID.randomUUID()
+        every { movies.existsById(movieId) } returns true
+
+        assertThatThrownBy { useCases.addComment(movieId, "  ", "Great!") }
+            .isInstanceOf(ValidationException::class.java)
+        assertThatThrownBy { useCases.addComment(movieId, "Alice", "  ") }
+            .isInstanceOf(ValidationException::class.java)
+        verify(exactly = 0) { comments.saveAndFlush(any()) }
+    }
+
+    @Test
+    fun `listComments rejects an unknown movie`() {
+        val movieId = UUID.randomUUID()
+        every { movies.existsById(movieId) } returns false
+
+        assertThatThrownBy { useCases.listComments(movieId, 20, 0) }
+            .isInstanceOf(NotFoundException::class.java)
+        verify(exactly = 0) { comments.findAllByMovieIdOrderByCreatedAtDescIdDesc(any(), any()) }
+    }
+
+    @Test
+    fun `listComments clamps paging and maps the page`() {
+        val movieId = UUID.randomUUID()
+        val comment = MovieComment(
+            id = UUID.randomUUID(), movieId = movieId, authorDisplayName = "Alice", text = "Hi",
+            createdAt = java.time.OffsetDateTime.now(),
+        )
+        every { movies.existsById(movieId) } returns true
+        every { comments.findAllByMovieIdOrderByCreatedAtDescIdDesc(movieId, any()) } returns
+            org.springframework.data.domain.PageImpl(listOf(comment))
+
+        val page = useCases.listComments(movieId, 9999, -1)
+        assertThat(page.limit).isEqualTo(100)
+        assertThat(page.offset).isZero()
+        assertThat(page.items).hasSize(1)
+        assertThat(page.items.first().authorDisplayName).isEqualTo("Alice")
     }
 }

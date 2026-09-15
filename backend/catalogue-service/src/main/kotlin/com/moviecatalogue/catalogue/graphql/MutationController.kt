@@ -1,6 +1,7 @@
 package com.moviecatalogue.catalogue.graphql
 
 import com.moviecatalogue.catalogue.application.AddCreditCommand
+import com.moviecatalogue.catalogue.application.CommentUseCases
 import com.moviecatalogue.catalogue.application.CreateMovieCommand
 import com.moviecatalogue.catalogue.application.CreditUseCases
 import com.moviecatalogue.catalogue.application.MovieUseCases
@@ -25,6 +26,7 @@ class MutationController(
     private val movieUseCases: MovieUseCases,
     private val creditUseCases: CreditUseCases,
     private val personUseCases: PersonUseCases,
+    private val commentUseCases: CommentUseCases,
 ) {
 
     // --- Movie -----------------------------------------------------------
@@ -155,4 +157,10 @@ class MutationController(
     @MutationMapping
     fun removeMovieCredit(@Argument id: String): DeleteResultGql =
         DeleteResultGql(creditUseCases.removeCredit(UUID.fromString(id)).toString())
+
+    // --- Comments ----------------------------------------------------------
+
+    @MutationMapping
+    fun addMovieComment(@Argument movieId: String, @Argument input: AddMovieCommentInput): MovieCommentGql =
+        commentUseCases.addComment(UUID.fromString(movieId), input.authorDisplayName, input.text).toGql()
 }

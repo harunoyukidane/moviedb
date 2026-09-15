@@ -2,6 +2,7 @@ package com.moviecatalogue.catalogue.graphql
 
 import com.moviecatalogue.catalogue.domain.CreditCategory
 import java.time.LocalDate
+import java.time.OffsetDateTime
 
 /**
  * GraphQL output DTOs matching the SDL. Nested fields (Movie.cast/creators/
@@ -93,4 +94,18 @@ data class PersonSearchHitGql(val id: String, val name: String)
 data class SearchResultGql(
     val movies: List<MovieSearchHitGql>,
     val people: List<PersonSearchHitGql>,
+)
+
+data class MovieCommentGql(
+    val id: String,
+    val authorDisplayName: String,
+    val text: String,
+    val createdAt: OffsetDateTime,
+)
+
+data class MovieCommentPageGql(
+    val items: List<MovieCommentGql>,
+    val total: Long,
+    val limit: Int,
+    val offset: Int,
 )

@@ -25,13 +25,20 @@ flowchart LR
 | Area | File | Status |
 |---|---|---|
 | MinIO storage adapter, config-driven selection, Compose cutover, failure/rollback verification | [storage.md](storage.md) | ✅ done |
-| Movie filters, expanded seed, comments | [catalogue.md](catalogue.md) | 🟡 partial (filters + seed done; comments remain) |
+| Movie filters, expanded seed, comment persistence/GraphQL API | [catalogue.md](catalogue.md) | ✅ done |
 | View toggle, cast/credits presentation, people photos, action icons | [frontend.md](frontend.md) | ✅ done |
 | E2E, accessibility, Compose smoke test, docs/release checklist | [release.md](release.md) | ☐ not started (blocked on the above) |
 
 Filters/frontend/photos may proceed independently now that MinIO is stable.
 Comments are sequenced after filters for planning convenience, not because
 comments technically depend on storage or filtering.
+
+**Gap**: [requirements.md](../../product/requirements.md) requirement 5
+(Movie Comment Section) also calls for a Movie Detail UI that lists comments
+and lets a user submit one — catalogue.md's V2-13/V2-14 only deliver the
+backend persistence and GraphQL API. No frontend task for the comment section
+exists yet in frontend.md; one needs to be added before requirement 5 as a
+whole can be marked done.
 
 ## Confirmed design decisions
 

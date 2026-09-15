@@ -1,5 +1,6 @@
 package com.moviecatalogue.catalogue.graphql
 
+import com.moviecatalogue.catalogue.application.CommentView
 import com.moviecatalogue.catalogue.application.CreditView
 import com.moviecatalogue.catalogue.application.MovieView
 import com.moviecatalogue.catalogue.application.PersonCreditView
@@ -86,4 +87,8 @@ fun CreditRoleCode.toGql() = CreditRoleCodeGql(
 
 fun ArtworkAsset.toGql(url: String) = ArtworkGql(
     id = id.toString(), url = url, mediaType = mediaType, byteSize = byteSize,
+)
+
+fun CommentView.toGql() = MovieCommentGql(
+    id = id.toString(), authorDisplayName = authorDisplayName, text = text, createdAt = createdAt,
 )

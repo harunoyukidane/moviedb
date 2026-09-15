@@ -1,5 +1,6 @@
 package com.moviecatalogue.catalogue.graphql
 
+import com.moviecatalogue.catalogue.application.CommentUseCases
 import com.moviecatalogue.catalogue.application.PersonUseCases
 import com.moviecatalogue.catalogue.application.ReferenceUseCases
 import com.moviecatalogue.catalogue.domain.CreditCategory
@@ -58,6 +59,24 @@ class ReferenceQueryController(
     fun role(credit: PersonCreditGql): CreditRoleCodeGql =
         referenceUseCases.roleByCode(credit.roleCode)?.toGql()
             ?: error("role ${credit.roleCode} missing")
+}
+
+@Controller
+class CommentQueryController(
+    private val commentUseCases: CommentUseCases,
+) {
+
+    @QueryMapping
+    fun comments(@Argument movieId: String, @Argument page: PageInput?): MovieCommentPageGql {
+        val p = page ?: PageInput()
+        val result = commentUseCases.listComments(UUID.fromString(movieId), p.limit, p.offset)
+        return MovieCommentPageGql(
+            items = result.items.map { it.toGql() },
+            total = result.total,
+            limit = result.limit,
+            offset = result.offset,
+        )
+    }
 }
 
 @Controller

@@ -14,18 +14,19 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.graphql.execution.RuntimeWiringConfigurer
 import java.time.LocalDate
+import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 import java.util.Locale
 
-/** Registers the `Date` (ISO yyyy-MM-dd) and `Long` (64-bit) custom scalars (§8.1). */
+/** Registers the `Date` (ISO yyyy-MM-dd), `DateTime` (ISO-8601 offset) and `Long` (64-bit) custom scalars (§8.1). */
 @Configuration
 class GraphQlScalarConfig {
 
     @Bean
     fun scalarConfigurer(): RuntimeWiringConfigurer =
         RuntimeWiringConfigurer { wiring ->
-            wiring.scalar(dateScalar()).scalar(longScalar())
+            wiring.scalar(dateScalar()).scalar(dateTimeScalar()).scalar(longScalar())
         }
 
     private fun dateScalar(): GraphQLScalarType {
@@ -54,6 +55,34 @@ class GraphQlScalarConfig {
             }
         }
         return GraphQLScalarType.newScalar().name("Date").description("ISO-8601 date (yyyy-MM-dd)").coercing(coercing).build()
+    }
+
+    private fun dateTimeScalar(): GraphQLScalarType {
+        val iso = DateTimeFormatter.ISO_OFFSET_DATE_TIME
+        val coercing = object : Coercing<OffsetDateTime, String> {
+            override fun serialize(dataFetcherResult: Any, ctx: GraphQLContext, locale: Locale): String =
+                when (dataFetcherResult) {
+                    is OffsetDateTime -> dataFetcherResult.format(iso)
+                    else -> throw CoercingSerializeException("expected OffsetDateTime, got ${dataFetcherResult::class}")
+                }
+
+            override fun parseValue(input: Any, ctx: GraphQLContext, locale: Locale): OffsetDateTime =
+                try {
+                    OffsetDateTime.parse(input.toString(), iso)
+                } catch (e: DateTimeParseException) {
+                    throw CoercingParseValueException("invalid DateTime '$input'; expected ISO-8601 offset date-time")
+                }
+
+            override fun parseLiteral(input: Value<*>, vars: CoercedVariables, ctx: GraphQLContext, locale: Locale): OffsetDateTime {
+                if (input !is StringValue) throw CoercingParseLiteralException("DateTime must be a string literal")
+                return try {
+                    OffsetDateTime.parse(input.value, iso)
+                } catch (e: DateTimeParseException) {
+                    throw CoercingParseLiteralException("invalid DateTime '${input.value}'")
+                }
+            }
+        }
+        return GraphQLScalarType.newScalar().name("DateTime").description("ISO-8601 offset date-time").coercing(coercing).build()
     }
 
     private fun longScalar(): GraphQLScalarType {

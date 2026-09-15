@@ -119,3 +119,30 @@ class CreditRulesTest {
             .isInstanceOf(ValidationException::class.java)
     }
 }
+
+class MovieCommentRulesTest {
+
+    @Test
+    fun `normalizeAuthorDisplayName trims and validates`() {
+        assertThat(MovieCommentRules.normalizeAuthorDisplayName("  Alice  ")).isEqualTo("Alice")
+        assertThatThrownBy { MovieCommentRules.normalizeAuthorDisplayName(null) }
+            .isInstanceOf(ValidationException::class.java)
+        assertThatThrownBy { MovieCommentRules.normalizeAuthorDisplayName("   ") }
+            .isInstanceOf(ValidationException::class.java)
+        assertThatThrownBy {
+            MovieCommentRules.normalizeAuthorDisplayName("a".repeat(MovieCommentRules.AUTHOR_DISPLAY_NAME_MAX + 1))
+        }.isInstanceOf(ValidationException::class.java)
+    }
+
+    @Test
+    fun `normalizeText trims and validates`() {
+        assertThat(MovieCommentRules.normalizeText("  Great movie!  ")).isEqualTo("Great movie!")
+        assertThatThrownBy { MovieCommentRules.normalizeText(null) }
+            .isInstanceOf(ValidationException::class.java)
+        assertThatThrownBy { MovieCommentRules.normalizeText("   ") }
+            .isInstanceOf(ValidationException::class.java)
+        assertThatThrownBy {
+            MovieCommentRules.normalizeText("a".repeat(MovieCommentRules.TEXT_MAX + 1))
+        }.isInstanceOf(ValidationException::class.java)
+    }
+}

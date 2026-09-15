@@ -6,8 +6,8 @@ canonical_for: v2-catalogue-plan
 last_verified: 2026-09-15
 ```
 
-Status: 🟡 in progress — V2-05/V2-06/V2-07 done (requirement 3 complete);
-V2-13/V2-14 (requirement 5, comments) remain. Corresponds to
+Status: 🟢 done — V2-05/V2-06/V2-07 (requirement 3) and V2-13/V2-14
+(requirement 5, comments) all complete. Corresponds to
 [requirements.md](../../product/requirements.md) requirements 3 and 5.
 
 ## V2-05: Extend the movie-list GraphQL contract — done
@@ -77,18 +77,37 @@ see [v2-acceptance.md](../../verification/v2-acceptance.md). No downloaded
 JSON/images are committed; posters and photos still go to MinIO through the
 existing service endpoints at import time.
 
-## V2-13: Comment persistence model
+## V2-13: Comment persistence model — done
 
-- Add an append-only Catalogue Flyway migration for `movie_comment` (UUIDv7 `id`, `movie_id` FK `ON DELETE CASCADE`, `author_display_name`, `text`, `created_at`; index on `(movie_id, created_at DESC, id DESC)`).
-- Required trimmed author display name ≤50 Unicode characters; comment text ≤2,000 characters.
-- Comments are physically deleted with their movie; standalone comment edit/delete is not in v2 scope.
-- Add entity, repository, rules, and PostgreSQL integration tests.
+Added `V4__add_movie_comment.sql` (append-only; `V1`-`V3` untouched): `movie_comment`
+with a UUIDv7 `id`, `movie_id` FK `ON DELETE CASCADE`, `author_display_name`
+(`VARCHAR(50)`), `text` (`VARCHAR(2000)`), `created_at`, both non-blank via
+`CHECK`, and `ix_movie_comment_movie_created` on
+`(movie_id, created_at DESC, id DESC)`. `comment/MovieComment.kt` is a minimal
+JPA mapping (no update path — comments have no edit/delete of their own, only
+the movie's cascade delete removes them); `comment/CommentRepository.kt` adds
+the single derived query `findAllByMovieIdOrderByCreatedAtDescIdDesc`.
+`domain/Rules.kt` gained `MovieCommentRules` (trim + blank/length checks
+mirroring the DB constraints, `AUTHOR_DISPLAY_NAME_MAX = 50`,
+`TEXT_MAX = 2000`). Covered by `MovieCommentRulesTest` and by
+`CatalogueRepositoryIntegrationTest` (persist, reverse-chronological
+paging with an id tie-break, cascade delete removes comments).
 
-## V2-14: Comment application and GraphQL API
+## V2-14: Comment application and GraphQL API — done
 
-- Add `comments(movieId, page)` and `addMovieComment(movieId, input)` to the GraphQL contract.
-- Use server-generated UUIDv7 and timestamps; never trust a client timestamp.
-- Return reverse chronological pages with stable ID tie-breaking and bounded limits.
-- Validate that the movie exists and map failures through stable GraphQL error codes.
-- Keep comment reads/writes inside Catalogue; do not introduce another service.
-- Add application and GraphQL integration tests for empty, whitespace, over-limit, missing movie, ordering, pagination, and movie cascade deletion.
+Added `comments(movieId, page)` (query) and `addMovieComment(movieId, input)`
+(mutation) to the schema, plus a new `DateTime` scalar (ISO-8601 offset,
+`GraphQlScalarConfig`) for `MovieComment.createdAt`. `application/
+CommentUseCases.kt` generates the id (UUIDv7) and `createdAt`
+(`OffsetDateTime.now()`) itself — the comment entity's `created_at` column is
+app-supplied rather than DB-default-only, since a JPA entity whose timestamp
+is populated purely by a DB default isn't visible in memory for the mutation's
+own response — and validates the movie exists before normalizing input via
+`MovieCommentRules`, so a bad movie id fails before validation. Reads/writes
+stay entirely inside Catalogue (no new service). `NotFoundException`/
+`ValidationException` already map to `NOT_FOUND`/`BAD_USER_INPUT` via the
+existing `GraphQlExceptionResolver`, so no new error-mapping code was needed.
+Covered by `CommentUseCasesTest` (mockk) and
+`CatalogueGraphQlIntegrationTest` (persist + trim, reverse-chronological
+ordering and pagination, blank/over-limit input, missing movie on both query
+and mutation, movie-delete cascade).

@@ -66,3 +66,8 @@ data class UpdateCreditInput(
     val characterName: String? = null,
     val billingOrder: Int? = null,
 )
+
+data class AddMovieCommentInput(
+    val authorDisplayName: String,
+    val text: String,
+)

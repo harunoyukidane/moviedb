@@ -1,6 +1,7 @@
 "The Catalogue public GraphQL contract (TECHNICAL_SPECIFICATION §8.1)."
 
 scalar Date
+scalar DateTime
 scalar Long
 
 type Query {
@@ -11,6 +12,7 @@ type Query {
   search(query: String!, page: PageInput = { limit: 10, offset: 0 }): SearchResult!
   genres(activeOnly: Boolean = true): [GenreCode!]!
   creditRoles(category: CreditCategory, activeOnly: Boolean = true): [CreditRoleCode!]!
+  comments(movieId: ID!, page: PageInput = { limit: 20, offset: 0 }): MovieCommentPage!
 }
 
 type Mutation {
@@ -24,6 +26,8 @@ type Mutation {
   addMovieCredit(movieId: ID!, input: CreateCreditInput!): MovieCredit!
   updateMovieCredit(id: ID!, input: UpdateCreditInput!): MovieCredit!
   removeMovieCredit(id: ID!): DeleteResult!
+
+  addMovieComment(movieId: ID!, input: AddMovieCommentInput!): MovieComment!
 }
 
 type Movie {
@@ -63,6 +67,8 @@ type PersonSearchHit { id: ID!, name: String! }
 type DeleteResult { deletedId: ID! }
 type MoviePage { items: [Movie!]!, total: Long!, limit: Int!, offset: Int! }
 type PersonPage { items: [Person!]!, total: Long!, limit: Int!, offset: Int! }
+type MovieComment { id: ID!, authorDisplayName: String!, text: String!, createdAt: DateTime! }
+type MovieCommentPage { items: [MovieComment!]!, total: Long!, limit: Int!, offset: Int! }
 
 enum CreditCategory { CAST CREW }
 input PageInput { limit: Int! = 20, offset: Int! = 0 }
@@ -73,3 +79,4 @@ input CreatePersonInput { name: String!, biography: String = "", birthDate: Date
 input UpdatePersonInput { name: String, biography: String, birthDate: Date, deathDate: Date, placeOfBirth: String }
 input CreateCreditInput { personId: ID!, roleCode: ID!, characterName: String, billingOrder: Int, tmdbCreditId: String, sourceRoleName: String }
 input UpdateCreditInput { roleCode: ID, characterName: String, billingOrder: Int }
+input AddMovieCommentInput { authorDisplayName: String!, text: String! }

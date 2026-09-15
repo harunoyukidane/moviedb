@@ -2,6 +2,8 @@ package com.moviecatalogue.catalogue.persistence
 
 import com.moviecatalogue.catalogue.artwork.ArtworkAsset
 import com.moviecatalogue.catalogue.artwork.ArtworkRepository
+import com.moviecatalogue.catalogue.comment.CommentRepository
+import com.moviecatalogue.catalogue.comment.MovieComment
 import com.moviecatalogue.catalogue.common.UuidV7
 import com.moviecatalogue.catalogue.credit.CreditRepository
 import com.moviecatalogue.catalogue.credit.MovieCredit
@@ -25,6 +27,7 @@ import org.springframework.test.context.DynamicPropertySource
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
+import java.time.OffsetDateTime
 import java.util.UUID
 
 /**
@@ -59,6 +62,7 @@ class CatalogueRepositoryIntegrationTest {
     @Autowired lateinit var genres: GenreCodeRepository
     @Autowired lateinit var roles: CreditRoleCodeRepository
     @Autowired lateinit var artwork: ArtworkRepository
+    @Autowired lateinit var comments: CommentRepository
 
     private fun newMovie(title: String = "Movie") =
         Movie(id = UuidV7.generate(), title = title)
@@ -125,8 +129,16 @@ class CatalogueRepositoryIntegrationTest {
                 sha256 = "a".repeat(64),
             ),
         )
+        comments.saveAndFlush(
+            MovieComment(
+                id = UuidV7.generate(), movieId = movie.id, authorDisplayName = "Alice", text = "Great!",
+                createdAt = OffsetDateTime.now(),
+            ),
+        )
         assertThat(movieGenres.findAllByIdMovieId(movie.id)).hasSize(1)
         assertThat(artwork.findByMovieId(movie.id)).isNotNull()
+        assertThat(comments.findAllByMovieIdOrderByCreatedAtDescIdDesc(movie.id, PageRequest.of(0, 20)).content)
+            .hasSize(1)
 
         movies.deleteById(movie.id)
         movies.flush()
@@ -134,6 +146,40 @@ class CatalogueRepositoryIntegrationTest {
         assertThat(movieGenres.findAllByIdMovieId(movie.id)).isEmpty()
         assertThat(credits.findAllByMovieId(movie.id)).isEmpty()
         assertThat(artwork.findByMovieId(movie.id)).isNull()
+        assertThat(comments.findAllByMovieIdOrderByCreatedAtDescIdDesc(movie.id, PageRequest.of(0, 20)).content)
+            .isEmpty()
+    }
+
+    @Test
+    fun `comment persists and pages in reverse chronological order with id tie-break`() {
+        val movie = movies.saveAndFlush(newMovie("Commented"))
+        val other = movies.saveAndFlush(newMovie("Other"))
+        val now = OffsetDateTime.now()
+        comments.saveAndFlush(
+            MovieComment(
+                id = UuidV7.generate(), movieId = other.id, authorDisplayName = "Zoe", text = "Not this one",
+                createdAt = now,
+            ),
+        )
+
+        val saved = (1..3).map {
+            comments.saveAndFlush(
+                MovieComment(
+                    id = UuidV7.generate(),
+                    movieId = movie.id,
+                    authorDisplayName = "Author $it",
+                    text = "Comment $it",
+                    // Same timestamp for every comment forces the id tie-break to do the work.
+                    createdAt = now,
+                ),
+            )
+        }
+
+        val page = comments.findAllByMovieIdOrderByCreatedAtDescIdDesc(movie.id, PageRequest.of(0, 2))
+        assertThat(page.totalElements).isEqualTo(3)
+        assertThat(page.content).hasSize(2)
+        // UUIDv7 ids are time-ordered, so id desc is a valid tie-break for equal created_at timestamps.
+        assertThat(page.content.map { it.id }).containsExactly(saved[2].id, saved[1].id)
     }
 
     @Test

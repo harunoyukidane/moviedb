@@ -120,3 +120,25 @@ object CreditRules {
         return v
     }
 }
+
+/** Pure-domain invariants for movie comments (V2-13). No Spring/JPA. */
+object MovieCommentRules {
+    const val AUTHOR_DISPLAY_NAME_MAX = 50
+    const val TEXT_MAX = 2000
+
+    fun normalizeAuthorDisplayName(raw: String?): String {
+        val v = raw?.trim().orEmpty()
+        if (v.isEmpty()) throw ValidationException("authorDisplayName must not be blank")
+        if (v.length > AUTHOR_DISPLAY_NAME_MAX) {
+            throw ValidationException("authorDisplayName must be at most $AUTHOR_DISPLAY_NAME_MAX characters")
+        }
+        return v
+    }
+
+    fun normalizeText(raw: String?): String {
+        val v = raw?.trim().orEmpty()
+        if (v.isEmpty()) throw ValidationException("text must not be blank")
+        if (v.length > TEXT_MAX) throw ValidationException("text must be at most $TEXT_MAX characters")
+        return v
+    }
+}
