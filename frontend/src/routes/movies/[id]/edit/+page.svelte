@@ -17,9 +17,6 @@
   let creditOpen = false;
   let confirmDeleteOpen = false;
   let addCreditButton: HTMLButtonElement;
-  let removeCreditForm: HTMLFormElement;
-  let confirmRemoveOpen = false;
-  let pendingRemoveCredit: MovieCredit | null = null;
 
   $: selectedGenres = movie.genres.map((g) => g.code);
   $: allCredits = [...movie.cast, ...movie.creators];
@@ -32,15 +29,6 @@
   function submitDelete() {
     const f = document.getElementById('delete-movie-form');
     if (f instanceof HTMLFormElement) f.requestSubmit();
-  }
-
-  function confirmRemoveCredit(credit: MovieCredit) {
-    pendingRemoveCredit = credit;
-    confirmRemoveOpen = true;
-  }
-
-  function submitRemoveCredit() {
-    removeCreditForm?.requestSubmit();
   }
 </script>
 
@@ -144,12 +132,19 @@
             <span class="cat-badge">{c.category}</span>
             {creditLine(c)}
           </span>
-          <IconButton
-            icon="delete"
-            variant="danger"
-            label={`Remove ${c.person.name} from movie`}
-            on:click={() => confirmRemoveCredit(c)}
-          />
+          <form
+            method="POST"
+            action="?/removeCredit"
+            use:enhance={() => async ({ update }) => {
+              await update();
+              // The removed row's button is gone from the DOM; move focus somewhere
+              // stable and meaningful instead of letting it silently fall to <body>.
+              addCreditButton?.focus();
+            }}
+          >
+            <input type="hidden" name="creditId" value={c.id} />
+            <IconButton type="submit" icon="delete" variant="danger" label={`Remove ${c.person.name} from movie`} />
+          </form>
         </li>
       {/each}
     </ul>
@@ -177,33 +172,7 @@
   This permanently removes “{movie.title}” and its credits, genres, and artwork. This cannot be undone.
 </ConfirmDialog>
 
-<ConfirmDialog
-  bind:open={confirmRemoveOpen}
-  title="Remove this credit?"
-  confirmLabel="Remove from movie"
-  danger
-  on:confirm={submitRemoveCredit}
->
-  This removes {pendingRemoveCredit?.person.name ?? 'this person'} from “{movie.title}”. The person themselves is not
-  deleted, and the credit can be added back later.
-</ConfirmDialog>
-
 <form id="delete-movie-form" method="POST" action="?/delete" use:enhance hidden></form>
-
-<form
-  bind:this={removeCreditForm}
-  method="POST"
-  action="?/removeCredit"
-  use:enhance={() => async ({ update }) => {
-    await update();
-    // The removed row's button is gone from the DOM; move focus somewhere
-    // stable and meaningful instead of letting it silently fall to <body>.
-    addCreditButton?.focus();
-  }}
-  hidden
->
-  <input type="hidden" name="creditId" value={pendingRemoveCredit?.id ?? ''} />
-</form>
 
 <style>
   .back { display: inline-block; margin-bottom: var(--sp-2); color: var(--text-muted); }

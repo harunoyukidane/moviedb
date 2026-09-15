@@ -83,22 +83,29 @@ task-level backlog and dependency order.
 [frontend.md](../plans/v2/frontend.md) (V2-12) and
 [verification/v2-acceptance.md](../verification/v2-acceptance.md).
 
-**Confirmed design decision** (amends criterion 2 below): credit mutation —
-adding and removing a credit — happens only inside the Credit Editor, which
-is reached via the edit Icon Asset control on the movie (or person) detail
-page; this matches the pre-existing structure where the detail page was
-already read-only and all mutations already lived on `/edit`. Within the
-Credit Editor, each Credit carries a delete Icon Asset control; there is no
-separate per-Credit edit Icon Asset control for changing an existing
-credit's role/character/billing — add + remove together are the credit
-editing capability. Criterion 2 below is satisfied at the level of "the
-Credit Editor is reached via an edit Icon Asset control, and each Credit
-within it has a delete Icon Asset control," not literally per-Credit edit
-controls.
+**Confirmed design decisions** (amend criteria 2 and 3 below):
+
+- Credit mutation — adding and removing a credit — happens only inside the
+  Credit Editor, which is reached via the edit Icon Asset control on the
+  movie (or person) detail page; this matches the pre-existing structure
+  where the detail page was already read-only and all mutations already
+  lived on `/edit`. Within the Credit Editor, each Credit carries a delete
+  Icon Asset control; there is no separate per-Credit edit Icon Asset
+  control for changing an existing credit's role/character/billing —
+  add + remove together are the credit editing capability. Criterion 2
+  below is satisfied at the level of "the Credit Editor is reached via an
+  edit Icon Asset control, and each Credit within it has a delete Icon
+  Asset control," not literally per-Credit edit controls.
+- Removing a credit does **not** request confirmation (criterion 3 below is
+  superseded): unlike deleting a movie or a person, removing a credit is
+  low-cost to reverse — the credited person's data is untouched in People,
+  and the credit can be re-added from the Credit Editor at any time without
+  re-entering any data. Confirmation is reserved for movie/person deletion
+  (criterion 4), which destroy substantial hand-entered data.
 
 1. THE Frontend SHALL provide Icon Assets under `frontend/src/resources` for edit, delete, list view, and cluster view.
 2. WHERE a Credit is displayed in the Credit Editor, THE Frontend SHALL display edit and delete Icon Asset controls for that Credit.
-3. WHEN a user activates the delete Icon Asset control for a Credit, THE Frontend SHALL request confirmation before removing that Credit.
+3. ~~WHEN a user activates the delete Icon Asset control for a Credit, THE Frontend SHALL request confirmation before removing that Credit.~~ Superseded — see confirmed design decisions above.
 4. THE Frontend SHALL render the movie delete action as a labeled confirmation dialog that states the movie title and warns that deletion is permanent, rather than as an icon-only control.
 5. THE Frontend SHALL provide a text alternative for each Icon Asset control that names the action it performs.
 

@@ -49,6 +49,8 @@ comments technically depend on storage or filtering.
    the pre-existing read-only-detail-page structure. There is no separate
    per-Credit edit control for changing an existing credit's
    role/character/billing; add + remove together are the editing capability.
-   Removing a credit requires confirmation (low-stakes/reversible — the
-   person is not deleted); movie/person deletion keep their own
-   higher-stakes labeled confirmation dialogs, never icon-only.
+7. Removing a credit does not require confirmation: the person's data is
+   untouched and the credit can be re-added at any time with no re-entry of
+   data. Movie/person deletion keep their own labeled confirmation dialogs,
+   never icon-only, because they destroy substantial hand-entered data that
+   is materially harder to reconstruct.

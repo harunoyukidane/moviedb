@@ -148,25 +148,28 @@ Wired in three places:
   deliberately never converted to an icon (requirement 1 criterion 4).
 
 While verifying against `requirements.md` (Requirement 1) rather than just
-the informal task bullets above, found the formal requirement also asks for
-confirmation before a credit-removal icon actually removes the credit,
-which the app didn't have (direct submit). Clarified the intended design
-with the user: credit mutations (add/remove) live only behind the Edit
-icon on the Credit Editor — matching the existing structure, where the
-detail page is already read-only and all mutations already lived on
-`/edit` — and per-credit removal now goes through a `ConfirmDialog`
-("Remove this credit? ... The person themselves is not deleted, and the
-credit can be added back later.") before submitting, using one shared
-hidden form + dialog rather than one per row. `journey.spec.ts`'s e2e step
-6 updated to click through the added confirmation step. A per-credit "edit
-fields" dialog (changing role/character/billing) was explicitly **not**
-built — add + remove is the credit "editing" capability, consistent with
-what the user described as the intended UX.
+the informal task bullets above, found the formal requirement also asked
+for confirmation before a credit-removal icon actually removes the credit.
+Clarified the intended design with the user in two rounds: credit mutations
+(add/remove) live only behind the Edit icon on the Credit Editor — matching
+the existing structure, where the detail page is already read-only and all
+mutations already lived on `/edit`, with add + remove as the full credit
+"editing" capability (no separate per-field edit dialog) — and, on
+reflection, removing a credit does **not** need confirmation, since the
+credited person's data is untouched and the credit can be re-added at any
+time with no re-entry of data; confirmation is reserved for movie/person
+deletion, which destroys substantial hand-entered data. (An intermediate
+version of this change did add a `ConfirmDialog` for credit removal; it was
+reverted per this follow-up decision — `journey.spec.ts`'s e2e step 6 is
+back to a single click, no confirmation step, with a comment explaining
+why.) `requirements.md` Requirement 1 criterion 3 is marked superseded
+rather than silently dropped, so the decision stays visible.
 
 Verified live end-to-end against the seeded stack: the delete icon and the
 edit-navigation icons measure exactly 44×44px (`getBoundingClientRect`);
-clicking the delete icon opens the confirm dialog with the exact expected
-copy; confirming actually removes the credit, shows the "Credit removed"
-banner, and moves focus to the "Add credit" button rather than losing it to
-`<body>`; the edit icons on both movie and person detail pages link to the
-correct `/edit` routes with accessible names "Edit movie"/"Edit person".
+clicking the delete icon immediately removes the credit (no dialog), shows
+the "Credit removed" banner, and moves focus to the "Add credit" button
+rather than losing it to `<body>`; the edit icons on both movie and person
+detail pages link to the correct `/edit` routes with accessible names
+"Edit movie"/"Edit person"; movie/person deletion remain labeled buttons
+with their own confirmation dialogs, unchanged.
