@@ -143,13 +143,13 @@ person hydration (no N+1 gRPC) already existed from v1.
 3. IF a person has no photo, THEN a placeholder image is shown; IF a person is unavailable from People Service, THEN an unavailable-person indicator is shown in place of the name.
 4. Cast Credits are ordered by billing order.
 
-### Requirement 5: Movie Comment Section — status: in progress
+### Requirement 5: Movie Comment Section — status: done
 
-Backend done (V2-13/V2-14 in [catalogue.md](../plans/v2/catalogue.md)):
-`movie_comment` table, entity/repository/rules, and the `comments`/
-`addMovieComment` GraphQL fields, with server-generated id/timestamp and
-reverse-chronological paging. The Movie Detail UI (list + submit form,
-criteria 1/2/4 below) is not yet built — no frontend task for it exists yet.
+Backend (V2-13/V2-14) and frontend (V2-15) in
+[catalogue.md](../plans/v2/catalogue.md)/[frontend.md](../plans/v2/frontend.md):
+`movie_comment` table, entity/repository/rules, `comments`/`addMovieComment`
+GraphQL fields with server-generated id/timestamp and reverse-chronological
+paging, and the Movie Detail page's comment list + submit form.
 
 1. THE Movie Detail SHALL display a comment section listing existing Comments, each with author display name, text, and creation timestamp.
 2. WHEN a user submits a Comment with non-empty text, THE Catalogue Service SHALL persist it with a server-generated timestamp and display it in the section.

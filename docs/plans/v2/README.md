@@ -26,19 +26,12 @@ flowchart LR
 |---|---|---|
 | MinIO storage adapter, config-driven selection, Compose cutover, failure/rollback verification | [storage.md](storage.md) | ✅ done |
 | Movie filters, expanded seed, comment persistence/GraphQL API | [catalogue.md](catalogue.md) | ✅ done |
-| View toggle, cast/credits presentation, people photos, action icons | [frontend.md](frontend.md) | ✅ done |
-| E2E, accessibility, Compose smoke test, docs/release checklist | [release.md](release.md) | ☐ not started (blocked on the above) |
+| View toggle, cast/credits presentation, people photos, action icons, comment section UI | [frontend.md](frontend.md) | ✅ done |
+| E2E, accessibility, Compose smoke test, docs/release checklist | [release.md](release.md) | ☐ not started (now unblocked — all dependencies done) |
 
 Filters/frontend/photos may proceed independently now that MinIO is stable.
 Comments are sequenced after filters for planning convenience, not because
 comments technically depend on storage or filtering.
-
-**Gap**: [requirements.md](../../product/requirements.md) requirement 5
-(Movie Comment Section) also calls for a Movie Detail UI that lists comments
-and lets a user submit one — catalogue.md's V2-13/V2-14 only deliver the
-backend persistence and GraphQL API. No frontend task for the comment section
-exists yet in frontend.md; one needs to be added before requirement 5 as a
-whole can be marked done.
 
 ## Confirmed design decisions
 
@@ -61,3 +54,8 @@ whole can be marked done.
    data. Movie/person deletion keep their own labeled confirmation dialogs,
    never icon-only, because they destroy substantial hand-entered data that
    is materially harder to reconstruct.
+8. Posting a comment is a form action directly on the Movie Detail page
+   (`movies/[id]/+page.server.ts`), not on the `/edit` editor. This is a
+   deliberate, narrow exception to the "detail page is read-only" pattern
+   from decision 6: comments are additive/unmoderated content, not a "movie
+   data" edit, so they don't belong behind the edit affordance.

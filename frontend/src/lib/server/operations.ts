@@ -5,6 +5,8 @@ import type {
   DeleteResult,
   GenreCode,
   Movie,
+  MovieComment,
+  MovieCommentPage,
   MoviePage,
   Person,
   PersonPage
@@ -205,6 +207,36 @@ export function deletePerson(id: string, ctx?: RequestContext) {
     { id },
     ctx
   ).then((r) => r.deletePerson);
+}
+
+// --- comments ---
+
+export function listComments(movieId: string, limit: number, offset: number, ctx?: RequestContext) {
+  return gql<{ comments: MovieCommentPage }>(
+    `query($movieId: ID!, $limit: Int!, $offset: Int!) {
+      comments(movieId: $movieId, page: { limit: $limit, offset: $offset }) {
+        total limit offset
+        items { id authorDisplayName text createdAt }
+      }
+    }`,
+    { movieId, limit, offset },
+    ctx
+  ).then((r) => r.comments);
+}
+
+export interface AddMovieCommentInput {
+  authorDisplayName: string;
+  text: string;
+}
+
+export function addMovieComment(movieId: string, input: AddMovieCommentInput, ctx?: RequestContext) {
+  return gql<{ addMovieComment: MovieComment }>(
+    `mutation($movieId: ID!, $input: AddMovieCommentInput!) {
+      addMovieComment(movieId: $movieId, input: $input) { id authorDisplayName text createdAt }
+    }`,
+    { movieId, input },
+    ctx
+  ).then((r) => r.addMovieComment);
 }
 
 // --- search ---

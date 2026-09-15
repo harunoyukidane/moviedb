@@ -9,7 +9,7 @@ last_verified: 2026-09-15
 **Status: done.** Kept for the record of what was built and tested; see
 [verification/v2-acceptance.md](../../verification/v2-acceptance.md) for
 evidence. Corresponds to [requirements.md](../../product/requirements.md)
-requirements 1, 2, 4, and 6 — all four now satisfied and live-verified.
+requirements 1, 2, 4, 5, and 6 — all now satisfied.
 
 ## V2-08: Movie-list feature components — done
 
@@ -173,3 +173,49 @@ rather than losing it to `<body>`; the edit icons on both movie and person
 detail pages link to the correct `/edit` routes with accessible names
 "Edit movie"/"Edit person"; movie/person deletion remain labeled buttons
 with their own confirmation dialogs, unchanged.
+
+## V2-15: Comment section UI — done
+
+Added the Movie Detail page's comment section, closing the gap left after
+the backend-only V2-13/V2-14 (`docs/plans/v2/catalogue.md`): `movie_comment`
+persistence and the `comments`/`addMovieComment` GraphQL fields existed, but
+nothing on the frontend called them. `lib/server/types.ts` gained
+`MovieComment`/`MovieCommentPage`; `lib/server/operations.ts` gained
+`listComments`/`addMovieComment`. `lib/features/comments/CommentSection.svelte`
+(list rendering, modeled on `CreditSection.svelte`) renders comments in
+exactly the order the API returns them (`createdAt DESC, id` tie-break,
+§8.1) — deliberately not re-sorted client-side, same rationale as V2-10's
+credit ordering. A new `lib/format.ts#formatDateTime` (first timestamp — as
+opposed to date-only — formatting helper in the frontend) renders
+`createdAt` via `<time datetime>`.
+
+`movies/[id]/+page.server.ts` — previously read-only by explicit design
+comment (all mutations live on `/edit`) — gained its first form action,
+`addComment`: comments are additive/unmoderated rather than an "edit the
+movie" concern, so they belong on the detail page itself rather than the
+editor, and the existing read-only characterization is about movie-data
+mutations, not this. The action trims `authorDisplayName`/`text` before
+calling `addMovieComment`, mapping `BAD_USER_INPUT` to 400 and anything else
+(including `NOT_FOUND` on a since-deleted movie) to 503, following the
+`isValidationError(code) ? 400 : ...` convention used by `addCredit`/`update`.
+`load` fetches the first page of comments (limit 10) alongside the movie,
+degrading to an empty comment page (rather than failing the whole detail
+page) if the comment fetch itself errors — mirroring how the movies list
+degrades its genre-filter options. Pagination reuses the movies list's
+offset-link pattern (`?commentsOffset=`, "← Newer"/"Older →", an "X–Y of Z"
+count) rather than introducing a different UI idiom for one more paged list.
+
+Covered by `CommentSection.test.ts` (empty state, custom empty message,
+rendering, order preservation), `format.test.ts`, and
+`movies/[id]/page.server.test.ts` (default/valid/invalid `commentsOffset`,
+degraded comment fetch, trimming, validation-error and dependency-error
+mapping on `addComment`).
+
+Verified live against the seeded stack (`docker compose up -d --build
+frontend`, after `npm run build` on the host per the Dockerfile — the
+frontend image copies a pre-built `build/` directory, it does not build
+inside the container): posting a comment trims the name/text, shows the
+"Comment added." banner, clears the form, and the new comment appears
+immediately with a server-generated, locale-formatted timestamp; the
+comment persists across a full page reload; the native `required` attributes
+block an empty submission before it reaches the server.

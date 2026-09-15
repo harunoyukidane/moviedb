@@ -95,3 +95,18 @@ export interface PersonPage {
 export interface DeleteResult {
   deletedId: string;
 }
+
+export interface MovieComment {
+  id: string;
+  authorDisplayName: string;
+  text: string;
+  /** GraphQL `DateTime` scalar — an ISO-8601 offset date-time string. */
+  createdAt: string;
+}
+
+export interface MovieCommentPage {
+  items: MovieComment[];
+  total: number;
+  limit: number;
+  offset: number;
+}
