@@ -25,6 +25,6 @@ describe('PersonListRow', () => {
 
   it('omits the dates span when absent', () => {
     render(PersonListRow, { props: { id: 'p1', name: 'Jane Star' } });
-    expect(document.querySelector('.row-dates')).toBeNull();
+    expect(document.querySelector('.card-dates')).toBeNull();
   });
 });

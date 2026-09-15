@@ -13,6 +13,21 @@ describe('CreditPersonRow', () => {
     expect(screen.getByText('Cobb')).toBeInTheDocument();
   });
 
+  it('links an available person to their detail page', () => {
+    render(CreditPersonRow, {
+      props: { personId: 'p1', personName: 'Jane Star', available: true, roleText: 'Cobb' }
+    });
+    const link = screen.getByRole('link', { name: /Jane Star/ });
+    expect(link).toHaveAttribute('href', '/people/p1');
+  });
+
+  it('does not link an unavailable person (no valid detail page)', () => {
+    render(CreditPersonRow, {
+      props: { personId: 'p1', personName: 'Ghost', available: false, roleText: 'Villain' }
+    });
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+  });
+
   it('falls back to the shared placeholder when the photo fails to load (e.g. 404, no photo)', async () => {
     render(CreditPersonRow, {
       props: { personId: 'p1', personName: 'Jane Star', available: true, roleText: 'Cobb' }

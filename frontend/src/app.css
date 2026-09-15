@@ -95,6 +95,21 @@ label { display: block; font-weight: 600; margin-bottom: 4px; }
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
 }
 
+/* Photo-card grid shared by the credits cluster view and the people cluster
+   view: square/circular photos are smaller than movie posters, so this uses
+   a narrower minimum column than .poster-grid. */
+.photo-grid {
+  display: grid;
+  gap: var(--sp-2);
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.photo-grid > li {
+  display: flex;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
 }

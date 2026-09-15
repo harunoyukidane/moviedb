@@ -80,7 +80,7 @@ task-level backlog and dependency order.
 ### Requirement 1: Action and View Icons — status: done
 
 `lib/components/Icon.svelte`/`IconButton.svelte`/`IconLink.svelte`. See
-[frontend.md](../plans/v2/frontend.md) (V2-12) and
+[frontend.md](../archive/v2-implementation/frontend.md) (V2-12) and
 [verification/v2-acceptance.md](../verification/v2-acceptance.md).
 
 **Confirmed design decisions** (amend criteria 2 and 3 below):
@@ -112,7 +112,7 @@ task-level backlog and dependency order.
 ### Requirement 2: Movie Listing View Mode Toggle — status: done
 
 `MovieViewToggle.svelte`; view persisted in the `view` query param. See
-[frontend.md](../plans/v2/frontend.md) (V2-09) and
+[frontend.md](../archive/v2-implementation/frontend.md) (V2-09) and
 [verification/v2-acceptance.md](../verification/v2-acceptance.md).
 
 1. THE Movie Listing SHALL provide a View Mode control offering Cluster View (poster grid, default) and List View (one row per movie: poster left, title/year/genres/truncated summary right).
@@ -122,7 +122,7 @@ task-level backlog and dependency order.
 ### Requirement 3: Expanded Content and Movie Filtering — status: done
 
 `MovieFilterInput` in `schema.graphqls`; filter controls on `/movies`; expanded
-genre seed and TMDB manifest. See [catalogue.md](../plans/v2/catalogue.md)
+genre seed and TMDB manifest. See [catalogue.md](../archive/v2-implementation/catalogue.md)
 (V2-05/V2-06/V2-07) and [verification/v2-acceptance.md](../verification/v2-acceptance.md).
 
 1. THE Catalogue Service SHALL provide a seed dataset spanning multiple distinct Genre Codes.
@@ -134,7 +134,7 @@ genre seed and TMDB manifest. See [catalogue.md](../plans/v2/catalogue.md)
 ### Requirement 4: MyDramaList-Style Cast and Credits Display — status: done
 
 `CreditPersonRow`/`CreditSection` in `lib/features/credits/`. See
-[frontend.md](../plans/v2/frontend.md) (V2-10) and
+[frontend.md](../archive/v2-implementation/frontend.md) (V2-10) and
 [verification/v2-acceptance.md](../verification/v2-acceptance.md). Batched
 person hydration (no N+1 gRPC) already existed from v1.
 
@@ -146,7 +146,7 @@ person hydration (no N+1 gRPC) already existed from v1.
 ### Requirement 5: Movie Comment Section — status: done
 
 Backend (V2-13/V2-14) and frontend (V2-15) in
-[catalogue.md](../plans/v2/catalogue.md)/[frontend.md](../plans/v2/frontend.md):
+[catalogue.md](../archive/v2-implementation/catalogue.md)/[frontend.md](../archive/v2-implementation/frontend.md):
 `movie_comment` table, entity/repository/rules, `comments`/`addMovieComment`
 GraphQL fields with server-generated id/timestamp and reverse-chronological
 paging, and the Movie Detail page's comment list + submit form.
@@ -159,7 +159,7 @@ paging, and the Movie Detail page's comment list + submit form.
 ### Requirement 6: People List Photo Display — status: done
 
 `Person.photoUrl` in `schema.graphqls`; `PersonListRow.svelte`. See
-[frontend.md](../plans/v2/frontend.md) (V2-11) and
+[frontend.md](../archive/v2-implementation/frontend.md) (V2-11) and
 [verification/v2-acceptance.md](../verification/v2-acceptance.md).
 
 1. WHERE the People Listing displays a person, THE People Listing SHALL display the person's photo (or placeholder) on the left and name on the right.

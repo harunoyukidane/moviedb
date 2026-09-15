@@ -18,7 +18,7 @@
 {#if credits.length === 0}
   <StateBanner variant="info">{emptyMessage}</StateBanner>
 {:else}
-  <ul class="credit-section" aria-label="Credits">
+  <ul class="photo-grid" aria-label="Credits">
     {#each credits as c (c.id)}
       <CreditPersonRow
         personId={c.person.id}
@@ -29,11 +29,3 @@
     {/each}
   </ul>
 {/if}
-
-<style>
-  .credit-section {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-  }
-</style>

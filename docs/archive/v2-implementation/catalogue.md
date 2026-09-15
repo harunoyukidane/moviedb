@@ -1,14 +1,14 @@
 # V2 catalogue: filters, seed, comments
 
 ```yaml
-status: current
-canonical_for: v2-catalogue-plan
+status: archived
+canonical_for: none
 last_verified: 2026-09-15
 ```
 
 Status: 🟢 done — V2-05/V2-06/V2-07 (requirement 3) and V2-13/V2-14
 (requirement 5, comments) all complete. Corresponds to
-[requirements.md](../../product/requirements.md) requirements 3 and 5.
+[requirements.md](../../../product/requirements.md) requirements 3 and 5.
 
 ## V2-05: Extend the movie-list GraphQL contract — done
 
@@ -73,7 +73,7 @@ also performed (host-side importer, `scripts/seed-host.ps1`, needed because
 this environment's network TLS-intercepts api.themoviedb.org and the
 in-container importer can't trust that proxy CA): all 26 movies imported
 with posters, and the genre/year filters were confirmed against real data —
-see [v2-acceptance.md](../../verification/v2-acceptance.md). No downloaded
+see [v2-acceptance.md](../../../verification/v2-acceptance.md). No downloaded
 JSON/images are committed; posters and photos still go to MinIO through the
 existing service endpoints at import time.
 

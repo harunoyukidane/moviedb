@@ -1,14 +1,14 @@
 # V2 frontend: views, credits, photos, icons
 
 ```yaml
-status: current
-canonical_for: v2-frontend-plan
+status: archived
+canonical_for: none
 last_verified: 2026-09-15
 ```
 
 **Status: done.** Kept for the record of what was built and tested; see
-[verification/v2-acceptance.md](../../verification/v2-acceptance.md) for
-evidence. Corresponds to [requirements.md](../../product/requirements.md)
+[verification/v2-acceptance.md](../../../verification/v2-acceptance.md) for
+evidence. Corresponds to [requirements.md](../../../product/requirements.md)
 requirements 1, 2, 4, 5, and 6 — all now satisfied.
 
 ## V2-08: Movie-list feature components — done
@@ -177,7 +177,7 @@ with their own confirmation dialogs, unchanged.
 ## V2-15: Comment section UI — done
 
 Added the Movie Detail page's comment section, closing the gap left after
-the backend-only V2-13/V2-14 (`docs/plans/v2/catalogue.md`): `movie_comment`
+the backend-only V2-13/V2-14 (`docs/archive/v2-implementation/catalogue.md`): `movie_comment`
 persistence and the `comments`/`addMovieComment` GraphQL fields existed, but
 nothing on the frontend called them. `lib/server/types.ts` gained
 `MovieComment`/`MovieCommentPage`; `lib/server/operations.ts` gained

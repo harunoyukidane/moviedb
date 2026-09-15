@@ -8,57 +8,56 @@
   export let dates: string | null = null;
 </script>
 
-<a class="person-row" href={`/people/${id}`}>
-  <span class="row-photo">
+<a class="person-card" href={`/people/${id}`}>
+  <span class="card-photo">
     {#if photoUrl}
       <img src={photoUrl} alt={`Photo of ${name}`} loading="lazy" />
     {:else}
       <PersonPhotoFallback />
     {/if}
   </span>
-  <span class="row-name">{name}</span>
-  {#if dates}<span class="row-dates">{dates}</span>{/if}
+  <span class="card-name" title={name}>{name}</span>
+  {#if dates}<span class="card-dates">{dates}</span>{/if}
 </a>
 
 <style>
-  .person-row {
+  .person-card {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: var(--sp-2);
-    padding: var(--sp-1) var(--sp-2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    margin-bottom: var(--sp-1);
+    text-align: center;
     text-decoration: none;
     color: var(--text);
     background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: var(--sp-1);
+    width: 100%;
+    gap: 2px;
   }
-  .row-photo {
-    flex: 0 0 auto;
-    width: 2.5rem;
+  .card-photo {
+    width: 100%;
   }
-  .row-photo img,
-  .row-photo :global(.person-photo-fallback) {
-    width: 2.5rem;
-    height: 2.5rem;
-  }
-  .row-photo img {
+  .card-photo img,
+  .card-photo :global(.person-photo-fallback) {
+    width: 100%;
+    aspect-ratio: 1 / 1;
     border-radius: 50%;
     object-fit: cover;
   }
-  .row-photo :global(.person-photo-fallback) {
-    font-size: 1rem;
+  .card-photo :global(.person-photo-fallback) {
+    font-size: 2rem;
   }
-  .row-name {
+  .card-name {
     font-weight: 600;
-    flex: 1 1 auto;
-    min-width: 0;
+    margin-top: 4px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    max-width: 100%;
   }
-  .row-dates {
+  .card-dates {
     color: var(--text-muted);
-    flex: 0 0 auto;
+    font-size: 0.875rem;
   }
 </style>

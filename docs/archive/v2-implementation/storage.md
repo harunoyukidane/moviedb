@@ -1,14 +1,14 @@
 # V2 storage: MinIO migration
 
 ```yaml
-status: current
-canonical_for: v2-storage-plan
+status: archived
+canonical_for: none
 last_verified: 2026-09-15
 ```
 
 **Status: done.** Kept for the record of what was built and tested; see
-[verification/v2-acceptance.md](../../verification/v2-acceptance.md) for
-evidence and [ADR-14](../../decisions/0014-minio-object-storage.md) for the decision.
+[verification/v2-acceptance.md](../../../verification/v2-acceptance.md) for
+evidence and [ADR-14](../../../decisions/0014-minio-object-storage.md) for the decision.
 
 ## V2-01: MinIO storage adapter — done
 

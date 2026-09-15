@@ -177,7 +177,7 @@
   .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: grid; place-items: center; z-index: 50; padding: var(--sp-2); }
   .dialog { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--sp-3); max-width: 520px; width: 100%; }
   .dialog h2 { margin-top: 0; }
-  .suggestions { list-style: none; margin: 4px 0 0; padding: 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .suggestions { list-style: none; margin: 4px 0 0; padding: 0; border: 1px solid var(--border); border-radius: var(--radius); max-height: 12rem; overflow-y: auto; }
   .suggestions li button { width: 100%; text-align: left; background: var(--surface); border: none; border-bottom: 1px solid var(--border); border-radius: 0; }
   .suggestions li button:hover { background: var(--surface-2); }
   .hint { color: var(--text-muted); font-size: 0.875rem; }

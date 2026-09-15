@@ -24,3 +24,7 @@ context — see [../README.md](../README.md) for what to load instead.
   requirements/tasks spec. Superseded by [product/requirements.md](../product/requirements.md)
   and [plans/v2/](../plans/v2/README.md); kept alongside its `.config.kiro` for
   tool provenance.
+- `v2-implementation/` — the completed v2 storage/catalogue/frontend feature
+  plans (all tasks done; see [v2-implementation/README.md](v2-implementation/README.md)).
+  Release hardening was not completed and was left active in
+  [plans/v2/release.md](../plans/v2/release.md), not archived.

@@ -34,3 +34,6 @@ demo/downloads/
 Thumbs.db
 backend/build.log
 backend/media-deps.log
+backend/full-build.log
+backend/media-test.log
+docs/archive/movie-db-v2-kiro-spec/.config.kiro

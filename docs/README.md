@@ -40,6 +40,7 @@ docs/
 ├── operations/runbook.md        TMDB seeding, resilience, security, observability
 ├── verification/                acceptance evidence, kept separate from strategy
 ├── decisions/                   ADRs (unchanged, one per file)
-├── plans/v2/                    active v2 backlog, split by feature area
+├── plans/v2/                    active v2 backlog (release hardening only; features archived)
+├── plans/v2.1/                  post-v2 UI fixes backlog
 └── archive/                     superseded content, historical reference only
 ```

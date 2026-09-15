@@ -11,29 +11,26 @@ media URLs and service ownership boundaries. A task is complete only when its
 implementation, automated tests, configuration, and relevant documentation are
 updated — then move its row here to ✅ and update [verification/v2-acceptance.md](../../verification/v2-acceptance.md).
 
-## Status and dependency map
+Storage, catalogue, and frontend feature work are all done and have been
+moved to [archive/v2-implementation/](../../archive/v2-implementation/README.md)
+for the historical record. **[release.md](release.md) is the only item still
+open.** v2.1 UI fixes (movie credits cluster view, people cluster view,
+scrollable add-credit search, calendar date inputs) are tracked in
+[plans/v2.1/README.md](../v2.1/README.md), not here.
 
-```mermaid
-flowchart LR
-    T1["storage.md — done"] --> T2["catalogue.md: filters+seed"]
-    T1 --> T3["frontend.md: views/credits/photos/icons"]
-    T2 --> T4["catalogue.md: comments"]
-    T3 --> T5["release.md"]
-    T4 --> T5
-```
+## Status
 
 | Area | File | Status |
 |---|---|---|
-| MinIO storage adapter, config-driven selection, Compose cutover, failure/rollback verification | [storage.md](storage.md) | ✅ done |
-| Movie filters, expanded seed, comment persistence/GraphQL API | [catalogue.md](catalogue.md) | ✅ done |
-| View toggle, cast/credits presentation, people photos, action icons, comment section UI | [frontend.md](frontend.md) | ✅ done |
-| E2E, accessibility, Compose smoke test, docs/release checklist | [release.md](release.md) | ☐ not started (now unblocked — all dependencies done) |
-
-Filters/frontend/photos may proceed independently now that MinIO is stable.
-Comments are sequenced after filters for planning convenience, not because
-comments technically depend on storage or filtering.
+| MinIO storage adapter, config-driven selection, Compose cutover, failure/rollback verification | [archive/v2-implementation/storage.md](../../archive/v2-implementation/storage.md) | ✅ done |
+| Movie filters, expanded seed, comment persistence/GraphQL API | [archive/v2-implementation/catalogue.md](../../archive/v2-implementation/catalogue.md) | ✅ done |
+| View toggle, cast/credits presentation, people photos, action icons, comment section UI | [archive/v2-implementation/frontend.md](../../archive/v2-implementation/frontend.md) | ✅ done |
+| E2E, accessibility, Compose smoke test, docs/release checklist | [release.md](release.md) | ☐ not started (unblocked — all dependencies done) |
 
 ## Confirmed design decisions
+
+These carry forward from the archived plans and remain in force for
+[release.md](release.md) and any future v2.x work.
 
 1. Discarded v1 local artwork during MinIO cutover and deterministically
    reseeded posters/profile photos into MinIO.
