@@ -1,8 +1,8 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import StateBanner from '$lib/components/StateBanner.svelte';
-  import SearchBox from '$lib/components/SearchBox.svelte';
-  import MovieFilters from '$lib/features/movies/MovieFilters.svelte';
+  import MovieListToolbar from '$lib/features/movies/MovieListToolbar.svelte';
+  import MovieClusterView from '$lib/features/movies/MovieClusterView.svelte';
 
   export let data: PageData;
 
@@ -29,9 +29,7 @@
   <a class="new-link" href="/movies/new">+ New movie</a>
 </div>
 
-<SearchBox />
-
-<MovieFilters
+<MovieListToolbar
   genres={data.genres}
   years={data.years}
   selectedGenre={data.filter.genreCode}
@@ -49,21 +47,7 @@
     {/if}
   </StateBanner>
 {:else}
-  <ul class="poster-grid" aria-label="Movies">
-    {#each page.items as movie (movie.id)}
-      <li>
-        <a class="poster-card" href={`/movies/${movie.id}`}>
-          {#if movie.artwork}
-            <img src={movie.artwork.url} alt={`Poster for ${movie.title}`} loading="lazy" />
-          {:else}
-            <div class="poster-fallback" aria-hidden="true">🎞️</div>
-          {/if}
-          <span class="poster-title" title={movie.title}>{movie.title}</span>
-          {#if movie.releaseDate}<span class="poster-year">{movie.releaseDate.slice(0, 4)}</span>{/if}
-        </a>
-      </li>
-    {/each}
-  </ul>
+  <MovieClusterView items={page.items} />
 
   <nav class="pager" aria-label="Pagination">
     {#if hasPrev}<a href={pagerHref(prevOffset)}>← Previous</a>{/if}
@@ -78,31 +62,6 @@
     background: var(--accent); color: var(--accent-contrast); padding: var(--sp-1) var(--sp-2);
     border-radius: var(--radius); font-weight: 600; text-decoration: none;
   }
-  .poster-grid > li { display: flex; }
-  .poster-card {
-    display: flex; flex-direction: column; text-decoration: none; color: var(--text);
-    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden;
-    width: 100%;
-  }
-  .poster-card img { width: 100%; aspect-ratio: 2 / 3; object-fit: cover; }
-  .poster-fallback {
-    width: 100%; aspect-ratio: 2 / 3; display: grid; place-items: center;
-    font-size: 2.5rem; background: var(--surface-2);
-  }
-  .poster-title {
-    padding: var(--sp-1) var(--sp-1) 0;
-    font-weight: 600;
-    /* Fixed two-line block so 1- and 2-line titles occupy the same height and
-       cards align; titles longer than two lines are truncated with an ellipsis. */
-    line-height: 1.25;
-    min-height: calc(2 * 1.25em);
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-  .poster-year { padding: 4px var(--sp-1) var(--sp-1); color: var(--text-muted); font-size: 0.875rem; margin-top: auto; }
   .pager { display: flex; gap: var(--sp-2); align-items: center; justify-content: center; margin-top: var(--sp-3); }
   .pager .count { color: var(--text-muted); }
 </style>
