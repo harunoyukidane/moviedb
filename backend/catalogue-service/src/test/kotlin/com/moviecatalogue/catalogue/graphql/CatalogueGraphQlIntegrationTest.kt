@@ -542,6 +542,63 @@ class CatalogueGraphQlIntegrationTest {
             .execute().path("movie.language.code").entity(String::class.java).isEqualTo("fr")
     }
 
+    /**
+     * Regression test for a real bug: the SvelteKit BFF's edit form always sends every
+     * `UpdateMovieInput` field as a GraphQL *variable* (never as inline literal arguments,
+     * which every other test in this suite uses) — a genre-only edit still carries title,
+     * originalTitle, synopsis, releaseDate, runtimeMinutes and originalLanguage in the same
+     * `input` object. The actual defect turned out to be frontend-only (a stray SvelteKit
+     * form reset wiped the visible fields' DOM values; see the edit page's component test),
+     * but that bug manifested as "genres saved, everything else vanished" — exactly the
+     * shape a backend field-mask/overwrite regression would also produce. This locks down
+     * the server side of that contract: a single variables-based updateMovie carrying every
+     * field, including a genre change and a language change together, must persist all of
+     * them — not just the genres.
+     */
+    @Test
+    fun `updateMovie via variables persists every field together, not just genres`() {
+        val movieId = tester.document(
+            """mutation { createMovie(input: { title: "Before", originalTitle: "Before Orig", synopsis: "Before synopsis.", releaseDate: "2000-01-01", runtimeMinutes: 90, originalLanguage: "en", genreCodes: ["HORROR"] }) { id } }""",
+        ).execute().path("createMovie.id").entity(String::class.java).get()
+
+        val doc = """mutation(${'$'}id: ID!, ${'$'}expectedVersion: Long!, ${'$'}input: UpdateMovieInput!) {
+            updateMovie(id: ${'$'}id, expectedVersion: ${'$'}expectedVersion, input: ${'$'}input) { id version }
+        }"""
+        val input = mapOf(
+            "title" to "After",
+            "originalTitle" to "After Orig",
+            "synopsis" to "After synopsis.",
+            "releaseDate" to "2010-06-15",
+            "runtimeMinutes" to 150,
+            "originalLanguage" to "fr",
+            "genreCodes" to listOf("HORROR", "PSYCHOLOGICAL_HORROR"),
+        )
+        tester.document(doc)
+            .variable("id", movieId)
+            .variable("expectedVersion", 0)
+            .variable("input", input)
+            .executeAndVerify()
+
+        val result = tester.document(
+            """query { movie(id: "$movieId") {
+                 title originalTitle synopsis releaseDate runtimeMinutes originalLanguage
+                 language { code name }
+                 genres { code }
+               } }""",
+        ).execute()
+        result
+            .path("movie.title").entity(String::class.java).isEqualTo("After")
+            .path("movie.originalTitle").entity(String::class.java).isEqualTo("After Orig")
+            .path("movie.synopsis").entity(String::class.java).isEqualTo("After synopsis.")
+            .path("movie.releaseDate").entity(String::class.java).isEqualTo("2010-06-15")
+            .path("movie.runtimeMinutes").entity(Int::class.java).isEqualTo(150)
+            .path("movie.originalLanguage").entity(String::class.java).isEqualTo("fr")
+            .path("movie.language.code").entity(String::class.java).isEqualTo("fr")
+            .path("movie.language.name").entity(String::class.java).isEqualTo("French")
+        val genreCodes = result.path("movie.genres[*].code").entityList(String::class.java).get()
+        assertThat(genreCodes).containsExactlyInAnyOrder("HORROR", "PSYCHOLOGICAL_HORROR")
+    }
+
     // --- Comments (V2-14) ---------------------------------------------------
 
     private fun addComment(movieId: String, author: String, text: String): String =

@@ -243,6 +243,34 @@ Testcontainers, or multi-module wiring), **E2E** (Playwright).
 | `seed reference data is present` | Integration | |
 | `expanded genre seed (V2-07) makes genre and year filters demonstrable` | Integration | seed dataset spans enough genres/years |
 
+## Movie edit form field loss on save (regression)
+
+A real bug found in manual verification: saving the movie edit form after
+changing genres blanked title, originalTitle, synopsis, releaseDate,
+runtimeMinutes, and originalLanguage — only the genre selection survived.
+Root cause was frontend-only: the details form's `use:enhance` callback
+called SvelteKit's `update()` with no options, which defaults to `reset:
+true` and triggers a native `HTMLFormElement.reset()` on success; the
+plain `value={movie.title}`-bound inputs aren't `bind:value`d, so once the
+native reset wiped them, Svelte's diffing (which compares against its own
+last-rendered value, not the live DOM) saw no change on reload and never
+re-populated them. Genres survived only because their selection lives in
+`GenreMultiSelect`'s component-local state behind a keyed `{#each}` block —
+a different, always-reapplied reactivity path, not because of anything
+genre-specific. Fixed by passing `update({ reset: false })`.
+
+`frontend/src/routes/movies/[id]/edit/page.svelte.test.ts`
+
+| Test name | Category | What it verifies |
+|---|---|---|
+| `keeps title/originalTitle/synopsis/releaseDate/runtimeMinutes/originalLanguage/genres after a real save+reload` | Edge case | regression; mocks `$app/forms`'s `enhance` with SvelteKit's real `update()` reset-default semantics (native `form.reset()` unless `reset: false`) so it exercises the actual bug mechanism — confirmed to fail if the fix is reverted to a bare `update()` |
+
+`backend/catalogue-service/src/test/kotlin/com/moviecatalogue/catalogue/graphql/CatalogueGraphQlIntegrationTest.kt` (Testcontainers, GraphQL)
+
+| Test name | Category | What it verifies |
+|---|---|---|
+| `updateMovie via variables persists every field together, not just genres` | Integration | server-side companion to the frontend regression: a single variables-based `updateMovie` (the shape the real BFF sends, not the inline-literal shape every other test here uses) changing title, originalTitle, synopsis, releaseDate, runtimeMinutes, originalLanguage, and genreCodes together must persist all of them, with particular attention to `originalLanguage`/`language` resolving correctly alongside the genre change |
+
 ## Comments
 
 `backend/catalogue-service/src/test/kotlin/com/moviecatalogue/catalogue/domain/RulesTest.kt` — `MovieCommentRulesTest`
@@ -531,6 +559,7 @@ catch for artwork) and translate the race to a clean not-found error.
 |---|---:|---:|---:|---:|---:|
 | Storage / MinIO | 8 | 56 | 26 | 0 | 90 |
 | Catalogue filters & seed | 2 | 6 | 6 | 0 | 14 |
+| Movie edit form field loss (regression) | 0 | 1 | 1 | 0 | 2 |
 | Comments | 9 | 13 | 3 | 0 | 25 |
 | Frontend view toggle & cluster view | 22 | 9 | 0 | 0 | 31 |
 | Credits & photos | 11 | 10 | 3 | 0 | 24 |
@@ -538,7 +567,7 @@ catch for artwork) and translate the race to a clean not-found error.
 | Concurrency / delete-race hardening | 2 | 5 | 0 | 0 | 7 |
 | Icons / accessibility | 5 | 1 | 0 | 0 | 6 |
 | E2E | 0 | 0 | 0 | 1 | 1 |
-| **Total** | **64** | **103** | **38** | **1** | **206** |
+| **Total** | **64** | **104** | **39** | **1** | **208** |
 
 Counts are per test method/case as enumerated above; a few tests could
 reasonably sit in more than one category (e.g. a MinIO integration test that

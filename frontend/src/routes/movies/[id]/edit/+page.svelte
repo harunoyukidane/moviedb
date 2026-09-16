@@ -52,7 +52,10 @@
     use:enhance={() => {
       savingDetails = true;
       return async ({ update }) => {
-        await update();
+        // Fields here are populated from server data (`value={movie.title}`, etc.),
+        // not via bind:value, so the default reset-to-defaultValue on success would
+        // blank them until the user reloads: reload data without resetting the form.
+        await update({ reset: false });
         savingDetails = false;
       };
     }}
