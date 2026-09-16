@@ -4,7 +4,13 @@ import type { GenreCode } from '$lib/server/types';
 import { messageForCode } from '$lib/errors';
 import { codeForError, requestContext } from '$lib/server/request';
 
-const PAGE_SIZE = 20;
+// 24 divides evenly by common cluster-grid column counts (2, 3, 4, 6),
+// so the last row rarely ends up partially filled.
+const CLUSTER_PAGE_SIZE = 24;
+
+// List rows are taller than poster cards, so a shorter page keeps the list
+// from running well past a typical viewport before the pager appears.
+const LIST_PAGE_SIZE = 12;
 
 // Configured selectable range for the release-year filter; matches the
 // practical span of the demo catalogue rather than the full backend bound.
@@ -33,6 +39,7 @@ function parseReleaseYear(url: URL): number | null {
 
 export const load: PageServerLoad = async ({ url, request }) => {
   const offset = Math.max(0, Number(url.searchParams.get('offset') ?? '0') || 0);
+  const pageSize = url.searchParams.get('view') === 'list' ? LIST_PAGE_SIZE : CLUSTER_PAGE_SIZE;
   const ctx = requestContext(request);
 
   // Degraded: an unavailable reference-data lookup just empties the genre
@@ -45,12 +52,12 @@ export const load: PageServerLoad = async ({ url, request }) => {
   const years = releaseYearChoices();
 
   try {
-    const page = await listMovies(PAGE_SIZE, offset, filter, ctx);
+    const page = await listMovies(pageSize, offset, filter, ctx);
     return { page, error: null as string | null, genres, years, filter: { genreCode, releaseYear } };
   } catch (e) {
     const code = codeForError(e);
     return {
-      page: { items: [], total: 0, limit: PAGE_SIZE, offset },
+      page: { items: [], total: 0, limit: pageSize, offset },
       error: messageForCode(code),
       genres,
       years,

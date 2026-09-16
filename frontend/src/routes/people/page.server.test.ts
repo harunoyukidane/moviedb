@@ -26,12 +26,12 @@ describe('/people load', () => {
         { id: 'p2', name: 'No Photo', birthDate: null, deathDate: null, version: 0, photoUrl: null }
       ],
       total: 2,
-      limit: 20,
+      limit: 24,
       offset: 0
     });
 
     const result = (await load(makeEvent(''))) as any;
-    expect(listPeopleMock).toHaveBeenCalledWith(null, 20, 0, expect.anything());
+    expect(listPeopleMock).toHaveBeenCalledWith(null, 24, 0, expect.anything());
     expect(result.page.items[0].photoUrl).toEqual('/api/people/p1/photo');
     expect(result.page.items[1].photoUrl).toBeNull();
   });

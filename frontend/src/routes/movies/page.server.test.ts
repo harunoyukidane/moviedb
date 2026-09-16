@@ -28,12 +28,12 @@ describe('/movies load', () => {
     listMoviesMock.mockReset();
     listGenresMock.mockReset();
     listGenresMock.mockResolvedValue(GENRES);
-    listMoviesMock.mockResolvedValue({ items: [], total: 0, limit: 20, offset: 0 });
+    listMoviesMock.mockResolvedValue({ items: [], total: 0, limit: 24, offset: 0 });
   });
 
   it('queries with no filter and offset 0 by default', async () => {
     const result = (await load(makeEvent(''))) as any;
-    expect(listMoviesMock).toHaveBeenCalledWith(20, 0, null, expect.anything());
+    expect(listMoviesMock).toHaveBeenCalledWith(24, 0, null, expect.anything());
     expect(result.filter).toEqual({ genreCode: null, releaseYear: null });
     expect(result.genres).toEqual(GENRES);
     expect(result.years[0]).toEqual(new Date().getFullYear() + 1);
@@ -42,7 +42,7 @@ describe('/movies load', () => {
   it('passes through a genreCode that matches a loaded genre', async () => {
     const result = (await load(makeEvent('?genreCode=HORROR'))) as any;
     expect(listMoviesMock).toHaveBeenCalledWith(
-      20,
+      24,
       0,
       { genreCode: 'HORROR', releaseYear: null },
       expect.anything()
@@ -52,14 +52,14 @@ describe('/movies load', () => {
 
   it('ignores an unknown genreCode instead of erroring', async () => {
     const result = (await load(makeEvent('?genreCode=GHOST'))) as any;
-    expect(listMoviesMock).toHaveBeenCalledWith(20, 0, null, expect.anything());
+    expect(listMoviesMock).toHaveBeenCalledWith(24, 0, null, expect.anything());
     expect(result.filter.genreCode).toBeNull();
   });
 
   it('passes through a valid releaseYear and combines with genreCode (AND)', async () => {
     const result = (await load(makeEvent('?genreCode=HORROR&releaseYear=2020'))) as any;
     expect(listMoviesMock).toHaveBeenCalledWith(
-      20,
+      24,
       0,
       { genreCode: 'HORROR', releaseYear: 2020 },
       expect.anything()
@@ -76,15 +76,20 @@ describe('/movies load', () => {
   });
 
   it('retains filters across pagination via the offset param', async () => {
-    listMoviesMock.mockResolvedValue({ items: [], total: 50, limit: 20, offset: 20 });
-    const result = (await load(makeEvent('?genreCode=HORROR&offset=20'))) as any;
+    listMoviesMock.mockResolvedValue({ items: [], total: 50, limit: 24, offset: 24 });
+    const result = (await load(makeEvent('?genreCode=HORROR&offset=24'))) as any;
     expect(listMoviesMock).toHaveBeenCalledWith(
-      20,
-      20,
+      24,
+      24,
       { genreCode: 'HORROR', releaseYear: null },
       expect.anything()
     );
     expect(result.filter.genreCode).toEqual('HORROR');
+  });
+
+  it('requests the shorter list-view page size when ?view=list', async () => {
+    await load(makeEvent('?view=list'));
+    expect(listMoviesMock).toHaveBeenCalledWith(12, 0, null, expect.anything());
   });
 
   it('degrades to an empty genre list without failing the page when reference data is unavailable', async () => {

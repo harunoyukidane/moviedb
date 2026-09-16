@@ -22,9 +22,6 @@
 </ul>
 
 <style>
-  .poster-grid > li {
-    display: flex;
-  }
   .poster-card {
     display: flex;
     flex-direction: column;

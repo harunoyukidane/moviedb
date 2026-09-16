@@ -3,7 +3,9 @@ import { listPeople } from '$lib/server/operations';
 import { messageForCode } from '$lib/errors';
 import { codeForError, requestContext } from '$lib/server/request';
 
-const PAGE_SIZE = 20;
+// 24 divides evenly by the photo-grid's column counts (up to 6 per row),
+// so the last row rarely ends up partially filled.
+const PAGE_SIZE = 24;
 
 export const load: PageServerLoad = async ({ url, request }) => {
   const offset = Math.max(0, Number(url.searchParams.get('offset') ?? '0') || 0);

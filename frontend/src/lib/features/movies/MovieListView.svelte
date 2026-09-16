@@ -19,12 +19,18 @@
         <span class="row-body">
           <span class="row-heading">
             <span class="row-title text-truncate">{movie.title}</span>
-            {#if movie.releaseDate}<span class="row-year">{movie.releaseDate.slice(0, 4)}</span>{/if}
           </span>
+          {#if movie.releaseDate}
+            <span class="row-year">{movie.releaseDate.slice(0, 4)}</span>
+          {/if}
+
           {#if movie.genres.length}
             <span class="row-genres">{movie.genres.map((g) => g.title).join(', ')}</span>
           {/if}
-          {#if movie.synopsis}<p class="row-synopsis">{movie.synopsis}</p>{/if}
+          
+          {#if movie.synopsis}
+            <p class="row-synopsis">{movie.synopsis}</p>
+          {/if}
         </span>
       </a>
     </li>
@@ -35,7 +41,10 @@
   .movie-rows {
     display: flex;
     flex-direction: column;
-    gap: var(--sp-1);
+    gap: var(--sp-2);
+    list-style: none;
+    margin: 0;
+    padding: 0;
   }
   .movie-row {
     display: flex;
@@ -46,21 +55,21 @@
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: var(--sp-1);
+    padding: var(--sp-2);
   }
   .row-poster {
     flex: 0 0 auto;
-    width: 3rem;
+    width: 100px;
   }
   .row-poster img,
   .row-poster :global(.poster-fallback) {
-    width: 3rem;
+    width: 100px;
     aspect-ratio: 2 / 3;
     object-fit: cover;
     border-radius: calc(var(--radius) / 2);
   }
   .row-poster :global(.poster-fallback) {
-    font-size: 1.25rem;
+    font-size: 1.75rem;
   }
   .row-body {
     display: flex;
@@ -92,19 +101,19 @@
     line-height: 1.35;
     /* Truncate to two lines regardless of content length. */
     display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
 
   @media (max-width: 480px) {
     .row-poster {
-      width: 2.5rem;
+      width: 72px;
     }
     .row-poster img,
     .row-poster :global(.poster-fallback) {
-      width: 2.5rem;
+      width: 72px;
     }
     .row-synopsis {
       -webkit-line-clamp: 1;

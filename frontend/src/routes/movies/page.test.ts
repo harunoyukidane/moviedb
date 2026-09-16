@@ -30,7 +30,7 @@ const baseData = {
       { id: 'm1', title: 'The Matrix', releaseDate: '1999-03-31', synopsis: 'S.', genres: [], artwork: null }
     ],
     total: 1,
-    limit: 20,
+    limit: 24,
     offset: 0
   },
   error: null,
@@ -61,12 +61,12 @@ describe('/movies view toggle wiring', () => {
     const data = {
       ...baseData,
       filter: { genreCode: 'HORROR', releaseYear: 2020 },
-      page: { ...baseData.page, total: 40, limit: 20, offset: 20 }
+      page: { ...baseData.page, total: 40, limit: 24, offset: 24 }
     };
     render(Page, { props: { data } });
     expect(screen.getByRole('link', { name: 'List view' })).toHaveAttribute(
       'href',
-      '/movies?genreCode=HORROR&releaseYear=2020&view=list&offset=20'
+      '/movies?genreCode=HORROR&releaseYear=2020&view=list&offset=24'
     );
     expect(screen.getByRole('link', { name: '← Previous' })).toHaveAttribute(
       'href',
@@ -83,11 +83,11 @@ describe('/movies view toggle wiring', () => {
   it('recomputes the pager hrefs after the URL store updates in place (no remount)', async () => {
     const data = {
       ...baseData,
-      page: { ...baseData.page, total: 40, limit: 20, offset: 0 }
+      page: { ...baseData.page, total: 40, limit: 24, offset: 0 }
     };
     pageStore.set({ url: new URL('http://localhost/movies') });
     render(Page, { props: { data } });
-    expect(screen.getByRole('link', { name: 'Next →' })).toHaveAttribute('href', '/movies?offset=20');
+    expect(screen.getByRole('link', { name: 'Next →' })).toHaveAttribute('href', '/movies?offset=24');
 
     // Same mounted component, only the URL store changes — as happens on a real
     // client-side navigation to ?view=list.
@@ -95,7 +95,7 @@ describe('/movies view toggle wiring', () => {
     await tick();
     expect(screen.getByRole('link', { name: 'Next →' })).toHaveAttribute(
       'href',
-      '/movies?view=list&offset=20'
+      '/movies?view=list&offset=24'
     );
   });
 });
