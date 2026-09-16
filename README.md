@@ -78,10 +78,10 @@ Two independently deployable services, each owning its own PostgreSQL database:
                  └────────────┬──────────────┘
                               │ GraphQL (HTTP)          │ artwork bytes (HTTP)
                               ▼                         ▼
-                 ┌───────────────────────────────────────────┐
-                 │ Catalogue Service (GraphQL + media HTTP)    │  Postgres (catalogue)
-                 │  movies · credits · genres · artwork        │
-                 └───────────────┬─────────────────────────────┘
+                 ┌─────────────────────────────────────────────────┐
+                 │ Catalogue Service (GraphQL + media HTTP)         │  Postgres (catalogue)
+                 │ movies · credits · genres · languages · artwork  │
+                 └──────────────────────┬──────────────────────────┘
                                  │ gRPC (internal network)
                                  ▼
                  ┌───────────────────────────┐
@@ -91,7 +91,7 @@ Two independently deployable services, each owning its own PostgreSQL database:
 ```
 
 - **Catalogue Service** (Kotlin / Spring Boot / Spring for GraphQL) owns movies,
-  credits, genres, and artwork metadata. Public API is **GraphQL**; artwork bytes
+  credits, genres, languages, and artwork metadata. Public API is **GraphQL**; artwork bytes
   use small dedicated **HTTP media endpoints**.
 - **People Service** (Kotlin / Spring Boot / gRPC) is the authoritative owner of
   people, exposed only over **internal gRPC**.
@@ -218,8 +218,8 @@ Highlights:
 - **Physical deletion with reference protection** (ADR-6): deleting a person who is
   still credited is rejected (`PERSON_IN_USE`); removing a person from a movie is a
   credit removal, never a person delete.
-- **Controlled code tables** for genres/roles (ADR-5); the importer never invents
-  codes from arbitrary remote strings.
+- **Controlled code tables** for genres/roles/languages (ADR-5); the importer never
+  invents codes from arbitrary remote strings.
 - **Offset pagination** clamped to 1–100 (ADR-8) with a documented keyset path.
 - **No dedicated search engine** (ADR-9): escaped `lower()`/`LIKE` on indexed
   columns suffices at this scale; trigram/tsvector is the documented evolution.

@@ -55,7 +55,7 @@ This layer adapts backend contracts for the UI; it must not contain catalogue bu
 
 ### Catalogue Service
 
-Catalogue owns movies, genres, credits, comments, and movie-artwork metadata. It exposes GraphQL for application data and dedicated HTTP media endpoints for image bytes. It also orchestrates cross-service workflows such as validating or hydrating People references.
+Catalogue owns movies, genres, languages, credits, comments, and movie-artwork metadata. It exposes GraphQL for application data and dedicated HTTP media endpoints for image bytes. It also orchestrates cross-service workflows such as validating or hydrating People references.
 
 It stores only a `personId` in a credit. Names, biographies, and photos remain People-owned. This prevents duplicated authoritative person data and makes ownership enforceable even though the services cannot share a foreign key.
 

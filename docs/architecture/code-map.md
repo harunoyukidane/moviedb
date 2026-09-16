@@ -61,7 +61,7 @@ src/main/kotlin/com/moviecatalogue/catalogue/
 ├── graphql/           GraphQL inbound adapter, SDL mapping, errors, DataLoaders
 ├── movie/             Movie and movie-genre persistence model/repositories
 ├── credit/            Movie-credit persistence model/repository
-├── reference/         Genre and credit-role controlled-code persistence
+├── reference/         Genre, credit-role, and language controlled-code persistence
 ├── artwork/           Movie artwork HTTP adapter, metadata, wiring, sweeper
 ├── people/            Outbound People port and gRPC adapter
 ├── common/            Small cross-feature primitives such as UUIDv7/pagination

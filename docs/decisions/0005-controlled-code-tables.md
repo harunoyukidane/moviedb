@@ -26,3 +26,15 @@ inactive or unknown code is rejected.
 - Retiring a code (`active = false`) hides it from pickers without invalidating
   existing credits.
 - Reference reads are cheap and orderable via `display_order`.
+
+## Amendment (v2.1): language_code
+
+`movie.original_language` was a free-text `VARCHAR(10)` column with no
+validation. V2.1 replaced it with the same pattern used here: a controlled
+`language_code` table (`code`/`name`/`active`/`display_order`), seeded with
+ISO 639-1 codes via `V5__add_language_reference_data.sql`, validated through
+the same `CreditRules.requireActiveCode` helper, and exposed via a
+`languageCodes(activeOnly)` query. See
+[data-model.md](../architecture/data-model.md) and
+[docs/plans/v2.1/README.md](../plans/v2.1/README.md#v21-06-controlled-language-reference-table--searchable-dropdown--done)
+for evidence.
