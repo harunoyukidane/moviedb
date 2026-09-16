@@ -3,12 +3,13 @@
 ```yaml
 status: current
 canonical_for: v2-test-inventory
-last_verified: 2026-09-15
+last_verified: 2026-09-16
 ```
 
 Full enumeration of automated tests covering v2 work: MinIO-backed object storage,
 movie genre/year filters and expanded seed data, movie comments, the cluster/list
-view toggle, credit/person photo display, and accessible credit/view icons. V1
+view toggle, credit/person photo display, accessible credit/view icons, and the
+delete/upload concurrency-race hardening found by the V2-16 load test. V1
 tests (plain CRUD, pre-v2 domain rules) are out of scope — see
 [v1-acceptance.md](v1-acceptance.md) for that generation of tests.
 
@@ -467,6 +468,37 @@ Testcontainers, or multi-module wiring), **E2E** (Playwright).
 |---|---|
 | `formats an ISO-8601 offset date-time into a readable date and time` | Unit |
 
+## Concurrency / delete-race hardening (V2-16)
+
+See [loadtest-findings.md](loadtest-findings.md) for the full writeup: `demo/loadtest`
+found that concurrent deletes of the same movie/person could surface as a raw
+`INTERNAL_ERROR` instead of `NOT_FOUND`, and a concurrent delete during an
+artwork upload could leak a bare HTTP 500. Both now re-check inside the
+transaction (via the existing `@Version` column, or a re-check + FK-violation
+catch for artwork) and translate the race to a clean not-found error.
+
+`backend/catalogue-service/src/test/kotlin/com/moviecatalogue/catalogue/application/ApplicationUseCasesTest.kt` — `MovieUseCasesTest`
+
+| Test name | Category | What it verifies |
+|---|---|---|
+| `deleteMovie deletes when present` | Unit | |
+| `deleteMovie throws NotFound when absent` | Edge case | |
+| `deleteMovie throws NotFound, not a raw exception, when lost to a concurrent delete` | Edge case | concurrency/optimistic-lock |
+
+`backend/catalogue-service/src/test/kotlin/com/moviecatalogue/catalogue/artwork/ArtworkUseCasesTest.kt`
+
+| Test name | Category | What it verifies |
+|---|---|---|
+| `upload throws NotFound when the movie is deleted concurrently mid-transaction` | Edge case | concurrency, in-transaction re-check via captured `TransactionCallback` |
+
+`backend/people-service/src/test/kotlin/com/moviecatalogue/people/application/PeopleApplicationServiceTest.kt`
+
+| Test name | Category | What it verifies |
+|---|---|---|
+| `deletePerson deletes when present` | Unit | |
+| `deletePerson throws NotFound when absent` | Edge case | |
+| `deletePerson throws NotFound, not a raw exception, when lost to a concurrent delete` | Edge case | concurrency/optimistic-lock |
+
 ## Icons / accessibility
 
 `frontend/src/lib/components/IconButton.test.ts`
@@ -503,9 +535,10 @@ Testcontainers, or multi-module wiring), **E2E** (Playwright).
 | Frontend view toggle & cluster view | 22 | 9 | 0 | 0 | 31 |
 | Credits & photos | 11 | 10 | 3 | 0 | 24 |
 | People photos | 5 | 3 | 0 | 0 | 8 |
+| Concurrency / delete-race hardening | 2 | 5 | 0 | 0 | 7 |
 | Icons / accessibility | 5 | 1 | 0 | 0 | 6 |
 | E2E | 0 | 0 | 0 | 1 | 1 |
-| **Total** | **62** | **98** | **38** | **1** | **199** |
+| **Total** | **64** | **103** | **38** | **1** | **206** |
 
 Counts are per test method/case as enumerated above; a few tests could
 reasonably sit in more than one category (e.g. a MinIO integration test that
