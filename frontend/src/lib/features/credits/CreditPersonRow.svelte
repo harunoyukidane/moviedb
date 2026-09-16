@@ -23,9 +23,10 @@
     class:credit-link-disabled={!available}
     href={available ? `/people/${personId}` : undefined}
   >
-    <span class="credit-photo">
+    <span class="entity-card-photo">
       {#if available && !photoFailed}
         <img
+          class="photo-thumb"
           src={`/api/people/${personId}/photo`}
           alt={`Photo of ${personName}`}
           loading="lazy"
@@ -52,16 +53,6 @@
   }
   .credit-link-disabled {
     cursor: default;
-  }
-  .credit-photo {
-    width: 100%;
-  }
-  .credit-photo img,
-  .credit-photo :global(.person-photo-fallback) {
-    width: 100%;
-    aspect-ratio: 1 / 1;
-    border-radius: 50%;
-    object-fit: cover;
   }
   .entity-card-name.unavailable {
     color: var(--text-muted);

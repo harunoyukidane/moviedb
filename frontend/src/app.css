@@ -91,7 +91,7 @@ label { display: block; font-weight: 600; margin-bottom: 4px; }
 /* Poster grid, mobile-first. */
 .poster-grid {
   display: grid;
-  gap: var(--sp-2);
+  gap: var(--sp-3);
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
 }
 
@@ -100,7 +100,7 @@ label { display: block; font-weight: 600; margin-bottom: 4px; }
    a narrower minimum column than .poster-grid. */
 .photo-grid {
   display: grid;
-  gap: var(--sp-2);
+  gap: var(--sp-3);
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   list-style: none;
   margin: 0;
@@ -121,6 +121,7 @@ label { display: block; font-weight: 600; margin-bottom: 4px; }
   place-items: center;
   width: 2.75rem;
   height: 2.75rem;
+  padding: 0;
   border-radius: var(--radius);
   border: 1px solid var(--border);
   background: var(--surface);
@@ -149,6 +150,19 @@ label { display: block; font-weight: 600; margin-bottom: 4px; }
 .suggestions li button:hover { background: var(--surface-2); }
 
 .hint { color: var(--text-muted); }
+
+/* Square photo/poster thumbnail crop, shared by PersonPhotoFallback and the
+   <img> elements in PersonListRow/CreditPersonRow. */
+.photo-thumb { width: 100%; aspect-ratio: 1 / 1; border-radius: calc(var(--radius) / 2); object-fit: cover; }
+.entity-card-photo { width: 100%; }
+
+/* Detail-page hero layout: a media column beside an info column, shared by
+   the movie and people detail pages. Each page sets --detail-col-width. */
+.detail { display: grid; grid-template-columns: 1fr; gap: var(--sp-3); }
+@media (min-width: 720px) { .detail { grid-template-columns: var(--detail-col-width, 240px) 1fr; } }
+
+.detail-media { width: 100%; object-fit: cover; border-radius: var(--radius); }
+.detail-fallback { display: grid; place-items: center; font-size: 3rem; background: var(--surface-2); }
 
 /* Truncate to a single line with an ellipsis. */
 .text-truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }

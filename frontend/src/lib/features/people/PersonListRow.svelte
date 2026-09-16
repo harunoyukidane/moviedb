@@ -9,9 +9,9 @@
 </script>
 
 <a class="entity-card" href={`/people/${id}`}>
-  <span class="card-photo">
+  <span class="entity-card-photo">
     {#if photoUrl}
-      <img src={photoUrl} alt={`Photo of ${name}`} loading="lazy" />
+      <img class="photo-thumb" src={photoUrl} alt={`Photo of ${name}`} loading="lazy" />
     {:else}
       <PersonPhotoFallback />
     {/if}
@@ -21,17 +21,7 @@
 </a>
 
 <style>
-  .card-photo {
-    width: 100%;
-  }
-  .card-photo img,
-  .card-photo :global(.person-photo-fallback) {
-    width: 100%;
-    aspect-ratio: 1 / 1;
-    border-radius: 50%;
-    object-fit: cover;
-  }
-  .card-photo :global(.person-photo-fallback) {
+  .entity-card-photo :global(.person-photo-fallback) {
     font-size: 2rem;
   }
   .card-dates {

@@ -30,9 +30,9 @@
 <div class="detail">
   <section class="artwork-section" aria-label="Artwork">
     {#if movie.artwork}
-      <img src={movie.artwork.url} alt={`Poster for ${movie.title}`} />
+      <img class="detail-media" src={movie.artwork.url} alt={`Poster for ${movie.title}`} />
     {:else}
-      <div class="poster-fallback" aria-hidden="true">🎞️</div>
+      <div class="detail-media detail-fallback" aria-hidden="true">🎞️</div>
     {/if}
   </section>
 
@@ -129,10 +129,8 @@
 </section>
 
 <style>
-  .detail { display: grid; grid-template-columns: 1fr; gap: var(--sp-3); }
-  @media (min-width: 720px) { .detail { grid-template-columns: 280px 1fr; } }
-  .artwork-section img, .poster-fallback { width: 100%; aspect-ratio: 2/3; object-fit: cover; border-radius: var(--radius); }
-  .poster-fallback { display: grid; place-items: center; font-size: 3rem; background: var(--surface-2); }
+  .detail { --detail-col-width: 280px; }
+  .detail-media { aspect-ratio: 2 / 3; }
   .original { color: var(--text-muted); margin-top: 0; }
   .genre-tags { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: var(--sp-1); margin: var(--sp-2) 0; }
   .tag { background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 2px var(--sp-1); font-size: 0.875rem; }
