@@ -3,6 +3,12 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { CreditRoleCode } from '$lib/server/types';
 
+const mockUpdate = vi.fn(async (form: HTMLFormElement, opts?: { reset?: boolean; invalidateAll?: boolean }) => {
+  if (opts?.reset !== false) {
+    HTMLFormElement.prototype.reset.call(form);
+  }
+});
+
 // Real SvelteKit `enhance` needs a running app router (invalidateAll/applyAction
 // reach into client internals that aren't initialized in a component test). This
 // fake reproduces just the one behavior the bug hinges on: SvelteKit's `update()`
@@ -29,11 +35,7 @@ vi.mock('$app/forms', () => ({
       if (cancelled || !callback) return;
 
       const result = { type: 'success' as const, status: 200, data: {} };
-      const update = async (opts?: { reset?: boolean; invalidateAll?: boolean }) => {
-        if (opts?.reset !== false) {
-          HTMLFormElement.prototype.reset.call(form);
-        }
-      };
+      const update = (opts?: { reset?: boolean; invalidateAll?: boolean }) => mockUpdate(form, opts);
       await callback({
         action: new URL(form.getAttribute('action') ?? '', window.location.href),
         formData: new FormData(form),
@@ -86,6 +88,7 @@ function expectAllFieldsPopulated() {
 
 describe('movie edit form: saving keeps every field, not just the genre selection', () => {
   it('keeps title/originalTitle/synopsis/releaseDate/runtimeMinutes/originalLanguage/genres after a real save+reload', async () => {
+    mockUpdate.mockClear();
     const user = userEvent.setup();
     const { rerender } = render(Page, {
       props: { data: { movie: makeMovie(), genres: genreCodes, roles, languages }, form: null }
@@ -110,6 +113,7 @@ describe('movie edit form: saving keeps every field, not just the genre selectio
     });
     await rerender({ data: { movie: reloaded, genres: genreCodes, roles, languages }, form: { updated: true } });
 
+    expect(mockUpdate).toHaveBeenCalledWith(expect.any(HTMLFormElement), { reset: false });
     expectAllFieldsPopulated();
     expect(screen.getByRole('checkbox', { name: 'Horror' })).toBeChecked();
     expect(screen.getByRole('checkbox', { name: 'Psychological Horror' })).toBeChecked();
