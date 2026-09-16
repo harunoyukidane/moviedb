@@ -3,6 +3,8 @@
   import { enhance } from '$app/forms';
   import StateBanner from '$lib/components/StateBanner.svelte';
   import ArtworkUpload from '$lib/components/ArtworkUpload.svelte';
+  import DateField from '$lib/components/DateField.svelte';
+  import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 
   export let data: PageData;
   export let form: ActionData;
@@ -10,6 +12,12 @@
   $: person = data.person;
   let saving = false;
   let photoError = false;
+  let confirmDeleteOpen = false;
+
+  function submitDelete() {
+    const f = document.getElementById('delete-person-form');
+    if (f instanceof HTMLFormElement) f.requestSubmit();
+  }
 </script>
 
 <a class="back" href={`/people/${person.id}`}>← Back to person</a>
@@ -47,11 +55,11 @@
     <div class="grid-2">
       <div class="field">
         <label for="birthDate">Birth date</label>
-        <input id="birthDate" name="birthDate" type="date" value={person.birthDate ?? ''} />
+        <DateField id="birthDate" name="birthDate" value={person.birthDate} />
       </div>
       <div class="field">
         <label for="deathDate">Death date</label>
-        <input id="deathDate" name="deathDate" type="date" value={person.deathDate ?? ''} />
+        <DateField id="deathDate" name="deathDate" value={person.deathDate} />
       </div>
     </div>
     <div class="field">
@@ -74,6 +82,31 @@
   <ArtworkUpload action="?/uploadPhoto" label="Upload photo" />
 </section>
 
+<section class="section danger-zone" aria-label="Danger zone">
+  <h2>Danger zone</h2>
+  {#if form?.message && form?.section === 'danger'}
+    <StateBanner variant="error">{form.message}</StateBanner>
+  {/if}
+  <p class="hint">
+    Deleting a person permanently removes them. If they are still credited on any movie, the delete will be
+    blocked until you remove those credits.
+  </p>
+  <button type="button" class="danger" on:click={() => (confirmDeleteOpen = true)}>Delete person</button>
+</section>
+
+<ConfirmDialog
+  bind:open={confirmDeleteOpen}
+  title="Delete this person?"
+  confirmLabel="Delete person"
+  danger
+  on:confirm={submitDelete}
+>
+  This removes “{person.name}” entirely. If they are still credited on any movie, the delete will be blocked
+  until you remove those credits.
+</ConfirmDialog>
+
+<form id="delete-person-form" method="POST" action="?/delete" use:enhance hidden></form>
+
 <style>
   .back { display: inline-block; margin-bottom: var(--sp-2); color: var(--text-muted); }
   .section { border: 1px solid var(--border); border-radius: var(--radius); padding: var(--sp-2); margin-bottom: var(--sp-2); }
@@ -82,4 +115,6 @@
   @media (min-width: 560px) { .grid-2 { grid-template-columns: 1fr 1fr; } }
   .current { width: 140px; aspect-ratio: 1; object-fit: cover; border-radius: var(--radius); display: block; margin-bottom: var(--sp-1); }
   .hint { color: var(--text-muted); }
+  .danger-zone { border-color: var(--danger); }
+  .danger-zone h2 { color: var(--danger); }
 </style>

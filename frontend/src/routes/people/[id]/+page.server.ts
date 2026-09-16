@@ -1,6 +1,6 @@
 import type { PageServerLoad, Actions } from './$types';
-import { error, fail, redirect } from '@sveltejs/kit';
-import { deletePerson, getPerson } from '$lib/server/operations';
+import { error, fail } from '@sveltejs/kit';
+import { getPerson } from '$lib/server/operations';
 import { deletePersonPhoto } from '$lib/server/media';
 import { messageForCode } from '$lib/errors';
 import { codeForError, requestContext, throwPageLoadError } from '$lib/server/request';
@@ -16,18 +16,6 @@ export const load: PageServerLoad = async ({ params, request }) => {
 };
 
 export const actions: Actions = {
-  delete: async ({ params, request }) => {
-    const context = requestContext(request);
-    try {
-      await deletePerson(params.id, context);
-    } catch (e) {
-      const code = codeForError(e);
-      // PERSON_IN_USE surfaces clearly (409) so the UI can explain the fix.
-      return fail(code === 'PERSON_IN_USE' ? 409 : 503, { message: messageForCode(code), code });
-    }
-    throw redirect(303, '/people');
-  },
-
   deletePhoto: async ({ params, request }) => {
     const correlationId = requestContext(request).correlationId;
     try {

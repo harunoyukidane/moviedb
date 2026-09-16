@@ -1,6 +1,6 @@
 import type { PageServerLoad, Actions } from './$types';
-import { error, fail } from '@sveltejs/kit';
-import { getPerson, updatePerson } from '$lib/server/operations';
+import { error, fail, redirect } from '@sveltejs/kit';
+import { deletePerson, getPerson, updatePerson } from '$lib/server/operations';
 import { uploadPersonPhoto, deletePersonPhoto } from '$lib/server/media';
 import { messageForCode, isValidationError } from '$lib/errors';
 import { codeForError, requestContext, throwPageLoadError } from '$lib/server/request';
@@ -61,5 +61,17 @@ export const actions: Actions = {
       const code = codeForError(e);
       return fail(503, { message: messageForCode(code), section: 'photo' });
     }
+  },
+
+  delete: async ({ params, request }) => {
+    const context = requestContext(request);
+    try {
+      await deletePerson(params.id, context);
+    } catch (e) {
+      const code = codeForError(e);
+      // PERSON_IN_USE surfaces clearly (409) so the UI can explain the fix.
+      return fail(code === 'PERSON_IN_USE' ? 409 : 503, { message: messageForCode(code), code, section: 'danger' });
+    }
+    throw redirect(303, '/people');
   }
 };

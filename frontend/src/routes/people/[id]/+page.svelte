@@ -1,21 +1,13 @@
 <script lang="ts">
   import type { PageData, ActionData } from './$types';
-  import { enhance } from '$app/forms';
   import StateBanner from '$lib/components/StateBanner.svelte';
-  import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
   import IconLink from '$lib/components/IconLink.svelte';
 
   export let data: PageData;
   export let form: ActionData;
 
   $: person = data.person;
-  let confirmDeleteOpen = false;
   let photoError = false;
-
-  function submitDelete() {
-    const f = document.getElementById('person-delete-form');
-    if (f instanceof HTMLFormElement) f.requestSubmit();
-  }
 </script>
 
 <a class="back" href="/people">← All people</a>
@@ -33,10 +25,7 @@
   <section class="info">
     <div class="title-row">
       <h1>{person.name}</h1>
-      <div class="actions">
-        <IconLink icon="edit" href={`/people/${person.id}/edit`} label="Edit person" />
-        <button type="button" class="danger" on:click={() => (confirmDeleteOpen = true)}>Delete</button>
-      </div>
+      <IconLink icon="edit" href={`/people/${person.id}/edit`} label="Edit person" />
     </div>
 
     {#if form?.message}
@@ -66,19 +55,6 @@
   </section>
 </div>
 
-<ConfirmDialog
-  bind:open={confirmDeleteOpen}
-  title="Delete this person?"
-  confirmLabel="Delete person"
-  danger
-  on:confirm={submitDelete}
->
-  This removes “{person.name}” entirely. If they are still credited on any movie, the delete will be blocked
-  until you remove those credits.
-</ConfirmDialog>
-
-<form id="person-delete-form" method="POST" action="?/delete" use:enhance hidden></form>
-
 <style>
   .back { display: inline-block; margin-bottom: var(--sp-2); color: var(--text-muted); }
   .detail { display: grid; grid-template-columns: 1fr; gap: var(--sp-3); }
@@ -87,7 +63,6 @@
   .photo-fallback { display: grid; place-items: center; font-size: 3rem; background: var(--surface-2); }
   .edit-link { display: inline-block; margin-top: var(--sp-1); }
   .title-row { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--sp-2); }
-  .actions { display: flex; align-items: center; gap: var(--sp-1); }
   .meta { display: grid; grid-template-columns: auto 1fr; gap: 4px var(--sp-2); }
   .meta dt { color: var(--text-muted); }
   .meta dd { margin: 0; }
