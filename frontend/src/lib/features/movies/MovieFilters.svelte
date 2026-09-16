@@ -44,7 +44,8 @@
     <input type="hidden" name="view" value={view} />
   {/if}
 
-  <button type="submit">Apply filters</button>
+
+  <!-- already auto filter's upon selection <button type="submit">Apply filters</button> -->
   {#if hasActiveFilter}
     <a class="clear" href={view !== 'cluster' ? `/movies?view=${view}` : '/movies'}>Clear filters</a>
   {/if}
