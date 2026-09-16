@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
+import type { CreditRoleCode } from '$lib/server/types';
 
 // Real SvelteKit `enhance` needs a running app router (invalidateAll/applyAction
 // reach into client internals that aren't initialized in a component test). This
@@ -53,7 +54,7 @@ const genreCodes = [
   { code: 'PSYCHOLOGICAL_HORROR', title: 'Psychological Horror', description: '', active: true }
 ];
 const languages = [{ code: 'en', name: 'English', active: true }];
-const roles: unknown[] = [];
+const roles: CreditRoleCode[] = [];
 
 function makeMovie(overrides: Record<string, unknown> = {}) {
   return {

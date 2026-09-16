@@ -2,7 +2,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { proxyMediaGet } from './media-proxy';
 
 describe('proxyMediaGet', () => {
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
 
   it('streams successful responses and preserves cache headers', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
