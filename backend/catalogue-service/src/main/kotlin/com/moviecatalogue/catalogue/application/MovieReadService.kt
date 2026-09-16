@@ -10,6 +10,8 @@ import com.moviecatalogue.catalogue.reference.CreditRoleCode
 import com.moviecatalogue.catalogue.reference.CreditRoleCodeRepository
 import com.moviecatalogue.catalogue.reference.GenreCode
 import com.moviecatalogue.catalogue.reference.GenreCodeRepository
+import com.moviecatalogue.catalogue.reference.LanguageCode
+import com.moviecatalogue.catalogue.reference.LanguageCodeRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
@@ -27,6 +29,7 @@ class MovieReadService(
     private val movieGenres: MovieGenreRepository,
     private val genreCodes: GenreCodeRepository,
     private val roleCodes: CreditRoleCodeRepository,
+    private val languageCodes: LanguageCodeRepository,
     private val artwork: ArtworkRepository,
 ) {
 
@@ -55,4 +58,7 @@ class MovieReadService(
 
     @Transactional(readOnly = true)
     fun role(code: String): CreditRoleCode? = roleCodes.findById(code).orElse(null)
+
+    @Transactional(readOnly = true)
+    fun language(code: String?): LanguageCode? = code?.let { languageCodes.findById(it).orElse(null) }
 }

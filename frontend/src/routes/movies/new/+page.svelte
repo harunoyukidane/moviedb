@@ -3,6 +3,8 @@
   import { enhance } from '$app/forms';
   import StateBanner from '$lib/components/StateBanner.svelte';
   import GenreMultiSelect from '$lib/components/GenreMultiSelect.svelte';
+  import LanguageSelect from '$lib/components/LanguageSelect.svelte';
+  import DateField from '$lib/components/DateField.svelte';
 
   export let data: PageData;
   export let form: ActionData;
@@ -54,7 +56,7 @@
     <div class="grid-2">
       <div class="field">
         <label for="releaseDate">Release date</label>
-        <input id="releaseDate" name="releaseDate" type="date" value={v.releaseDate ?? ''} />
+        <DateField id="releaseDate" name="releaseDate" value={v.releaseDate} />
       </div>
       <div class="field">
         <label for="runtimeMinutes">Runtime (min)</label>
@@ -62,8 +64,7 @@
       </div>
     </div>
     <div class="field">
-      <label for="originalLanguage">Original language</label>
-      <input id="originalLanguage" name="originalLanguage" maxlength="10" value={v.originalLanguage ?? ''} />
+      <LanguageSelect languages={data.languages} selected={v.originalLanguage ?? null} />
     </div>
     <GenreMultiSelect genres={data.genres} selected={v.genreCodes ?? []} />
   </section>

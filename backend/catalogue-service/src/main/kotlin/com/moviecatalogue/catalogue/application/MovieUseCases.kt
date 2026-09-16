@@ -12,6 +12,7 @@ import com.moviecatalogue.catalogue.movie.MovieGenreId
 import com.moviecatalogue.catalogue.movie.MovieGenreRepository
 import com.moviecatalogue.catalogue.movie.MovieRepository
 import com.moviecatalogue.catalogue.reference.GenreCodeRepository
+import com.moviecatalogue.catalogue.reference.LanguageCodeRepository
 import org.springframework.data.domain.Sort
 import org.springframework.orm.ObjectOptimisticLockingFailureException
 import org.springframework.stereotype.Service
@@ -23,6 +24,7 @@ class MovieUseCases(
     private val movies: MovieRepository,
     private val movieGenres: MovieGenreRepository,
     private val genreCodes: GenreCodeRepository,
+    private val languageCodes: LanguageCodeRepository,
 ) {
 
     @Transactional(readOnly = true)
@@ -59,6 +61,7 @@ class MovieUseCases(
         val title = MovieRules.normalizeTitle(command.title)
         val originalTitle = MovieRules.normalizeOptionalText(command.originalTitle, MovieRules.TITLE_MAX, "originalTitle")
         val originalLanguage = MovieRules.normalizeOptionalText(command.originalLanguage, MovieRules.ORIGINAL_LANGUAGE_MAX, "originalLanguage")
+        validateLanguageCode(originalLanguage)
         MovieRules.validateRuntime(command.runtimeMinutes)
         validateGenreCodes(command.genreCodes)
 
@@ -108,7 +111,11 @@ class MovieUseCases(
             MovieRules.validateRuntime(command.runtimeMinutes)
             movie.runtimeMinutes = command.runtimeMinutes
         }
-        if (command.maskOriginalLanguage) movie.originalLanguage = MovieRules.normalizeOptionalText(command.originalLanguage, MovieRules.ORIGINAL_LANGUAGE_MAX, "originalLanguage")
+        if (command.maskOriginalLanguage) {
+            val originalLanguage = MovieRules.normalizeOptionalText(command.originalLanguage, MovieRules.ORIGINAL_LANGUAGE_MAX, "originalLanguage")
+            validateLanguageCode(originalLanguage)
+            movie.originalLanguage = originalLanguage
+        }
 
         val saved = try {
             movies.saveAndFlush(movie)
@@ -132,6 +139,13 @@ class MovieUseCases(
         // ON DELETE CASCADE removes credits, genres, and artwork (§7.2).
         movies.deleteById(id)
         return id
+    }
+
+    /** A blank/absent language is allowed (unknown original language); a given code must exist and be active. */
+    private fun validateLanguageCode(code: String?) {
+        if (code == null) return
+        val language = languageCodes.findById(code).orElse(null)
+        CreditRules.requireActiveCode(language != null, language?.active ?: false, "language", code)
     }
 
     private fun validateGenreCodes(codes: List<String>) {

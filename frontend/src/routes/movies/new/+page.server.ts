@@ -1,15 +1,16 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
-import { createMovie, listGenres, type CreateMovieInput } from '$lib/server/operations';
+import { createMovie, listGenres, listLanguages, type CreateMovieInput } from '$lib/server/operations';
 import { messageForCode, isValidationError } from '$lib/errors';
 import { codeForError, requestContext } from '$lib/server/request';
 
 export const load: PageServerLoad = async ({ request }) => {
-  try {
-    return { genres: await listGenres(requestContext(request)) };
-  } catch {
-    return { genres: [] };
-  }
+  const context = requestContext(request);
+  const [genres, languages] = await Promise.all([
+    listGenres(context).catch(() => []),
+    listLanguages(context).catch(() => [])
+  ]);
+  return { genres, languages };
 };
 
 export const actions: Actions = {

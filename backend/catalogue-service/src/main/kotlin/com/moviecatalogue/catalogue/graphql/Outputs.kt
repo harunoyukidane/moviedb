@@ -71,6 +71,8 @@ data class ArtworkGql(val id: String, val url: String, val mediaType: String, va
 
 data class GenreCodeGql(val code: String, val title: String, val description: String, val active: Boolean)
 
+data class LanguageCodeGql(val code: String, val name: String, val active: Boolean)
+
 data class CreditRoleCodeGql(
     val code: String,
     val title: String,

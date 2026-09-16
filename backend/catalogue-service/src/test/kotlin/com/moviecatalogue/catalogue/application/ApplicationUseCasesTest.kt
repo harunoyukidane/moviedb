@@ -176,10 +176,14 @@ class MovieUseCasesTest {
     private val movies = mockk<MovieRepository>()
     private val movieGenres = mockk<com.moviecatalogue.catalogue.movie.MovieGenreRepository>()
     private val genreCodes = mockk<com.moviecatalogue.catalogue.reference.GenreCodeRepository>()
-    private val useCases = MovieUseCases(movies, movieGenres, genreCodes)
+    private val languageCodes = mockk<com.moviecatalogue.catalogue.reference.LanguageCodeRepository>()
+    private val useCases = MovieUseCases(movies, movieGenres, genreCodes, languageCodes)
 
     private fun genre(code: String) =
         com.moviecatalogue.catalogue.reference.GenreCode(code, null, code, "d", true, 0)
+
+    private fun language(code: String, active: Boolean = true) =
+        com.moviecatalogue.catalogue.reference.LanguageCode(code, code, active, 0)
 
     @Test
     fun `listMovies with no filter queries with null genre and year`() {
@@ -225,6 +229,55 @@ class MovieUseCasesTest {
 
         useCases.listMovies(20, 0, MovieFilter(genreCode = "HORROR", releaseYear = 2020))
         verify(exactly = 1) { movies.findAllByFilter("HORROR", 2020, any()) }
+    }
+
+    private fun createCommand(originalLanguage: String?) = CreateMovieCommand(
+        title = "Title",
+        originalTitle = null,
+        synopsis = "",
+        releaseDate = null,
+        runtimeMinutes = null,
+        originalLanguage = originalLanguage,
+        genreCodes = emptyList(),
+    )
+
+    @Test
+    fun `createMovie rejects a language code that does not exist`() {
+        every { languageCodes.findById("xx") } returns java.util.Optional.empty()
+        assertThatThrownBy {
+            useCases.createMovie(createCommand(originalLanguage = "xx"))
+        }.isInstanceOf(ValidationException::class.java)
+        verify(exactly = 0) { movies.saveAndFlush(any<com.moviecatalogue.catalogue.movie.Movie>()) }
+    }
+
+    @Test
+    fun `createMovie rejects an inactive language code`() {
+        every { languageCodes.findById("la") } returns java.util.Optional.of(language("la", active = false))
+        assertThatThrownBy {
+            useCases.createMovie(createCommand(originalLanguage = "la"))
+        }.isInstanceOf(ValidationException::class.java)
+        verify(exactly = 0) { movies.saveAndFlush(any<com.moviecatalogue.catalogue.movie.Movie>()) }
+    }
+
+    @Test
+    fun `createMovie allows a null language (unknown original language)`() {
+        every { movies.findByTmdbId(any()) } returns null
+        every { movies.saveAndFlush(any<com.moviecatalogue.catalogue.movie.Movie>()) } answers { firstArg() }
+        every { movieGenres.flush() } returns Unit
+
+        useCases.createMovie(createCommand(originalLanguage = null))
+        verify(exactly = 0) { languageCodes.findById(any()) }
+    }
+
+    @Test
+    fun `createMovie accepts an active language code`() {
+        every { languageCodes.findById("en") } returns java.util.Optional.of(language("en"))
+        every { movies.findByTmdbId(any()) } returns null
+        every { movies.saveAndFlush(any<com.moviecatalogue.catalogue.movie.Movie>()) } answers { firstArg() }
+        every { movieGenres.flush() } returns Unit
+
+        val result = useCases.createMovie(createCommand(originalLanguage = "en"))
+        assertThat(result.originalLanguage).isEqualTo("en")
     }
 }
 

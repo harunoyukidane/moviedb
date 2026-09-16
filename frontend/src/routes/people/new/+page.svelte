@@ -2,6 +2,7 @@
   import type { ActionData } from './$types';
   import { enhance } from '$app/forms';
   import StateBanner from '$lib/components/StateBanner.svelte';
+  import DateField from '$lib/components/DateField.svelte';
 
   export let form: ActionData;
   let submitting = false;
@@ -43,11 +44,11 @@
   <div class="grid-2">
     <div class="field">
       <label for="birthDate">Birth date</label>
-      <input id="birthDate" name="birthDate" type="date" value={v.birthDate ?? ''} />
+      <DateField id="birthDate" name="birthDate" value={v.birthDate} />
     </div>
     <div class="field">
       <label for="deathDate">Death date</label>
-      <input id="deathDate" name="deathDate" type="date" value={v.deathDate ?? ''} />
+      <DateField id="deathDate" name="deathDate" value={v.deathDate} />
     </div>
   </div>
   <div class="field">

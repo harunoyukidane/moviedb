@@ -10,6 +10,7 @@ import com.moviecatalogue.catalogue.movie.Movie
 import com.moviecatalogue.catalogue.people.PersonData
 import com.moviecatalogue.catalogue.reference.CreditRoleCode
 import com.moviecatalogue.catalogue.reference.GenreCode
+import com.moviecatalogue.catalogue.reference.LanguageCode
 
 fun Movie.toGql() = MovieGql(
     id = id.toString(),
@@ -80,6 +81,8 @@ fun PersonCreditView.toGql() = PersonCreditGql(
 )
 
 fun GenreCode.toGql() = GenreCodeGql(code = code, title = title, description = description, active = active)
+
+fun LanguageCode.toGql() = LanguageCodeGql(code = code, name = name, active = active)
 
 fun CreditRoleCode.toGql() = CreditRoleCodeGql(
     code = code, title = title, category = category, department = department, description = description, active = active,

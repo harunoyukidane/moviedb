@@ -6,6 +6,7 @@ import {
   getMovie,
   listCreditRoles,
   listGenres,
+  listLanguages,
   removeMovieCredit,
   updateMovie,
   type CreateCreditInput
@@ -17,13 +18,14 @@ import { codeForError, requestContext, throwPageLoadError } from '$lib/server/re
 export const load: PageServerLoad = async ({ params, request }) => {
   const context = requestContext(request);
   try {
-    const [movie, genres, roles] = await Promise.all([
+    const [movie, genres, roles, languages] = await Promise.all([
       getMovie(params.id, context),
       listGenres(context),
-      listCreditRoles(context)
+      listCreditRoles(context),
+      listLanguages(context)
     ]);
     if (!movie) throw error(404, { message: messageForCode('NOT_FOUND') });
-    return { movie, genres, roles };
+    return { movie, genres, roles, languages };
   } catch (e) {
     throwPageLoadError(e);
   }

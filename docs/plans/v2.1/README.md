@@ -16,6 +16,9 @@ work is still separately open and unaffected by this file).
 | People list: cluster view with a bigger photo | ✅ done |
 | Add-credit dialog: scrollable person search results | ✅ done |
 | Date fields: calendar widget | ✅ done (already satisfied by existing `<input type="date">`) |
+| Date fields: calendar-icon button that opens the native picker | ✅ done |
+| Movie language: searchable dropdown instead of manual entry | ✅ done |
+| Controlled `language_code` reference table | ✅ done |
 
 ## V2.1-01: Movie credits cluster view — done
 
@@ -81,3 +84,75 @@ on both the `new` and `edit` forms in
 all already use `<input type="date">`, which every supported browser
 (Chrome, Edge, Firefox, Safari) renders with a native calendar
 date-picker widget. No code change was needed for this item.
+
+## V2.1-05: Calendar-icon button on date fields — done
+
+The user supplied a calendar icon asset
+(`resources/calendar_month_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg`,
+Google Material Symbols, matching the existing `Icon.svelte` icon set) and
+asked for an explicit button on each date field, rather than relying only on
+the native picker affordance built into `<input type="date">` (a small
+calendar glyph inside the input itself, easy to miss / inconsistent across
+browsers).
+
+Added `'calendar'` to `Icon.svelte`'s icon union/path map and to
+`IconButton.svelte`'s `icon` prop type (same accessible-button component
+already used for delete/edit/view-toggle). New shared
+`lib/components/DateField.svelte` wraps a `type="date"` input with an
+`IconButton` that calls the input's native `showPicker()` — falling back to
+just focusing the input on browsers that don't implement it (e.g. older
+Safari) rather than doing nothing. All four date fields (movie release date;
+person birth/death date, `new` + `edit` forms) now render through
+`DateField` instead of a bare `<input>`.
+
+Covered by `DateField.test.ts` (renders with id/name/value; accessible "Open
+calendar" button; calls a stubbed `showPicker()`; falls back to focus when
+`showPicker` is absent, which is jsdom's actual behavior since it doesn't
+implement it).
+
+## V2.1-06: Controlled language reference table + searchable dropdown — done
+
+`movie.original_language` was a free-text `VARCHAR(10)` column with no
+validation beyond a length check — anything typeable was accepted, including
+typos and non-codes.
+
+**Database:** `V5__add_language_reference_data.sql` adds a `language_code`
+table (same `code`/`name`/`active`/`display_order` shape as `genre_code`),
+seeded with ~90 ISO 639-1 codes (matching what TMDB's `original_language`
+field already returns — see `demo/importer/src/importer.ts`), nulls out any
+pre-existing `movie.original_language` value that doesn't match the seeded
+set (none expected against real TMDB-sourced data; a safety net, not a
+no-op), then adds `fk_movie_language` constraining the column to it.
+
+**Backend:** new `reference/LanguageCode.kt` entity + `LanguageCodeRepository`
+(mirrors `GenreCode`/`GenreCodeRepository`); `ReferenceUseCases.listLanguages`/
+`languageByCode`; a new `languageCodes(activeOnly: Boolean = true):
+[LanguageCode!]!` query (`ReferenceQueryController`) for the frontend
+dropdown; `MovieUseCases.createMovie`/`updateMovie` validate a given
+`originalLanguage` code exists and is active (same
+`CreditRules.requireActiveCode` helper genre validation uses) before
+writing — a bad or retired code is `BAD_USER_INPUT`, never reaches the DB
+FK. The `originalLanguage: String` input/output field is unchanged (still
+just the code, e.g. `"en"`); a new resolved `Movie.language: LanguageCode`
+field (`MovieController`/`MovieReadService.language`) gives the frontend the
+display name without a second round trip. Covered by `MovieUseCasesTest`
+(rejects unknown/inactive codes, accepts an active one, allows null),
+`CatalogueRepositoryIntegrationTest` (seeded data readable, FK rejects an
+unknown code at the DB level), and `CatalogueGraphQlIntegrationTest`
+(`languageCodes` query, `createMovie`/`updateMovie` validation, `Movie.language`
+resolution) against a real Testcontainers Postgres.
+
+**Frontend:** new `lib/components/LanguageSelect.svelte` — a combobox
+(`role="combobox"` + listbox suggestions, same accessible pattern as
+`CreditDialog`'s person search) that filters the already-loaded language list
+client-side by name or code as the user types, rather than a per-keystroke
+server round trip (the list is small and static, unlike person search). A
+hidden input carries the selected code; typing over a previous selection
+clears it until a new pick is made, and an unmatched typed value is cleared
+on blur so the field never shows text that doesn't correspond to a
+selection. Replaces the free-text input on both the movie `new` and `edit`
+forms; both routes' `load` functions now fetch `listLanguages()` alongside
+genres/roles. The movie detail page shows `movie.language?.name` (falling
+back to the raw code if unresolved). Covered by `LanguageSelect.test.ts`
+(prefill from an initial code, filter by name/code, pick sets the hidden
+code, typing invalidates a stale selection, blur clears unmatched text).

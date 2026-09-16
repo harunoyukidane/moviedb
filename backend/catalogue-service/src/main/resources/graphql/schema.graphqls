@@ -12,6 +12,7 @@ type Query {
   search(query: String!, page: PageInput = { limit: 10, offset: 0 }): SearchResult!
   genres(activeOnly: Boolean = true): [GenreCode!]!
   creditRoles(category: CreditCategory, activeOnly: Boolean = true): [CreditRoleCode!]!
+  languageCodes(activeOnly: Boolean = true): [LanguageCode!]!
   comments(movieId: ID!, page: PageInput = { limit: 20, offset: 0 }): MovieCommentPage!
 }
 
@@ -38,6 +39,7 @@ type Movie {
   releaseDate: Date
   runtimeMinutes: Int
   originalLanguage: String
+  language: LanguageCode
   version: Long!
   artwork: Artwork
   genres: [GenreCode!]!
@@ -60,6 +62,7 @@ type Person { id: ID!, name: String!, biography: String!, birthDate: Date, death
 type PersonCredit { movieId: ID!, movieTitle: String!, category: CreditCategory!, role: CreditRoleCode!, characterName: String }
 type Artwork { id: ID!, url: String!, mediaType: String!, byteSize: Long! }
 type GenreCode { code: ID!, title: String!, description: String!, active: Boolean! }
+type LanguageCode { code: ID!, name: String!, active: Boolean! }
 type CreditRoleCode { code: ID!, title: String!, category: CreditCategory!, department: String, description: String!, active: Boolean! }
 type SearchResult { movies: [MovieSearchHit!]!, people: [PersonSearchHit!]! }
 type MovieSearchHit { id: ID!, title: String!, releaseDate: Date, matchedPersonNames: [String!]! }

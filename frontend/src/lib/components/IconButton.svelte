@@ -1,7 +1,7 @@
 <script lang="ts">
   import Icon from './Icon.svelte';
 
-  export let icon: 'delete' | 'view-cluster' | 'view-list';
+  export let icon: 'delete' | 'view-cluster' | 'view-list' | 'calendar';
   /** Required: becomes both the accessible name (aria-label) and the tooltip. */
   export let label: string;
   export let variant: 'default' | 'danger' = 'default';

@@ -46,7 +46,7 @@
     <dl class="meta">
       {#if movie.releaseDate}<dt>Released</dt><dd>{movie.releaseDate}</dd>{/if}
       {#if movie.runtimeMinutes}<dt>Runtime</dt><dd>{movie.runtimeMinutes} min</dd>{/if}
-      {#if movie.originalLanguage}<dt>Language</dt><dd>{movie.originalLanguage}</dd>{/if}
+      {#if movie.originalLanguage}<dt>Language</dt><dd>{movie.language?.name ?? movie.originalLanguage}</dd>{/if}
     </dl>
 
     {#if movie.genres.length}

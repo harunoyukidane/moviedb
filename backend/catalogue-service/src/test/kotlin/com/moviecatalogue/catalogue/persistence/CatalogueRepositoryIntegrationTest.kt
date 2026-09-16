@@ -15,7 +15,9 @@ import com.moviecatalogue.catalogue.movie.MovieGenreRepository
 import com.moviecatalogue.catalogue.movie.MovieRepository
 import com.moviecatalogue.catalogue.reference.CreditRoleCodeRepository
 import com.moviecatalogue.catalogue.reference.GenreCodeRepository
+import com.moviecatalogue.catalogue.reference.LanguageCodeRepository
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase
@@ -61,6 +63,7 @@ class CatalogueRepositoryIntegrationTest {
     @Autowired lateinit var movieGenres: MovieGenreRepository
     @Autowired lateinit var genres: GenreCodeRepository
     @Autowired lateinit var roles: CreditRoleCodeRepository
+    @Autowired lateinit var languages: LanguageCodeRepository
     @Autowired lateinit var artwork: ArtworkRepository
     @Autowired lateinit var comments: CommentRepository
 
@@ -268,5 +271,19 @@ class CatalogueRepositoryIntegrationTest {
 
         // enum round-trips from the DB credit_category type
         assertThat(roles.findById("ACTOR").get().category).isEqualTo(CreditCategory.CAST)
+
+        assertThat(languages.findAllByActiveTrueOrderByDisplayOrderAsc().map { it.code })
+            .contains("en", "fr", "ja")
+        assertThat(languages.findById("en").get().name).isEqualTo("English")
+    }
+
+    @Test
+    fun `movie original_language is constrained to the controlled language_code table`() {
+        val movie = movies.saveAndFlush(newMovie("Language FK").also { it.originalLanguage = "en" })
+        assertThat(movies.findById(movie.id).get().originalLanguage).isEqualTo("en")
+
+        movie.originalLanguage = "xx"
+        assertThatThrownBy { movies.saveAndFlush(movie) }
+            .isInstanceOf(org.springframework.dao.DataIntegrityViolationException::class.java)
     }
 }

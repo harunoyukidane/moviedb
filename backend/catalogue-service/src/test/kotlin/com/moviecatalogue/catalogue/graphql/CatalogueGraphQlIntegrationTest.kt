@@ -507,6 +507,41 @@ class CatalogueGraphQlIntegrationTest {
         ).isEqualTo("BAD_USER_INPUT")
     }
 
+    // --- Languages (v2.1) ----------------------------------------------------
+
+    @Test
+    fun `languageCodes query returns only active by default`() {
+        val actives = tester.document("""query { languageCodes { code active } }""")
+            .execute().path("languageCodes[*].active").entityList(Boolean::class.java).get()
+        assertThat(actives).isNotEmpty().allMatch { it }
+    }
+
+    @Test
+    fun `createMovie with an unknown language code is BAD_USER_INPUT`() {
+        assertThat(
+            errorCodeOf("""mutation { createMovie(input: { title: "Bad Lang", originalLanguage: "xx" }) { id } }"""),
+        ).isEqualTo("BAD_USER_INPUT")
+    }
+
+    @Test
+    fun `createMovie and updateMovie accept a controlled language code, and Movie resolves it`() {
+        val movieId = tester.document(
+            """mutation { createMovie(input: { title: "Lang Movie", originalLanguage: "en" }) { id } }""",
+        ).execute().path("createMovie.id").entity(String::class.java).get()
+
+        tester.document("""query { movie(id: "$movieId") { originalLanguage language { code name active } } }""")
+            .execute()
+            .path("movie.originalLanguage").entity(String::class.java).isEqualTo("en")
+            .path("movie.language.code").entity(String::class.java).isEqualTo("en")
+            .path("movie.language.name").entity(String::class.java).isEqualTo("English")
+
+        tester.document(
+            """mutation { updateMovie(id: "$movieId", expectedVersion: 0, input: { originalLanguage: "fr" }) { id } }""",
+        ).execute()
+        tester.document("""query { movie(id: "$movieId") { language { code } } }""")
+            .execute().path("movie.language.code").entity(String::class.java).isEqualTo("fr")
+    }
+
     // --- Comments (V2-14) ---------------------------------------------------
 
     private fun addComment(movieId: String, author: String, text: String): String =

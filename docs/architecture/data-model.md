@@ -21,12 +21,18 @@ erDiagram
     MOVIE ||--o{ MOVIE_GENRE : classified_as
     GENRE_CODE ||--o{ MOVIE_GENRE : selected_by
     CREDIT_ROLE_CODE ||--o{ MOVIE_CREDIT : classifies
+    LANGUAGE_CODE ||--o{ MOVIE : original_language
     PERSON ||..o{ MOVIE_CREDIT : "logical reference"
     MOVIE {
       uuid id PK
       bigint tmdb_id UK
       string title
+      string original_language FK
       int version
+    }
+    LANGUAGE_CODE {
+      string code PK
+      string name
     }
     MOVIE_CREDIT {
       uuid id PK
@@ -98,6 +104,11 @@ user-created data works without TMDB.
   generic `code_table(type, code, ...)`: different attributes, validation, and
   foreign-key targets; separate tables prevent a genre from accidentally being
   used as a credit role.
+- `movie.original_language` (v2.1) is a nullable FK to `language_code`, an
+  ISO 639-1 controlled reference table (same `active`/`display_order` shape
+  as `genre_code`/`credit_role_code`). This replaced a free-text `VARCHAR(10)`
+  column; `V5__add_language_reference_data.sql` nulls out any pre-existing
+  value that doesn't match the seeded set before adding the constraint.
 - `version` is mapped with JPA `@Version` for optimistic concurrency on `movie`
   and `person`. `movie_credit` intentionally has no version column — see
   "Credit concurrency" below.

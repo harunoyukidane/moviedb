@@ -14,3 +14,8 @@ interface CreditRoleCodeRepository : JpaRepository<CreditRoleCode, String> {
     fun findAllByCategoryOrderByDisplayOrderAsc(category: CreditCategory): List<CreditRoleCode>
     fun findAllByCategoryAndActiveTrueOrderByDisplayOrderAsc(category: CreditCategory): List<CreditRoleCode>
 }
+
+interface LanguageCodeRepository : JpaRepository<LanguageCode, String> {
+    fun findAllByActiveTrueOrderByDisplayOrderAsc(): List<LanguageCode>
+    fun findAllByOrderByDisplayOrderAsc(): List<LanguageCode>
+}

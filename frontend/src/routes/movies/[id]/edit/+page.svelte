@@ -3,6 +3,8 @@
   import { enhance } from '$app/forms';
   import StateBanner from '$lib/components/StateBanner.svelte';
   import GenreMultiSelect from '$lib/components/GenreMultiSelect.svelte';
+  import LanguageSelect from '$lib/components/LanguageSelect.svelte';
+  import DateField from '$lib/components/DateField.svelte';
   import ArtworkUpload from '$lib/components/ArtworkUpload.svelte';
   import CreditDialog from '$lib/components/CreditDialog.svelte';
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
@@ -71,7 +73,7 @@
     <div class="grid-2">
       <div class="field">
         <label for="releaseDate">Release date</label>
-        <input id="releaseDate" name="releaseDate" type="date" value={movie.releaseDate ?? ''} />
+        <DateField id="releaseDate" name="releaseDate" value={movie.releaseDate} />
       </div>
       <div class="field">
         <label for="runtimeMinutes">Runtime (min)</label>
@@ -79,8 +81,7 @@
       </div>
     </div>
     <div class="field">
-      <label for="originalLanguage">Original language</label>
-      <input id="originalLanguage" name="originalLanguage" maxlength="10" value={movie.originalLanguage ?? ''} />
+      <LanguageSelect languages={data.languages} selected={movie.originalLanguage ?? null} />
     </div>
     <GenreMultiSelect genres={data.genres} selected={selectedGenres} />
     <button type="submit" class="primary" disabled={savingDetails}>

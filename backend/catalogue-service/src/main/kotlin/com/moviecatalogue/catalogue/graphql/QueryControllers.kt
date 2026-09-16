@@ -54,6 +54,10 @@ class ReferenceQueryController(
     ): List<CreditRoleCodeGql> =
         referenceUseCases.listCreditRoles(category, activeOnly ?: true).map { it.toGql() }
 
+    @QueryMapping
+    fun languageCodes(@Argument activeOnly: Boolean?): List<LanguageCodeGql> =
+        referenceUseCases.listLanguages(activeOnly ?: true).map { it.toGql() }
+
     /** PersonCredit.role resolver (shared shape). */
     @SchemaMapping(typeName = "PersonCredit", field = "role")
     fun role(credit: PersonCreditGql): CreditRoleCodeGql =

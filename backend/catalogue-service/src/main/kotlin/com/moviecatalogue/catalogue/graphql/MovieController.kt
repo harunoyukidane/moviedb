@@ -53,6 +53,10 @@ class MovieController(
         movieReads.credits(UUID.fromString(movie.id), CreditCategory.CREW)
             .map { it.toGql() }
 
+    @SchemaMapping(typeName = "Movie", field = "language")
+    fun language(movie: MovieGql): LanguageCodeGql? =
+        movieReads.language(movie.originalLanguage)?.toGql()
+
     @SchemaMapping(typeName = "Movie", field = "artwork")
     fun artwork(movie: MovieGql): ArtworkGql? {
         val asset = movieReads.artwork(UUID.fromString(movie.id)) ?: return null

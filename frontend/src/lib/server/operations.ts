@@ -4,6 +4,7 @@ import type {
   CreditRoleCode,
   DeleteResult,
   GenreCode,
+  LanguageCode,
   Movie,
   MovieComment,
   MovieCommentPage,
@@ -14,6 +15,7 @@ import type {
 
 const MOVIE_FIELDS = `
   id title originalTitle synopsis releaseDate runtimeMinutes originalLanguage version
+  language { code name active }
   artwork { id url mediaType byteSize }
   genres { code title description active }
   cast { id category characterName sourceRoleName billingOrder
@@ -77,6 +79,14 @@ export function listCreditRoles(ctx?: RequestContext) {
     {},
     ctx
   ).then((r) => r.creditRoles);
+}
+
+export function listLanguages(ctx?: RequestContext) {
+  return gql<{ languageCodes: LanguageCode[] }>(
+    `query { languageCodes { code name active } }`,
+    {},
+    ctx
+  ).then((r) => r.languageCodes);
 }
 
 export interface CreateMovieInput {

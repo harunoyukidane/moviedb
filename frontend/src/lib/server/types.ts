@@ -10,6 +10,12 @@ export interface GenreCode {
   active: boolean;
 }
 
+export interface LanguageCode {
+  code: string;
+  name: string;
+  active: boolean;
+}
+
 export interface CreditRoleCode {
   code: string;
   title: string;
@@ -50,6 +56,7 @@ export interface Movie {
   releaseDate?: string | null;
   runtimeMinutes?: number | null;
   originalLanguage?: string | null;
+  language?: LanguageCode | null;
   version: number;
   artwork?: Artwork | null;
   genres: GenreCode[];
