@@ -99,6 +99,4 @@
   }
   .toolbar-row { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-2); flex-wrap: wrap; }
   .toolbar-row > :global(.movie-list-toolbar) { flex: 1 1 auto; }
-  .pager { display: flex; gap: var(--sp-2); align-items: center; justify-content: center; margin-top: var(--sp-3); }
-  .pager .count { color: var(--text-muted); }
 </style>

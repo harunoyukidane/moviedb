@@ -25,7 +25,7 @@
   }
 </script>
 
-<a class="back" href="/movies">← All movies</a>
+<a class="page-back" href="/movies">← All movies</a>
 
 <div class="detail">
   <section class="artwork-section" aria-label="Artwork">
@@ -37,13 +37,13 @@
   </section>
 
   <section class="info-section">
-    <div class="title-row">
+    <div class="detail-title-row">
       <h1>{movie.title}</h1>
       <IconLink icon="edit" href={`/movies/${movie.id}/edit`} label="Edit movie" />
     </div>
     {#if movie.originalTitle}<p class="original">{movie.originalTitle}</p>{/if}
 
-    <dl class="meta">
+    <dl class="detail-meta">
       {#if movie.releaseDate}<dt>Released</dt><dd>{movie.releaseDate}</dd>{/if}
       {#if movie.runtimeMinutes}<dt>Runtime</dt><dd>{movie.runtimeMinutes} min</dd>{/if}
       {#if movie.originalLanguage}<dt>Language</dt><dd>{movie.language?.name ?? movie.originalLanguage}</dd>{/if}
@@ -129,16 +129,11 @@
 </section>
 
 <style>
-  .back { display: inline-block; margin-bottom: var(--sp-2); color: var(--text-muted); }
   .detail { display: grid; grid-template-columns: 1fr; gap: var(--sp-3); }
   @media (min-width: 720px) { .detail { grid-template-columns: 280px 1fr; } }
   .artwork-section img, .poster-fallback { width: 100%; aspect-ratio: 2/3; object-fit: cover; border-radius: var(--radius); }
   .poster-fallback { display: grid; place-items: center; font-size: 3rem; background: var(--surface-2); }
-  .title-row { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--sp-2); }
   .original { color: var(--text-muted); margin-top: 0; }
-  .meta { display: grid; grid-template-columns: auto 1fr; gap: 4px var(--sp-2); }
-  .meta dt { color: var(--text-muted); }
-  .meta dd { margin: 0; }
   .genre-tags { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: var(--sp-1); margin: var(--sp-2) 0; }
   .tag { background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 2px var(--sp-1); font-size: 0.875rem; }
   .tabs { display: flex; gap: var(--sp-1); margin: var(--sp-2) 0; }
@@ -148,6 +143,5 @@
   .comments-section h2 { margin-top: 0; }
   .comment-form { display: flex; flex-direction: column; gap: var(--sp-1); margin-bottom: var(--sp-3); max-width: 480px; }
   .field { display: flex; flex-direction: column; gap: 4px; }
-  .pager { display: flex; gap: var(--sp-2); align-items: center; justify-content: center; margin-top: var(--sp-2); }
-  .pager .count { color: var(--text-muted); }
+  .pager { margin-top: var(--sp-2); }
 </style>

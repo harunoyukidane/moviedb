@@ -81,15 +81,3 @@
   </div>
 {/if}
 
-<style>
-  .overlay {
-    position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6);
-    display: grid; place-items: center; z-index: 50; padding: var(--sp-2);
-  }
-  .dialog {
-    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-    padding: var(--sp-3); max-width: 480px; width: 100%;
-  }
-  .dialog h2 { margin-top: 0; }
-  .actions { display: flex; gap: var(--sp-1); justify-content: flex-end; margin-top: var(--sp-3); }
-</style>

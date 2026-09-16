@@ -76,27 +76,9 @@
     position: relative;
   }
   .suggestions {
-    list-style: none;
-    margin: 4px 0 0;
-    padding: 0;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    max-height: 12rem;
-    overflow-y: auto;
     position: absolute;
     z-index: 10;
     background: var(--surface);
     width: 100%;
-  }
-  .suggestions li button {
-    width: 100%;
-    text-align: left;
-    background: var(--surface);
-    border: none;
-    border-bottom: 1px solid var(--border);
-    border-radius: 0;
-  }
-  .suggestions li button:hover {
-    background: var(--surface-2);
   }
 </style>

@@ -16,7 +16,7 @@
   $: v = (form?.values ?? {}) as FormValues;
 </script>
 
-<a class="back" href="/people">← All people</a>
+<a class="page-back" href="/people">← All people</a>
 <h1>New person</h1>
 
 {#if form?.message}
@@ -41,7 +41,7 @@
     <label for="biography">Biography</label>
     <textarea id="biography" name="biography" rows="4">{v.biography ?? ''}</textarea>
   </div>
-  <div class="grid-2">
+  <div class="form-grid-2">
     <div class="field">
       <label for="birthDate">Birth date</label>
       <DateField id="birthDate" name="birthDate" value={v.birthDate} />
@@ -57,9 +57,3 @@
   </div>
   <button type="submit" class="primary" disabled={submitting}>{submitting ? 'Creating…' : 'Create person'}</button>
 </form>
-
-<style>
-  .back { display: inline-block; margin-bottom: var(--sp-2); color: var(--text-muted); }
-  .grid-2 { display: grid; grid-template-columns: 1fr; gap: var(--sp-2); }
-  @media (min-width: 560px) { .grid-2 { grid-template-columns: 1fr 1fr; } }
-</style>

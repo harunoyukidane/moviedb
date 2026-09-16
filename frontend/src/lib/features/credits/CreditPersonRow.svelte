@@ -19,7 +19,7 @@
        "Unknown person" placeholder shown elsewhere for that case. -->
   <svelte:element
     this={available ? 'a' : 'span'}
-    class="credit-link"
+    class="entity-card"
     class:credit-link-disabled={!available}
     href={available ? `/people/${personId}` : undefined}
   >
@@ -35,30 +35,20 @@
         <PersonPhotoFallback />
       {/if}
     </span>
-    <span class="credit-name" class:unavailable={!available} title={available ? personName : undefined}>
+    <span
+      class="entity-card-name text-truncate"
+      class:unavailable={!available}
+      title={available ? personName : undefined}
+    >
       {available ? personName : 'Unknown person'}
     </span>
-    {#if roleText}<span class="credit-role">{roleText}</span>{/if}
+    {#if roleText}<span class="credit-role text-truncate">{roleText}</span>{/if}
   </svelte:element>
 </li>
 
 <style>
   .credit-card {
     display: flex;
-  }
-  .credit-link {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    text-decoration: none;
-    color: var(--text);
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: var(--sp-1);
-    width: 100%;
-    gap: 2px;
   }
   .credit-link-disabled {
     cursor: default;
@@ -73,24 +63,12 @@
     border-radius: 50%;
     object-fit: cover;
   }
-  .credit-name {
-    font-weight: 600;
-    margin-top: 4px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 100%;
-  }
-  .credit-name.unavailable {
+  .entity-card-name.unavailable {
     color: var(--text-muted);
     font-style: italic;
   }
   .credit-role {
     color: var(--text-muted);
     font-size: 0.875rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 100%;
   }
 </style>

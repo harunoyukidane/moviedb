@@ -42,6 +42,4 @@
 <style>
   .head-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--sp-2); }
   .new-link { background: var(--accent); color: var(--accent-contrast); padding: var(--sp-1) var(--sp-2); border-radius: var(--radius); font-weight: 600; text-decoration: none; }
-  .pager { display: flex; gap: var(--sp-2); align-items: center; justify-content: center; margin-top: var(--sp-3); }
-  .pager .count { color: var(--text-muted); }
 </style>

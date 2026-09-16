@@ -20,14 +20,14 @@
   }
 </script>
 
-<a class="back" href={`/people/${person.id}`}>← Back to person</a>
+<a class="page-back" href={`/people/${person.id}`}>← Back to person</a>
 <h1>Edit “{person.name}”</h1>
 
 {#if form?.updated}
   <StateBanner variant="info">Changes saved.</StateBanner>
 {/if}
 
-<section class="section" aria-label="Person details">
+<section class="form-section" aria-label="Person details">
   <h2>Details</h2>
   {#if form?.message && form?.section === 'details'}
     <StateBanner variant="error">{form.message}</StateBanner>
@@ -52,7 +52,7 @@
       <label for="biography">Biography</label>
       <textarea id="biography" name="biography" rows="4">{person.biography}</textarea>
     </div>
-    <div class="grid-2">
+    <div class="form-grid-2">
       <div class="field">
         <label for="birthDate">Birth date</label>
         <DateField id="birthDate" name="birthDate" value={person.birthDate} />
@@ -70,7 +70,7 @@
   </form>
 </section>
 
-<section class="section" id="photo" aria-label="Photo">
+<section class="form-section" id="photo" aria-label="Photo">
   <h2>Photo</h2>
   {#if form?.message && form?.section === 'photo'}
     <StateBanner variant="error">{form.message}</StateBanner>
@@ -82,7 +82,7 @@
   <ArtworkUpload action="?/uploadPhoto" label="Upload photo" />
 </section>
 
-<section class="section danger-zone" aria-label="Danger zone">
+<section class="form-section danger-zone" aria-label="Danger zone">
   <h2>Danger zone</h2>
   {#if form?.message && form?.section === 'danger'}
     <StateBanner variant="error">{form.message}</StateBanner>
@@ -108,13 +108,5 @@
 <form id="delete-person-form" method="POST" action="?/delete" use:enhance hidden></form>
 
 <style>
-  .back { display: inline-block; margin-bottom: var(--sp-2); color: var(--text-muted); }
-  .section { border: 1px solid var(--border); border-radius: var(--radius); padding: var(--sp-2); margin-bottom: var(--sp-2); }
-  .section h2 { margin-top: 0; }
-  .grid-2 { display: grid; grid-template-columns: 1fr; gap: var(--sp-2); }
-  @media (min-width: 560px) { .grid-2 { grid-template-columns: 1fr 1fr; } }
   .current { width: 140px; aspect-ratio: 1; object-fit: cover; border-radius: var(--radius); display: block; margin-bottom: var(--sp-1); }
-  .hint { color: var(--text-muted); }
-  .danger-zone { border-color: var(--danger); }
-  .danger-zone h2 { color: var(--danger); }
 </style>

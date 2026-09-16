@@ -18,7 +18,7 @@
         </span>
         <span class="row-body">
           <span class="row-heading">
-            <span class="row-title">{movie.title}</span>
+            <span class="row-title text-truncate">{movie.title}</span>
             {#if movie.releaseDate}<span class="row-year">{movie.releaseDate.slice(0, 4)}</span>{/if}
           </span>
           {#if movie.genres.length}
@@ -76,9 +76,6 @@
   }
   .row-title {
     font-weight: 600;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
   .row-year {
     color: var(--text-muted);

@@ -34,14 +34,14 @@
   }
 </script>
 
-<a class="back" href={`/movies/${movie.id}`}>← Back to movie</a>
+<a class="page-back" href={`/movies/${movie.id}`}>← Back to movie</a>
 <h1>Edit “{movie.title}”</h1>
 
 {#if form?.updated}
   <StateBanner variant="info">Changes saved.</StateBanner>
 {/if}
 
-<section class="section" aria-label="Movie details">
+<section class="form-section" aria-label="Movie details">
   <h2>Details</h2>
   {#if form?.message && form?.section === 'details'}
     <StateBanner variant="error">{form.message}</StateBanner>
@@ -70,7 +70,7 @@
       <label for="synopsis">Synopsis</label>
       <textarea id="synopsis" name="synopsis" rows="4">{movie.synopsis}</textarea>
     </div>
-    <div class="grid-2">
+    <div class="form-grid-2">
       <div class="field">
         <label for="releaseDate">Release date</label>
         <DateField id="releaseDate" name="releaseDate" value={movie.releaseDate} />
@@ -90,7 +90,7 @@
   </form>
 </section>
 
-<section class="section" id="artwork" aria-label="Artwork">
+<section class="form-section" id="artwork" aria-label="Artwork">
   <h2>Artwork</h2>
   {#if form?.message && form?.section === 'artwork'}
     <StateBanner variant="error">{form.message}</StateBanner>
@@ -106,7 +106,7 @@
   <ArtworkUpload action="?/uploadArtwork" label={movie.artwork ? 'Replace artwork' : 'Upload artwork'} />
 </section>
 
-<section class="section" aria-label="Credits">
+<section class="form-section" aria-label="Credits">
   <div class="credits-head">
     <h2>Credits</h2>
     <button type="button" class="primary" bind:this={addCreditButton} on:click={() => (creditOpen = true)}>
@@ -152,7 +152,7 @@
   {/if}
 </section>
 
-<section class="section danger-zone" aria-label="Danger zone">
+<section class="form-section danger-zone" aria-label="Danger zone">
   <h2>Danger zone</h2>
   {#if form?.message && form?.section === 'danger'}
     <StateBanner variant="error">{form.message}</StateBanner>
@@ -176,18 +176,10 @@
 <form id="delete-movie-form" method="POST" action="?/delete" use:enhance hidden></form>
 
 <style>
-  .back { display: inline-block; margin-bottom: var(--sp-2); color: var(--text-muted); }
-  .section { border: 1px solid var(--border); border-radius: var(--radius); padding: var(--sp-2); margin-bottom: var(--sp-2); }
-  .section h2 { margin-top: 0; }
-  .grid-2 { display: grid; grid-template-columns: 1fr; gap: var(--sp-2); }
-  @media (min-width: 560px) { .grid-2 { grid-template-columns: 1fr 1fr; } }
   .current-art { width: 160px; aspect-ratio: 2/3; object-fit: cover; border-radius: var(--radius); display: block; margin-bottom: var(--sp-1); }
   .credits-head { display: flex; justify-content: space-between; align-items: center; }
-  .hint { color: var(--text-muted); }
   .credit-list { list-style: none; padding: 0; margin-top: var(--sp-2); }
   .credit-list li { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-2); padding: var(--sp-1) 0; border-bottom: 1px solid var(--border); }
   .cat-badge { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.05em; color: var(--text-muted); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; margin-right: 6px; }
   .unavailable { color: var(--text-muted); font-style: italic; }
-  .danger-zone { border-color: var(--danger); }
-  .danger-zone h2 { color: var(--danger); }
 </style>

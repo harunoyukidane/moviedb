@@ -8,7 +8,7 @@
   export let dates: string | null = null;
 </script>
 
-<a class="person-card" href={`/people/${id}`}>
+<a class="entity-card" href={`/people/${id}`}>
   <span class="card-photo">
     {#if photoUrl}
       <img src={photoUrl} alt={`Photo of ${name}`} loading="lazy" />
@@ -16,25 +16,11 @@
       <PersonPhotoFallback />
     {/if}
   </span>
-  <span class="card-name" title={name}>{name}</span>
+  <span class="entity-card-name text-truncate" title={name}>{name}</span>
   {#if dates}<span class="card-dates">{dates}</span>{/if}
 </a>
 
 <style>
-  .person-card {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    text-decoration: none;
-    color: var(--text);
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: var(--sp-1);
-    width: 100%;
-    gap: 2px;
-  }
   .card-photo {
     width: 100%;
   }
@@ -47,14 +33,6 @@
   }
   .card-photo :global(.person-photo-fallback) {
     font-size: 2rem;
-  }
-  .card-name {
-    font-weight: 600;
-    margin-top: 4px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 100%;
   }
   .card-dates {
     color: var(--text-muted);

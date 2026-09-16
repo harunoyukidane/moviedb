@@ -22,7 +22,7 @@
   $: v = (form?.values ?? {}) as FormValues;
 </script>
 
-<a class="back" href="/movies">← All movies</a>
+<a class="page-back" href="/movies">← All movies</a>
 <h1>New movie</h1>
 
 {#if form?.message}
@@ -39,7 +39,7 @@
     };
   }}
 >
-  <section class="section" aria-label="Movie details">
+  <section class="form-section" aria-label="Movie details">
     <h2>Details</h2>
     <div class="field">
       <label for="title">Title *</label>
@@ -53,7 +53,7 @@
       <label for="synopsis">Synopsis</label>
       <textarea id="synopsis" name="synopsis" rows="4">{v.synopsis ?? ''}</textarea>
     </div>
-    <div class="grid-2">
+    <div class="form-grid-2">
       <div class="field">
         <label for="releaseDate">Release date</label>
         <DateField id="releaseDate" name="releaseDate" value={v.releaseDate} />
@@ -69,7 +69,7 @@
     <GenreMultiSelect genres={data.genres} selected={v.genreCodes ?? []} />
   </section>
 
-  <section class="section" aria-label="Artwork">
+  <section class="form-section" aria-label="Artwork">
     <h2>Artwork</h2>
     <p class="hint">You can upload a poster after creating the movie, from its editor.</p>
   </section>
@@ -78,12 +78,3 @@
     {submitting ? 'Creating…' : 'Create movie'}
   </button>
 </form>
-
-<style>
-  .back { display: inline-block; margin-bottom: var(--sp-2); color: var(--text-muted); }
-  .section { border: 1px solid var(--border); border-radius: var(--radius); padding: var(--sp-2); margin-bottom: var(--sp-2); }
-  .section h2 { margin-top: 0; }
-  .grid-2 { display: grid; grid-template-columns: 1fr; gap: var(--sp-2); }
-  @media (min-width: 560px) { .grid-2 { grid-template-columns: 1fr 1fr; } }
-  .hint { color: var(--text-muted); }
-</style>
