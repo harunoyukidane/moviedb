@@ -63,9 +63,15 @@ class ArtworkUseCases(
             height = validated.height,
         )
 
-        // 6. swap metadata transactionally; compensate the new file if the DB write fails
+        // 6. swap metadata transactionally; compensate the new file if the DB write fails.
+        // The existsById check above is a fast-path only — a concurrent deleteMovie can
+        // still land between it and this block (or between this re-check and the physical
+        // INSERT), which would otherwise violate the movie_id FK and surface as a raw
+        // internal error. Re-check inside the transaction, and treat the FK violation
+        // itself as the same "movie no longer exists" case rather than letting it leak.
         val saved = try {
             transactionTemplate.execute {
+                if (!movies.existsById(movieId)) throw NotFoundException("movie '$movieId' not found")
                 previous?.let { artworkRepository.delete(it); artworkRepository.flush() }
                 artworkRepository.saveAndFlush(newAsset)
             }!!
@@ -81,6 +87,10 @@ class ArtworkUseCases(
                     storageError.message,
                 )
                 compensationFailureCounter.increment()
+            }
+            if (e is NotFoundException) throw e
+            if (e is org.springframework.dao.DataIntegrityViolationException && !movies.existsById(movieId)) {
+                throw NotFoundException("movie '$movieId' not found")
             }
             throw e
         }

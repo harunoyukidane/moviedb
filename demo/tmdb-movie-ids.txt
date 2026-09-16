@@ -5,8 +5,12 @@
 # demonstrable. One id per line; blank lines and '#' comments are ignored.
 #
 # Keep this curated (well-known, stable titles) rather than a bulk export.
-# Titles/years/genres below were verified against a live TMDB import
-# (V2-07) — earlier comments on some of the original 12 ids were stale.
+# Titles/years/genres in comments were verified against a live TMDB lookup
+# (each id below was fetched directly against api.themoviedb.org before being
+# added) — treat them as accurate, not guessed.
+#
+# 100+ entries so the catalogue has enough volume for realistic browsing/paging
+# and for demo/loadtest (concurrent create/update/delete/upload/comment stress).
 
 # --- Original curated set (pre-V2-07); mostly Horror, some Crime/Mystery/Drama ---
 694    # The Shining (1980) - Horror, Thriller
@@ -37,3 +41,104 @@
 597    # Titanic (1997) - Drama, Romance
 313369 # La La Land (2016) - Comedy, Drama, Romance
 213    # North by Northwest (1959) - Thriller
+
+# --- Blockbuster / franchise set (V2-16 volume expansion) ---
+550    # Fight Club (1999) - Drama, Thriller
+27205  # Inception (2010) - Action, Science Fiction, Adventure
+24428  # The Avengers (2012) - Science Fiction, Action, Adventure
+299536 # Avengers: Infinity War (2018) - Adventure, Action, Science Fiction
+299534 # Avengers: Endgame (2019) - Adventure, Science Fiction, Action
+118340 # Guardians of the Galaxy (2014) - Action, Science Fiction, Adventure
+284053 # Thor: Ragnarok (2017) - Action, Science Fiction, Comedy, Adventure
+1891   # The Empire Strikes Back (1980) - Adventure, Action, Science Fiction
+11     # Star Wars (1977) - Adventure, Action, Science Fiction
+1892   # Return of the Jedi (1983) - Adventure, Action, Science Fiction
+181808 # Star Wars: The Last Jedi (2017) - Adventure, Action, Science Fiction
+140607 # Star Wars: The Force Awakens (2015) - Adventure, Action, Science Fiction
+330459 # Rogue One: A Star Wars Story (2016) - Action, Adventure, Science Fiction
+603    # The Matrix (1999) - Action, Science Fiction
+604    # The Matrix Reloaded (2003) - Adventure, Action, Thriller, Science Fiction
+605    # The Matrix Revolutions (2003) - Adventure, Action, Thriller, Science Fiction
+424    # Schindler's List (1993) - Drama, History, War
+129    # Spirited Away (2001) - Animation, Family, Fantasy
+372058 # Your Name. (2016) - Animation, Romance, Drama
+496243 # Parasite (2019) - Comedy, Thriller, Drama
+419704 # Ad Astra (2019) - Science Fiction, Drama
+157336 # Interstellar (2014) - Adventure, Drama, Science Fiction
+245891 # John Wick (2014) - Action, Thriller
+324552 # John Wick: Chapter 2 (2017) - Action, Thriller, Crime
+458156 # John Wick: Chapter 3 - Parabellum (2019) - Action, Thriller, Crime
+603692 # John Wick: Chapter 4 (2023) - Action, Thriller, Crime
+76203  # 12 Years a Slave (2013) - Drama, History
+122    # The Lord of the Rings: The Return of the King (2003) - Adventure, Fantasy, Action
+121    # The Lord of the Rings: The Two Towers (2002) - Adventure, Fantasy, Action
+120    # The Lord of the Rings: The Fellowship of the Ring (2001) - Adventure, Fantasy, Action
+671    # Harry Potter and the Philosopher's Stone (2001) - Adventure, Fantasy
+672    # Harry Potter and the Chamber of Secrets (2002) - Adventure, Fantasy
+673    # Harry Potter and the Prisoner of Azkaban (2004) - Adventure, Fantasy
+674    # Harry Potter and the Goblet of Fire (2005) - Adventure, Fantasy
+767    # Harry Potter and the Half-Blood Prince (2009) - Adventure, Fantasy
+675    # Harry Potter and the Order of the Phoenix (2007) - Adventure, Fantasy
+12444  # Harry Potter and the Deathly Hallows: Part 1 (2010) - Adventure, Fantasy
+12445  # Harry Potter and the Deathly Hallows: Part 2 (2011) - Adventure, Fantasy
+862    # Toy Story (1995) - Family, Comedy, Animation, Adventure
+863    # Toy Story 2 (1999) - Animation, Comedy, Family
+10193  # Toy Story 3 (2010) - Animation, Family, Comedy
+301528 # Toy Story 4 (2019) - Family, Comedy, Animation, Adventure
+12     # Finding Nemo (2003) - Animation, Family, Adventure
+14160  # Up (2009) - Animation, Comedy, Family, Adventure
+585    # Monsters, Inc. (2001) - Animation, Comedy, Family, Fantasy
+508442 # Soul (2020) - Animation, Family, Drama, Music, Fantasy
+508943 # Luca (2021) - Animation, Family, Fantasy, Drama, Comedy
+508947 # Turning Red (2022) - Animation, Family, Comedy, Fantasy
+293660 # Deadpool (2016) - Action, Adventure, Comedy
+383498 # Deadpool 2 (2018) - Action, Comedy, Adventure
+280    # Terminator 2: Judgment Day (1991) - Action, Thriller, Science Fiction
+218    # The Terminator (1984) - Action, Thriller, Science Fiction
+664767 # Mortal Kombat Legends: Scorpion's Revenge (2020) - Animation, Action, Fantasy
+447365 # Guardians of the Galaxy Vol. 3 (2023) - Science Fiction, Adventure, Action
+490132 # Green Book (2018) - Drama, Comedy, History
+429617 # Spider-Man: Far From Home (2019) - Action, Adventure, Science Fiction
+634649 # Spider-Man: No Way Home (2021) - Action, Adventure, Science Fiction
+566525 # Shang-Chi and the Legend of the Ten Rings (2021) - Action, Adventure, Fantasy
+
+# --- Horror / Mystery / Thriller / Drama depth (V2-16 volume expansion) ---
+1124   # The Prestige (2006) - Drama, Mystery, Science Fiction
+138843 # The Conjuring (2013) - Horror, Thriller
+158    # Knockin' on Heaven's Door (1997) - Comedy, Crime, Action, Drama
+194    # Amelie (2001) - Comedy, Romance
+19995  # Avatar (2009) - Science Fiction, Action, Adventure
+259693 # The Conjuring 2 (2016) - Horror
+274    # The Silence of the Lambs (1991) - Crime, Thriller, Drama
+331482 # Little Women (2019) - Drama, Romance
+335984 # Blade Runner 2049 (2017) - Science Fiction, Drama
+340611 # Indignation (2016) - Drama, Romance
+345940 # The Meg (2018) - Action, Science Fiction, Horror
+346364 # It (2017) - Horror, Thriller, Drama
+353081 # Mission: Impossible - Fallout (2018) - Action, Adventure
+359724 # Ford v Ferrari (2019) - Drama, History, Action
+361743 # Top Gun: Maverick (2022) - Action, Drama
+419430 # Get Out (2017) - Mystery, Thriller, Horror
+453395 # Doctor Strange in the Multiverse of Madness (2022) - Fantasy, Action, Adventure
+460465 # Mortal Kombat (2021) - Action, Fantasy, Adventure
+466272 # Once Upon a Time... in Hollywood (2019) - Comedy, Drama, Thriller
+475557 # Joker (2019) - Crime, Thriller, Drama
+496    # Borat (2006) - Comedy
+508    # Love Actually (2003) - Comedy, Romance, Drama
+578    # Jaws (1975) - Horror, Thriller, Adventure
+615777 # Babylon (2022) - Drama, Comedy
+616037 # Thor: Love and Thunder (2022) - Fantasy, Action, Comedy
+619264 # The Platform (2019) - Drama, Science Fiction, Thriller
+640    # Catch Me If You Can (2002) - Drama, Crime
+640146 # Ant-Man and the Wasp: Quantumania (2023) - Action, Adventure, Science Fiction
+646385 # Scream (2022) - Horror, Mystery
+76285  # Percy Jackson: Sea of Monsters (2013) - Adventure, Family, Fantasy
+76338  # Thor: The Dark World (2013) - Action, Adventure, Fantasy
+76600  # Avatar: The Way of Water (2022) - Action, Adventure, Science Fiction
+77     # Memento (2000) - Mystery, Thriller
+78     # Blade Runner (1982) - Science Fiction, Drama, Thriller
+787699 # Wonka (2023) - Comedy, Family, Fantasy
+843    # In the Mood for Love (2000) - Drama, Romance
+8587   # The Lion King (1994) - Animation, Family, Drama
+872585 # Oppenheimer (2023) - Drama, History
+736074 # Batman: The Long Halloween, Part Two (2021) - Animation, Mystery, Action, Crime

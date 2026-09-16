@@ -21,6 +21,7 @@ import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
+import org.springframework.orm.ObjectOptimisticLockingFailureException
 import java.util.UUID
 
 class PersonHydratorTest {
@@ -278,6 +279,53 @@ class MovieUseCasesTest {
 
         val result = useCases.createMovie(createCommand(originalLanguage = "en"))
         assertThat(result.originalLanguage).isEqualTo("en")
+    }
+
+    @Test
+    fun `deleteMovie deletes when present`() {
+        val id = UUID.randomUUID()
+        val movie = com.moviecatalogue.catalogue.movie.Movie(id = id, title = "Title")
+        every { movies.findById(id) } returns java.util.Optional.of(movie)
+        every { movies.delete(movie) } returns Unit
+        every { movies.flush() } returns Unit
+
+        useCases.deleteMovie(id)
+
+        verify(exactly = 1) { movies.delete(movie) }
+        verify(exactly = 1) { movies.flush() }
+    }
+
+    @Test
+    fun `deleteMovie throws NotFound when absent`() {
+        val id = UUID.randomUUID()
+        every { movies.findById(id) } returns java.util.Optional.empty()
+
+        assertThatThrownBy { useCases.deleteMovie(id) }
+            .isInstanceOf(NotFoundException::class.java)
+        verify(exactly = 0) { movies.delete(any()) }
+    }
+
+    @Test
+    fun `deleteMovie throws NotFound, not a raw exception, when lost to a concurrent delete`() {
+        // Regression test (V2-16 load test finding). First attempt: a plain
+        // existsById-then-deleteById check-then-act let two concurrent deletes of
+        // the same movie both pass the check; since Spring Data JPA's deleteById
+        // is a silent no-op when the row is already gone (it does NOT throw), the
+        // loser "succeeded" despite deleting nothing - worse than the original
+        // 500. The fix instead loads the entity and deletes it with an explicit
+        // flush, relying on the existing @Version column: Hibernate scopes the
+        // DELETE to `WHERE id = ? AND version = ?`, so a row removed by a
+        // concurrent delete between our read and our delete raises
+        // ObjectOptimisticLockingFailureException here, which we translate to a
+        // clean NOT_FOUND.
+        val id = UUID.randomUUID()
+        val movie = com.moviecatalogue.catalogue.movie.Movie(id = id, title = "Title")
+        every { movies.findById(id) } returns java.util.Optional.of(movie)
+        every { movies.delete(movie) } returns Unit
+        every { movies.flush() } throws ObjectOptimisticLockingFailureException("movie", id)
+
+        assertThatThrownBy { useCases.deleteMovie(id) }
+            .isInstanceOf(NotFoundException::class.java)
     }
 }
 

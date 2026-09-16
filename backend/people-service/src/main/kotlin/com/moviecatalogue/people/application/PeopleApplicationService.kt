@@ -159,8 +159,22 @@ class PeopleApplicationService(
 
     @Transactional
     fun deletePerson(id: UUID) {
-        if (!repository.existsById(id)) throw PersonNotFoundException()
-        repository.deleteById(id)
+        // See MovieUseCases.deleteMovie: an existsById-then-deleteById
+        // check-then-act race lets two concurrent deletes of the same person
+        // both pass the check, and Spring Data JPA's deleteById is a silent
+        // no-op when the row is already gone (it does NOT throw) - so the
+        // loser used to "succeed" despite deleting nothing. Loading the entity
+        // and deleting it with an explicit flush instead relies on the
+        // existing @Version column: Hibernate scopes the DELETE to
+        // `WHERE id = ? AND version = ?`, so a row removed by a concurrent
+        // delete after our read still fails loudly here.
+        val person = repository.findById(id).orElseThrow { PersonNotFoundException() }
+        try {
+            repository.delete(person)
+            repository.flush()
+        } catch (e: ObjectOptimisticLockingFailureException) {
+            throw PersonNotFoundException()
+        }
     }
 }
 

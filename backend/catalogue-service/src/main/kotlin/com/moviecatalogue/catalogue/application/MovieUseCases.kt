@@ -135,9 +135,23 @@ class MovieUseCases(
 
     @Transactional
     fun deleteMovie(id: UUID): UUID {
-        if (!movies.existsById(id)) throw NotFoundException("movie '$id' not found")
-        // ON DELETE CASCADE removes credits, genres, and artwork (§7.2).
-        movies.deleteById(id)
+        // A plain existsById-then-deleteById check-then-act race lets two
+        // concurrent deletes of the same movie both pass the check. Spring Data
+        // JPA's deleteById is a silent no-op when the row is already gone (it
+        // does NOT throw), so the loser used to "succeed" despite deleting
+        // nothing. Loading the entity and deleting it with an explicit flush
+        // instead relies on the existing @Version column: Hibernate scopes the
+        // DELETE to `WHERE id = ? AND version = ?`, so a row removed by a
+        // concurrent delete after our read still fails loudly here rather than
+        // silently or as a raw INTERNAL_ERROR.
+        val movie = movies.findById(id).orElseThrow { NotFoundException("movie '$id' not found") }
+        try {
+            // ON DELETE CASCADE removes credits, genres, and artwork (§7.2).
+            movies.delete(movie)
+            movies.flush()
+        } catch (e: ObjectOptimisticLockingFailureException) {
+            throw NotFoundException("movie '$id' not found")
+        }
         return id
     }
 

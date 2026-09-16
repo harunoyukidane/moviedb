@@ -185,6 +185,35 @@ services:
     restart: "no"
     networks: [internal]
 
+  # Concurrency/stress load test (V2-16). Runs only under the `loadtest`
+  # profile, after the app is healthy. Spins up many concurrent workers doing
+  # create/update/delete/upload on shared "hot" movie and person rows (forcing
+  # collisions), plus a concurrent comment storm on one movie. Never touches
+  # the curated demo catalogue - all records it creates are prefixed
+  # "[LOADTEST]" and removed again (best-effort) at the end of the run.
+  load-test:
+    profiles: ["loadtest"]
+    build:
+      context: ./demo/loadtest
+      dockerfile: Dockerfile
+    environment:
+      CATALOGUE_GRAPHQL_URL: http://catalogue-service:8080/graphql
+      CATALOGUE_HTTP_URL: http://catalogue-service:8080
+      PEOPLE_HTTP_URL: http://people-service:8081
+      LOAD_DURATION_SECONDS: ${LOAD_DURATION_SECONDS:-30}
+      LOAD_MOVIE_WORKERS: ${LOAD_MOVIE_WORKERS:-20}
+      LOAD_PEOPLE_WORKERS: ${LOAD_PEOPLE_WORKERS:-10}
+      LOAD_COMMENT_WORKERS: ${LOAD_COMMENT_WORKERS:-20}
+      LOAD_HOT_MOVIES: ${LOAD_HOT_MOVIES:-6}
+      LOAD_HOT_PEOPLE: ${LOAD_HOT_PEOPLE:-6}
+    depends_on:
+      catalogue-service:
+        condition: service_healthy
+      people-service:
+        condition: service_healthy
+    restart: "no"
+    networks: [internal]
+
 volumes:
   catalogue-db-data:
   people-db-data:

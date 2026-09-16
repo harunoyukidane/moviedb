@@ -16,9 +16,12 @@ import java.util.UUID
 
 /**
  * Serves artwork bytes (§8.1, §10). Cacheable binary response with a strong ETag
- * (the content SHA-256), long-lived immutable caching (the key/content never
- * changes for a given artwork id), and `X-Content-Type-Options: nosniff`. Honors
- * conditional requests with a 304 when the ETag matches.
+ * (the content SHA-256) and long-lived immutable caching (the key/content never
+ * changes for a given artwork id). Honors conditional requests with a 304 when
+ * the ETag matches. `X-Content-Type-Options: nosniff` is not set here - every
+ * response on this service already gets it from SecurityHeadersFilter; adding
+ * it again on the ResponseEntity would duplicate the header (Spring MVC writes
+ * ResponseEntity headers via addHeader, which appends rather than replaces).
  */
 @RestController
 class ArtworkServingController(
@@ -43,7 +46,6 @@ class ArtworkServingController(
             return ResponseEntity.status(HttpStatus.NOT_MODIFIED)
                 .eTag(etag)
                 .cacheControl(cacheControl)
-                .header("X-Content-Type-Options", "nosniff")
                 .build()
         }
 
@@ -54,7 +56,6 @@ class ArtworkServingController(
             .cacheControl(cacheControl)
             .contentType(MediaType.parseMediaType(asset.mediaType))
             .contentLength(asset.byteSize)
-            .header("X-Content-Type-Options", "nosniff")
             .body(body)
     }
 }

@@ -6,8 +6,10 @@ import com.moviecatalogue.media.ArtworkStore
 import com.moviecatalogue.media.ImageContentValidator
 import com.moviecatalogue.media.StoredObject
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
+import com.moviecatalogue.catalogue.domain.NotFoundException
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
 import io.mockk.verify
 import io.mockk.verifyOrder
 import org.assertj.core.api.Assertions.assertThat
@@ -118,6 +120,31 @@ class ArtworkUseCasesTest {
             .hasMessage("db down")
 
         assertThat(meterRegistry.counter("catalogue.artwork.compensation.failure").count()).isEqualTo(1.0)
+    }
+
+    @Test
+    fun `upload throws NotFound when the movie is deleted concurrently mid-transaction`() {
+        // Regression test (V2-16 load test finding): existsById was only checked
+        // once, before validation/storage I/O; a deleteMovie racing in after that
+        // check used to reach the metadata INSERT and violate the movie_id FK,
+        // surfacing as a raw internal error (HTTP 500 with no body) instead of a
+        // clean NOT_FOUND. The use case now re-checks inside the transaction.
+        val movieId = UUID.randomUUID()
+        // fast-path check passes; the movie is deleted before the in-transaction re-check
+        every { movies.existsById(movieId) } returnsMany listOf(true, false)
+        every { store.put(any(), any()) } returns StoredObject("new-key.png", 100, "d".repeat(64))
+        every { artworkRepository.findByMovieId(movieId) } returns null
+        every { store.delete("new-key.png") } returns true
+        val callback = slot<TransactionCallback<ArtworkAsset>>()
+        every { txTemplate.execute(capture(callback)) } answers { callback.captured.doInTransaction(mockk(relaxed = true)) }
+
+        assertThatThrownBy { useCases.uploadMovieArtwork(movieId, pngBytes(), "poster.png") }
+            .isInstanceOf(NotFoundException::class.java)
+
+        // the just-written bytes are still compensated even though the metadata
+        // write never happened
+        verify(exactly = 1) { store.delete("new-key.png") }
+        verify(exactly = 0) { artworkRepository.saveAndFlush(any()) }
     }
 
     private fun slotAsset() = ArtworkAsset(

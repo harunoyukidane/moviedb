@@ -11,6 +11,7 @@ been run — is kept in per-release files that go stale fast:
 
 - [v1-acceptance.md](v1-acceptance.md) — v1 sign-off, evidence per acceptance item
 - [v2-acceptance.md](v2-acceptance.md) — v2 sign-off, updated as tasks in [plans/v2/](../plans/v2/README.md) land
+- [loadtest-findings.md](loadtest-findings.md) — concurrency bugs found (and fixed) by `demo/loadtest`
 
 Do not read historical test counts in `v1-acceptance.md` as covering v2 work —
 they don't. Each acceptance file states its own scope and date.
@@ -44,7 +45,10 @@ genre/year filter combinations, totals, offset reset, duplicate-free joins ·
 cluster/list switching preserves offset and renders fallbacks/truncation ·
 blank/overlong comments, reverse chronological ordering, timestamp ties,
 pagination, movie cascade deletion · MinIO unavailable/missing object,
-compensation failure, paginated listing, persistence across service restart.
+compensation failure, paginated listing, persistence across service restart ·
+concurrent double-delete of the same movie/person (see
+[loadtest-findings.md](loadtest-findings.md)) · artwork upload racing a
+concurrent delete of its movie.
 
 Coverage percentage is a diagnostic, not the goal. Prioritize decisions and
 failure paths. A reasonable gate is 80% line coverage for service modules while

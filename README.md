@@ -68,6 +68,35 @@ Catalogue (`CATALOGUE_GRAPHQL_URL`, `CATALOGUE_HTTP_URL`, `PEOPLE_HTTP_URL`).
 
 ---
 
+## Load / concurrency stress test
+
+`demo/loadtest/` runs many concurrent workers against the running stack to
+exercise write contention that a normal demo never hits: several workers
+create/update/delete/upload artwork on the **same** small pool of movies and
+people at once (so amends race deletes, deletes race deletes, amends race
+amends), and a separate pool of workers comment on the **same** movie
+concurrently.
+
+```bash
+docker compose --profile loadtest run --rm --build load-test
+```
+
+- All records it writes are synthetic and prefixed `[LOADTEST]`, and are
+  removed again (best-effort) when the run ends — the curated demo catalogue
+  is never touched.
+- Tunable via env vars (defaults shown): `LOAD_DURATION_SECONDS=30`,
+  `LOAD_MOVIE_WORKERS=20`, `LOAD_PEOPLE_WORKERS=10`, `LOAD_COMMENT_WORKERS=20`,
+  `LOAD_HOT_MOVIES=6`, `LOAD_HOT_PEOPLE=6` — set them in `.env` or inline
+  (`LOAD_DURATION_SECONDS=60 docker compose --profile loadtest run --rm load-test`).
+- The report at the end separates **expected** races (`CONFLICT` from a stale
+  optimistic-lock version, `NOT_FOUND` from amending something another worker
+  just deleted) from **unexpected** errors (5xx, timeouts, anything without a
+  recognised error code) — only the latter indicates a real bug.
+- Running it against this codebase found and fixed exactly that kind of bug —
+  see [docs/verification/loadtest-findings.md](docs/verification/loadtest-findings.md).
+
+---
+
 ## Architecture
 
 Two independently deployable services, each owning its own PostgreSQL database:
@@ -119,11 +148,12 @@ backend/               Gradle multi-project (Kotlin)
   people-service/      internal gRPC people service
 frontend/              SvelteKit BFF + UI (TypeScript)
 demo/importer/         TMDB importer (TypeScript)
+demo/loadtest/         concurrency/stress load test (TypeScript)
 demo/tmdb-movie-ids.txt  committed manifest of stable TMDB movie ids
 scripts/               setup.sh, reset-demo.sh
 docs/                  Docs — start at docs/README.md for what to load
 docs/decisions/        Architecture Decision Records (ADR-1..14)
-compose.yaml           full topology (+ seed profile for the importer)
+compose.yaml           full topology (+ seed profile for the importer, loadtest profile for the stress test)
 ```
 
 ---

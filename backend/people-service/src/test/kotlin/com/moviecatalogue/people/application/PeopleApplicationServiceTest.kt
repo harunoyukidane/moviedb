@@ -234,18 +234,47 @@ class PeopleApplicationServiceTest {
     @Test
     fun `deletePerson deletes when present`() {
         val id = UUID.randomUUID()
-        every { repository.existsById(id) } returns true
-        every { repository.deleteById(id) } returns Unit
+        val p = person(id = id)
+        every { repository.findById(id) } returns Optional.of(p)
+        every { repository.delete(p) } returns Unit
+        every { repository.flush() } returns Unit
+
         service.deletePerson(id)
-        verify { repository.deleteById(id) }
+
+        verify(exactly = 1) { repository.delete(p) }
+        verify(exactly = 1) { repository.flush() }
     }
 
     @Test
     fun `deletePerson throws NotFound when absent`() {
         val id = UUID.randomUUID()
-        every { repository.existsById(id) } returns false
+        every { repository.findById(id) } returns Optional.empty()
+
         assertThatThrownBy { service.deletePerson(id) }
             .isInstanceOf(PersonNotFoundException::class.java)
-        verify(exactly = 0) { repository.deleteById(any()) }
+        verify(exactly = 0) { repository.delete(any()) }
+    }
+
+    @Test
+    fun `deletePerson throws NotFound, not a raw exception, when lost to a concurrent delete`() {
+        // Regression test (V2-16 load test finding). First attempt: a plain
+        // existsById-then-deleteById check-then-act let two concurrent deletes of
+        // the same person both pass the check; since Spring Data JPA's deleteById
+        // is a silent no-op when the row is already gone (it does NOT throw), the
+        // loser "succeeded" despite deleting nothing - worse than the original
+        // 500. The fix instead loads the entity and deletes it with an explicit
+        // flush, relying on the existing @Version column: Hibernate scopes the
+        // DELETE to `WHERE id = ? AND version = ?`, so a row removed by a
+        // concurrent delete between our read and our delete raises
+        // ObjectOptimisticLockingFailureException here, which we translate to a
+        // clean NOT_FOUND.
+        val id = UUID.randomUUID()
+        val p = person(id = id)
+        every { repository.findById(id) } returns Optional.of(p)
+        every { repository.delete(p) } returns Unit
+        every { repository.flush() } throws org.springframework.orm.ObjectOptimisticLockingFailureException("person", id)
+
+        assertThatThrownBy { service.deletePerson(id) }
+            .isInstanceOf(PersonNotFoundException::class.java)
     }
 }
