@@ -87,6 +87,31 @@ function expectAllFieldsPopulated() {
 }
 
 describe('movie edit form: saving keeps every field, not just the genre selection', () => {
+  it('resets the native form when update runs without reset: false', async () => {
+    mockUpdate.mockClear();
+    const form = document.createElement('form');
+    const title = document.createElement('input');
+    title.name = 'title';
+    title.defaultValue = 'Original Title';
+    title.value = 'Edited Title';
+    form.append(title);
+
+    const extraGenre = document.createElement('input');
+    extraGenre.type = 'checkbox';
+    extraGenre.name = 'genres';
+    extraGenre.value = 'PSYCHOLOGICAL_HORROR';
+    extraGenre.defaultChecked = false;
+    extraGenre.checked = true;
+    form.append(extraGenre);
+
+    await mockUpdate(form);
+
+    expect(mockUpdate).toHaveBeenCalledOnce();
+    expect(mockUpdate).toHaveBeenCalledWith(form);
+    expect(title.value).toBe('Original Title');
+    expect(extraGenre).not.toBeChecked();
+  });
+
   it('keeps title/originalTitle/synopsis/releaseDate/runtimeMinutes/originalLanguage/genres after a real save+reload', async () => {
     mockUpdate.mockClear();
     const user = userEvent.setup();
