@@ -8,7 +8,11 @@ last_verified: 2026-09-15
 
 Small UI fixes identified after using v2 (see [plans/v2/README.md](../v2/README.md)
 for the v2 backlog these build on; [release.md](../v2/release.md) hardening
-work is still separately open and unaffected by this file).
+work is still separately open and unaffected by this file). Validation and
+error-message work found in a later review is in
+[plans/v2.2/README.md](../v2.2/README.md) — including
+[V2.2-10](../v2.2/README.md#v22-10-controlled-country-reference-for-place-of-birth),
+which applies V2.1-06's controlled-vocabulary pattern to `place_of_birth`.
 
 | Item | Status |
 |---|---|

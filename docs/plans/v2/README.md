@@ -16,7 +16,10 @@ moved to [archive/v2-implementation/](../../archive/v2-implementation/README.md)
 for the historical record. **[release.md](release.md) is the only item still
 open.** v2.1 UI fixes (movie credits cluster view, people cluster view,
 scrollable add-credit search, calendar date inputs) are tracked in
-[plans/v2.1/README.md](../v2.1/README.md), not here.
+[plans/v2.1/README.md](../v2.1/README.md), and validation/error-message
+hardening in [plans/v2.2/README.md](../v2.2/README.md), with injection
+hardening sequenced after it in [plans/v2.3/README.md](../v2.3/README.md) — not
+here.
 
 ## Status
 

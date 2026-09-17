@@ -3,7 +3,7 @@
 ```yaml
 status: current
 canonical_for: test-strategy
-last_verified: 2026-09-15
+last_verified: 2026-09-17
 ```
 
 Strategy (this file) changes slowly. Evidence — test counts, what's actually
@@ -48,7 +48,33 @@ pagination, movie cascade deletion · MinIO unavailable/missing object,
 compensation failure, paginated listing, persistence across service restart ·
 concurrent double-delete of the same movie/person (see
 [loadtest-findings.md](loadtest-findings.md)) · artwork upload racing a
-concurrent delete of its movie.
+concurrent delete of its movie · dates before cinema existed, in the future, or
+implying an implausible lifespan · lengths at the exact bound, one over, and
+counted in code points rather than UTF-16 units · control characters, `U+0000`,
+zero-width and bidi-override characters in stored text · malformed UUIDs and
+malformed date/number scalars surfacing as user-input errors rather than
+internal errors · a validation failure naming the offending field and value ·
+emoji and ZWJ sequences surviving store-and-read where permitted and rejected
+where not · two editors changing different fields of one record · conflict
+recovery preserving the user's input · importer rerun not duplicating seeded
+comments · a person credited on a movie released before they were born, on both the
+add-credit and edit-release-date paths · a script payload stored in a comment
+rendering as escaped text.
+
+### Not yet implemented
+
+The checklist above is the intended standard, not a claim of coverage. As of
+2026-09-17 these items in it have **no** implementing test, and one is not even
+implemented in the product: "invalid dates and death before birth" is only half
+true — `death >= birth` is enforced, but no date range, future, or
+plausibility rule exists; and "Unicode" is exercised only in search patterns,
+never as a stored field value. Character-class screening (control characters,
+`U+0000`, bidi overrides) is absent from both the product and the tests.
+
+See [v2-test-inventory.md](v2-test-inventory.md#known-coverage-gaps-validation--error-handling)
+for the enumerated gaps and [plans/v2.2/README.md](../plans/v2.2/README.md) for
+the plan that closes them; the injection/CSP subset is sequenced separately in
+[plans/v2.3/README.md](../plans/v2.3/README.md), after v2.2 is verified.
 
 Coverage percentage is a diagnostic, not the goal. Prioritize decisions and
 failure paths. A reasonable gate is 80% line coverage for service modules while

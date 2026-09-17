@@ -3,7 +3,7 @@
 ```yaml
 status: current
 canonical_for: v2-test-inventory
-last_verified: 2026-09-16
+last_verified: 2026-09-17
 ```
 
 Full enumeration of automated tests covering v2 work: MinIO-backed object storage,
@@ -553,6 +553,45 @@ catch for artwork) and translate the race to a clean not-found error.
 |---|---|---|
 | `full catalogue journey through the BFF UI` | E2E | Single critical-path journey: create person, create movie, add a cast credit via the accessible `CreditDialog`, upload artwork, search finds both the movie and the person, remove the credit via the icon control (no confirmation, per the v2 design decision), delete the movie (labeled confirmation) |
 
+## Known coverage gaps (validation & error handling)
+
+Added 2026-09-17 after a review of the whole validation/error path. These are
+**not** covered by anything above; the plan that closes them is
+[plans/v2.2/README.md](../plans/v2.2/README.md), which lists the specific tests
+to add. Recorded here so the counts below are not mistaken for completeness.
+
+Boundary/extremity coverage that **does** exist: pagination limit and offset
+clamps, the 200-id batch cap, image size/empty/truncated/spoofed/unsupported,
+storage-key shapes and traversal, blank and over-limit comment author/text,
+out-of-range genre/year *filter* values, and blank/overlong names and titles at
+the unit level.
+
+Invalid-character coverage that **does** exist: `%`, `_`, `\`, apostrophes and
+Unicode — but only as *search patterns* (`PersonSearchTest`,
+`SearchUseCasesTest`, `PeopleSearchIntegrationTest`), never as *stored field*
+values.
+
+| Gap | Nothing in this inventory asserts… |
+|---|---|
+| Date extremity | any release/birth/death date bound — there is no such test because there is no such validation |
+| Malformed date coercion | the error `code` returned for `releaseDate: "3/3/52452242"`; the `Date` scalar's failure path is never exercised end to end |
+| Unicode in stored fields | that a name/title with astral-plane characters round-trips through create and read |
+| Code-point vs UTF-16 length | the emoji boundary, where the domain rule and the `VARCHAR(n)` column count differently |
+| Control / NUL / bidi characters | any character-class rejection, in any field |
+| `synopsis` / `biography` bounds | that an oversized value is rejected — neither field has a bound at any layer |
+| Malformed UUID | that `movie(id: "abc")` is `NOT_FOUND` rather than `INTERNAL_ERROR` |
+| `STORAGE_UNAVAILABLE` | that the BFF has a message for a code both media advices actually emit |
+| BFF status mapping | that an outage during upload is not reported as HTTP 415 |
+| Field-level errors | that any field is ever marked `aria-invalid` — no component renders one |
+| Message specificity | that a validation failure tells the user *what* is wrong rather than showing the generic banner |
+| Emoji storage and policy | that an emoji or ZWJ sequence survives create → store → read at all; the database encoding is inherited from the image default and never asserted |
+| Character counting | that the server bound, the browser's `maxlength`, and any visible counter agree on one unit |
+| Concurrent edits | that two people editing *different* fields of one record both succeed — today they cannot, because every update sends a full field mask |
+| Conflict recovery | that a rejected update preserves what the user typed |
+| Comment seeding | that an importer rerun does not duplicate comments — comments have no idempotency key, so this is not currently expressible |
+| Credit plausibility | that a person born after a movie's release cannot be credited on it, on either the add-credit or the edit-release-date path |
+| Injection defenses / CSP | that the output escaping holds under a stored script payload, and that the BFF sends a Content-Security-Policy — it currently sends none. Tracked with its fix in [plans/v2.3/](../plans/v2.3/README.md), after v2.2 |
+
 ## Summary counts
 
 | Feature area | Unit | Edge case | Integration | E2E | Total |
@@ -572,4 +611,5 @@ catch for artwork) and translate the race to a clean not-found error.
 Counts are per test method/case as enumerated above; a few tests could
 reasonably sit in more than one category (e.g. a MinIO integration test that
 also asserts an error path) and are counted once, under the category that
-best matches the test's primary intent.
+best matches the test's primary intent. They cover what exists today — see
+"Known coverage gaps" above for what does not.

@@ -3,11 +3,11 @@
 ```yaml
 status: current
 canonical_for: product-scope
-last_verified: 2026-09-15
+last_verified: 2026-09-17
 ```
 
 Describes observable behavior. How it's built is in [architecture/](../architecture/overview.md);
-what's left to build is in [plans/v2/](../plans/v2/README.md); what's verified is in
+what's left to build is in [plans/v2/](../plans/v2/README.md), [plans/v2.2/](../plans/v2.2/README.md) and [plans/v2.3/](../plans/v2.3/README.md); what's verified is in
 [verification/](../verification/README.md).
 
 ## Glossary
@@ -173,3 +173,148 @@ paging, and the Movie Detail page's comment list + submit form.
 2. Storage Keys are server-generated (UUID + safe extension), never derived from the client filename.
 3. WHERE MinIO is selected by configuration, both services SHALL use it in place of the local filesystem store.
 4. Existing artwork upload validation and HTTP serving behavior SHALL be preserved.
+
+## V2.2 — status: planned
+
+Input validation and error-message behavior, reviewed as a whole and found to
+have systemic gaps. Task-level backlog, findings, exact bounds and wording:
+[plans/v2.2/README.md](../plans/v2.2/README.md). Nothing below is implemented.
+
+### Requirement 8: Specific, field-attributed validation errors — status: planned
+
+1. WHEN a submission fails validation, THE Frontend SHALL state what is wrong
+   and name the offending value, rather than a generic instruction.
+2. WHEN a submission fails validation for a specific field, THE Frontend SHALL
+   mark that field invalid, associate the message with it for assistive
+   technology, and move focus to the first invalid field.
+3. THE Frontend SHALL show the generic "check the highlighted field" copy only
+   when no field-specific message is available.
+4. THE Catalogue Service SHALL expose the offending field name alongside the
+   stable error code, and THE People Service SHALL carry it across gRPC.
+5. `INTERNAL_ERROR` responses SHALL continue to carry no cause, class name,
+   stack trace, or SQL, and SHALL keep their opaque user-facing copy.
+
+### Requirement 9: Date plausibility — status: planned
+
+1. A movie release date SHALL NOT be before 14 October 1888, and SHALL NOT be
+   more than ten years in the future - the longest lead time at which real
+   films are announced. Announced ("coming soon") films remain valid.
+2. A person birth date SHALL NOT be in the future, SHALL NOT be within the last
+   two years, and SHALL NOT be before 1850.
+3. A person death date SHALL NOT be in the future and SHALL NOT be before the
+   birth date; the implied lifespan SHALL NOT exceed 130 years.
+4. WHEN a date string is not a real calendar date in `YYYY-MM-DD` form, THE
+   system SHALL reject it as user input, quoting the value, and SHALL NOT
+   report it as an internal error.
+5. A person SHALL NOT be credited on a movie released before that person's
+   birth date. This SHALL be raised when the change is submitted, not while the
+   user is typing, and the message SHALL name the affected person and both
+   dates.
+6. WHEN a movie's release date is edited, THE Catalogue Service SHALL apply
+   criterion 5 to the movie's existing credits, naming up to three affected
+   people and summarising any remainder.
+7. WHERE the People Service is unavailable when criterion 5 or 6 is evaluated,
+   THE system SHALL refuse the save as a temporarily-unavailable dependency,
+   rather than saving the change unchecked.
+8. No age-at-release threshold beyond "was born" SHALL be enforced or warned
+   about: a credited person can legitimately have been an infant at release.
+9. Date bounds SHALL be evaluated against an injected clock so boundary cases
+   are testable.
+
+### Requirement 10: Text field bounds, counting, and character classes — status: planned
+
+1. Every stored text field SHALL have an explicit maximum length, including
+   `synopsis` and `biography`, which currently have none.
+2. Lengths SHALL be counted in UTF-16 code units at every layer, so the bound
+   the server enforces, the bound the browser enforces, and the count shown to
+   the user are the same number. A non-BMP character therefore counts as two.
+   Database column bounds count code points and remain a deliberately looser
+   backstop.
+3. THE Frontend SHALL show a live character count on every bounded free-text
+   field, and SHALL announce reaching the limit rather than silently refusing
+   further input.
+4. Emoji SHALL be accepted in user-authored comment content and rejected in
+   catalogue metadata fields (title, name, synopsis, biography, place of birth,
+   character name).
+5. THE databases SHALL be UTF8-encoded by explicit configuration rather than by
+   inherited default, and that encoding SHALL be asserted by a test.
+6. THE system SHALL reject `U+0000`, C0/C1 control characters, bidi-override
+   characters, and zero-width characters in stored text, naming the problem.
+   Zero-width joiners SHALL remain permitted where emoji are permitted, since
+   they are structural to emoji sequences.
+7. Newline and tab SHALL be accepted in long-text fields and rejected in
+   single-line fields.
+8. Rejection SHALL NOT take the form of an HTML or script blocklist; output
+   escaping remains the defense against injection.
+
+### Requirement 11: Controlled country vocabulary for place of birth — status: planned
+
+Same rationale as the v2.1 language work
+([V2.1-06](../plans/v2.1/README.md#v21-06-controlled-language-reference-table--searchable-dropdown-done)):
+a free-text field whose only guard was a length check.
+
+1. THE People Service SHALL own a controlled `country_code` reference table
+   (ISO 3166-1 alpha-2) and SHALL expose it for listing.
+2. A person's birth country SHALL be constrained to an active code; an unknown
+   or retired code SHALL be a user-input error and SHALL NOT reach the database.
+3. THE Frontend SHALL offer a searchable country dropdown, matching the
+   language selector's behavior, rather than free-text entry.
+4. THE free-text city/region part of a place of birth SHALL be retained
+   alongside the controlled country code.
+
+### Requirement 12: Accurate error codes and statuses — status: planned
+
+1. THE Frontend SHALL have a distinct message for every stable code the backend
+   emits, including `STORAGE_UNAVAILABLE`.
+2. Each failure SHALL map to its own HTTP status; an upload failure SHALL NOT
+   report a storage outage as "unsupported media type", and an update failure
+   SHALL NOT report a dependency outage as a conflict.
+3. A malformed identifier SHALL produce "not found", not an internal error.
+4. THE Frontend SHALL render its own error page for load failures, inside the
+   application shell.
+
+### Requirement 13: Concurrent edit handling — status: planned
+
+Optimistic locking is retained; these criteria concern everything around it.
+
+1. An update SHALL send only the fields whose values the user actually changed,
+   so two people editing different fields of the same record both succeed.
+2. WHEN an update is rejected as a conflict, THE Frontend SHALL preserve and
+   re-render everything the user entered, and SHALL NOT require them to retype.
+3. THE Frontend SHALL warn, without blocking, when the record has changed since
+   the edit page was opened, rather than only after a failed submission.
+4. User-facing conflict messages SHALL NOT contain internal version numbers,
+   and SHALL state that the user's entries were preserved.
+5. THE Catalogue and People Services SHALL continue to reject a stale write
+   server-side.
+6. THE system SHALL NOT lock a record while someone is editing it; concurrency
+   is handled by rejection plus recovery, not by exclusion.
+
+### Requirement 14: Seeded demo comments — status: planned
+
+1. THE Importer SHALL seed a deterministic set of comments per movie, spanning
+   short and near-limit lengths and including emoji, so the comment UI,
+   pagination, and emoji rules are demonstrable on a freshly seeded stack.
+2. Seeded comments SHALL carry an idempotency key so a rerun produces identical
+   counts and content, preserving the importer's existing rerun property.
+3. Seeded comments SHALL be written through the application's own API, never by
+   direct database writes.
+4. Seeded content SHALL be obviously synthetic and SHALL NOT read as real
+   reviews attributed to real people.
+
+## V2.3 — status: planned, blocked on V2.2
+
+### Requirement 15: Injection defenses — status: planned
+
+Sequenced after all of V2.2 is implemented, tested and verified. Backlog:
+[plans/v2.3/README.md](../plans/v2.3/README.md).
+
+1. THE Frontend SHALL send a Content-Security-Policy on HTML responses; it
+   currently sends none.
+2. THE Frontend SHALL send the same browser security headers at the public
+   entry point that the Catalogue Service already sends on its own surface.
+3. Stored text SHALL NOT be filtered by an HTML or script blocklist; escaping
+   at render remains the defense, with CSP as the layer beneath it.
+4. Automated tests SHALL assert that a script payload stored in a comment
+   renders as escaped text, and that no unescaped-HTML or dynamic-evaluation
+   construct is introduced into frontend source.
