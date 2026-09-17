@@ -80,6 +80,14 @@ label { display: block; font-weight: 600; margin-bottom: 4px; }
 .field { margin-bottom: var(--sp-2); }
 .field-error { color: var(--danger); font-size: 0.875rem; margin-top: 4px; }
 
+/* Marks the invalid control itself, matching the error text rendered below it
+   via FieldError.svelte + aria-describedby. */
+input[aria-invalid='true'],
+textarea[aria-invalid='true'],
+select[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
 .banner {
   border-radius: var(--radius);
   padding: var(--sp-2);

@@ -2,6 +2,7 @@
   import type { PageData, ActionData } from './$types';
   import { enhance } from '$app/forms';
   import StateBanner from '$lib/components/StateBanner.svelte';
+  import FieldError from '$lib/components/FieldError.svelte';
   import GenreMultiSelect from '$lib/components/GenreMultiSelect.svelte';
   import LanguageSelect from '$lib/components/LanguageSelect.svelte';
   import DateField from '$lib/components/DateField.svelte';
@@ -10,6 +11,7 @@
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
   import IconButton from '$lib/components/IconButton.svelte';
   import type { MovieCredit } from '$lib/server/types';
+  import { tick } from 'svelte';
 
   export let data: PageData;
   export let form: ActionData;
@@ -19,6 +21,16 @@
   let creditOpen = false;
   let confirmDeleteOpen = false;
   let addCreditButton: HTMLButtonElement;
+  let detailsForm: HTMLFormElement;
+  $: fieldErrors = (form?.section === 'details' ? (form?.fieldErrors ?? {}) : {}) as Record<string, string>;
+
+  async function focusFirstInvalid() {
+    await tick();
+    const field = Object.keys(fieldErrors)[0];
+    if (!field) return;
+    const el = detailsForm?.querySelector<HTMLElement>(`#${field}`);
+    el?.focus();
+  }
 
   $: selectedGenres = movie.genres.map((g) => g.code);
   $: allCredits = [...movie.cast, ...movie.creators];
@@ -49,6 +61,7 @@
   <form
     method="POST"
     action="?/update"
+    bind:this={detailsForm}
     use:enhance={() => {
       savingDetails = true;
       return async ({ update }) => {
@@ -57,36 +70,71 @@
         // blank them until the user reloads: reload data without resetting the form.
         await update({ reset: false });
         savingDetails = false;
+        await focusFirstInvalid();
       };
     }}
   >
     <input type="hidden" name="expectedVersion" value={movie.version} />
     <div class="field">
       <label for="title">Title *</label>
-      <input id="title" name="title" required value={movie.title} />
+      <input
+        id="title"
+        name="title"
+        required
+        value={movie.title}
+        aria-invalid={!!fieldErrors.title}
+        aria-describedby="title-error"
+      />
+      <FieldError id="title-error" message={fieldErrors.title} />
     </div>
     <div class="field">
       <label for="originalTitle">Original title</label>
-      <input id="originalTitle" name="originalTitle" value={movie.originalTitle ?? ''} />
+      <input
+        id="originalTitle"
+        name="originalTitle"
+        value={movie.originalTitle ?? ''}
+        aria-invalid={!!fieldErrors.originalTitle}
+        aria-describedby="originalTitle-error"
+      />
+      <FieldError id="originalTitle-error" message={fieldErrors.originalTitle} />
     </div>
     <div class="field">
       <label for="synopsis">Synopsis</label>
-      <textarea id="synopsis" name="synopsis" rows="4">{movie.synopsis}</textarea>
+      <textarea
+        id="synopsis"
+        name="synopsis"
+        rows="4"
+        aria-invalid={!!fieldErrors.synopsis}
+        aria-describedby="synopsis-error">{movie.synopsis}</textarea
+      >
+      <FieldError id="synopsis-error" message={fieldErrors.synopsis} />
     </div>
     <div class="form-grid-2">
       <div class="field">
         <label for="releaseDate">Release date</label>
         <DateField id="releaseDate" name="releaseDate" value={movie.releaseDate} />
+        <FieldError id="releaseDate-error" message={fieldErrors.releaseDate} />
       </div>
       <div class="field">
         <label for="runtimeMinutes">Runtime (min)</label>
-        <input id="runtimeMinutes" name="runtimeMinutes" type="number" min="1" value={movie.runtimeMinutes ?? ''} />
+        <input
+          id="runtimeMinutes"
+          name="runtimeMinutes"
+          type="number"
+          min="1"
+          value={movie.runtimeMinutes ?? ''}
+          aria-invalid={!!fieldErrors.runtimeMinutes}
+          aria-describedby="runtimeMinutes-error"
+        />
+        <FieldError id="runtimeMinutes-error" message={fieldErrors.runtimeMinutes} />
       </div>
     </div>
     <div class="field">
       <LanguageSelect languages={data.languages} selected={movie.originalLanguage ?? null} />
+      <FieldError id="originalLanguage-error" message={fieldErrors.originalLanguage} />
     </div>
     <GenreMultiSelect genres={data.genres} selected={selectedGenres} />
+    <FieldError id="genreCodes-error" message={fieldErrors.genreCodes} />
     <button type="submit" class="primary" disabled={savingDetails}>
       {savingDetails ? 'Saving…' : 'Save changes'}
     </button>

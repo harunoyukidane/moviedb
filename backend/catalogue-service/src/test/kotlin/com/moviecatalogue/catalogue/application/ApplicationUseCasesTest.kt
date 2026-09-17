@@ -87,11 +87,14 @@ class CreditUseCasesTest {
     private fun role(code: String, category: CreditCategory, active: Boolean = true) =
         CreditRoleCode(code, code, category, null, "d", active)
 
+    private fun movie(id: UUID, releaseDate: java.time.LocalDate? = null) =
+        com.moviecatalogue.catalogue.movie.Movie(id = id, title = "Title", releaseDate = releaseDate)
+
     @Test
     fun `addCredit validates person via gRPC then inserts`() {
         val movieId = UUID.randomUUID()
         val personId = UUID.randomUUID()
-        every { movies.existsById(movieId) } returns true
+        every { movies.findById(movieId) } returns java.util.Optional.of(movie(movieId))
         every { roleCodes.findById("ACTOR") } returns java.util.Optional.of(role("ACTOR", CreditCategory.CAST))
         every { peopleClient.getPerson(personId) } returns PersonData(personId, null, "Star", "", null, null, null, null, 0)
         every { credits.saveAndFlush(any()) } answers { firstArg() }
@@ -104,10 +107,28 @@ class CreditUseCasesTest {
     }
 
     @Test
+    fun `addCredit rejects a person born after the movie's release, naming both dates`() {
+        val movieId = UUID.randomUUID()
+        val personId = UUID.randomUUID()
+        every { movies.findById(movieId) } returns
+            java.util.Optional.of(movie(movieId, releaseDate = java.time.LocalDate.of(2025, 11, 20)))
+        every { roleCodes.findById("ACTOR") } returns java.util.Optional.of(role("ACTOR", CreditCategory.CAST))
+        every { peopleClient.getPerson(personId) } returns
+            PersonData(personId, null, "Jane Doe", "", java.time.LocalDate.of(2026, 4, 4), null, null, null, 0)
+
+        assertThatThrownBy { useCases.addCredit(AddCreditCommand(movieId, personId, "ACTOR", "Hero", 0)) }
+            .isInstanceOf(ValidationException::class.java)
+            .hasMessageContaining("Jane Doe")
+            .hasMessageContaining("2026-04-04")
+            .hasMessageContaining("2025-11-20")
+        verify(exactly = 0) { credits.saveAndFlush(any()) }
+    }
+
+    @Test
     fun `addCredit does not write when People is unavailable`() {
         val movieId = UUID.randomUUID()
         val personId = UUID.randomUUID()
-        every { movies.existsById(movieId) } returns true
+        every { movies.findById(movieId) } returns java.util.Optional.of(movie(movieId))
         every { roleCodes.findById("ACTOR") } returns java.util.Optional.of(role("ACTOR", CreditCategory.CAST))
         every { peopleClient.getPerson(personId) } throws DependencyUnavailableException()
 
@@ -119,7 +140,7 @@ class CreditUseCasesTest {
     @Test
     fun `addCredit rejects cast without character before any gRPC or write`() {
         val movieId = UUID.randomUUID()
-        every { movies.existsById(movieId) } returns true
+        every { movies.findById(movieId) } returns java.util.Optional.of(movie(movieId))
         every { roleCodes.findById("ACTOR") } returns java.util.Optional.of(role("ACTOR", CreditCategory.CAST))
 
         assertThatThrownBy { useCases.addCredit(AddCreditCommand(movieId, UUID.randomUUID(), "ACTOR", null, 0)) }
@@ -131,7 +152,7 @@ class CreditUseCasesTest {
     @Test
     fun `addCredit rejects inactive role`() {
         val movieId = UUID.randomUUID()
-        every { movies.existsById(movieId) } returns true
+        every { movies.findById(movieId) } returns java.util.Optional.of(movie(movieId))
         every { roleCodes.findById("OLD") } returns java.util.Optional.of(role("OLD", CreditCategory.CREW, active = false))
 
         assertThatThrownBy { useCases.addCredit(AddCreditCommand(movieId, UUID.randomUUID(), "OLD", null, 0)) }
@@ -141,7 +162,7 @@ class CreditUseCasesTest {
     @Test
     fun `addCredit rejects unknown movie`() {
         val movieId = UUID.randomUUID()
-        every { movies.existsById(movieId) } returns false
+        every { movies.findById(movieId) } returns java.util.Optional.empty()
         assertThatThrownBy { useCases.addCredit(AddCreditCommand(movieId, UUID.randomUUID(), "ACTOR", "H", 0)) }
             .isInstanceOf(NotFoundException::class.java)
     }
@@ -178,7 +199,13 @@ class MovieUseCasesTest {
     private val movieGenres = mockk<com.moviecatalogue.catalogue.movie.MovieGenreRepository>()
     private val genreCodes = mockk<com.moviecatalogue.catalogue.reference.GenreCodeRepository>()
     private val languageCodes = mockk<com.moviecatalogue.catalogue.reference.LanguageCodeRepository>()
-    private val useCases = MovieUseCases(movies, movieGenres, genreCodes, languageCodes)
+    private val credits = mockk<CreditRepository>()
+    private val peopleClient = mockk<PeopleClient>()
+    private val clock: java.time.Clock = java.time.Clock.fixed(
+        java.time.LocalDate.of(2026, 1, 1).atStartOfDay(java.time.ZoneOffset.UTC).toInstant(),
+        java.time.ZoneOffset.UTC,
+    )
+    private val useCases = MovieUseCases(movies, movieGenres, genreCodes, languageCodes, credits, peopleClient, clock)
 
     private fun genre(code: String) =
         com.moviecatalogue.catalogue.reference.GenreCode(code, null, code, "d", true, 0)
@@ -326,6 +353,73 @@ class MovieUseCasesTest {
 
         assertThatThrownBy { useCases.deleteMovie(id) }
             .isInstanceOf(NotFoundException::class.java)
+    }
+
+    private fun updateCommand(id: UUID, expectedVersion: Long, releaseDate: java.time.LocalDate?) = UpdateMovieCommand(
+        id = id,
+        expectedVersion = expectedVersion,
+        maskTitle = false, title = null,
+        maskOriginalTitle = false, originalTitle = null,
+        maskSynopsis = false, synopsis = null,
+        maskReleaseDate = true, releaseDate = releaseDate,
+        maskRuntime = false, runtimeMinutes = null,
+        maskOriginalLanguage = false, originalLanguage = null,
+        maskGenres = false, genreCodes = null,
+    )
+
+    @Test
+    fun `updateMovie rejects an out-of-range release date before touching credits or saving`() {
+        val id = UUID.randomUUID()
+        val movie = com.moviecatalogue.catalogue.movie.Movie(id = id, title = "Title")
+        every { movies.findById(id) } returns java.util.Optional.of(movie)
+
+        assertThatThrownBy {
+            useCases.updateMovie(updateCommand(id, 0, java.time.LocalDate.of(1800, 1, 1)))
+        }.isInstanceOf(ValidationException::class.java)
+        verify(exactly = 0) { credits.findAllByMovieId(any()) }
+        verify(exactly = 0) { movies.saveAndFlush(any<com.moviecatalogue.catalogue.movie.Movie>()) }
+    }
+
+    @Test
+    fun `updateMovie rejects a release date that precedes a credited person's birth, naming them`() {
+        val id = UUID.randomUUID()
+        val personId = UUID.randomUUID()
+        val movie = com.moviecatalogue.catalogue.movie.Movie(id = id, title = "Title")
+        every { movies.findById(id) } returns java.util.Optional.of(movie)
+        every { credits.findAllByMovieId(id) } returns listOf(
+            com.moviecatalogue.catalogue.credit.MovieCredit(
+                UUID.randomUUID(), id, personId, "ACTOR", CreditCategory.CAST, characterName = "X",
+            ),
+        )
+        every { peopleClient.getPeople(listOf(personId)) } returns mapOf(
+            personId to PersonData(personId, null, "Jane Doe", "", java.time.LocalDate.of(2026, 4, 4), null, null, null, 0),
+        )
+
+        assertThatThrownBy {
+            useCases.updateMovie(updateCommand(id, 0, java.time.LocalDate.of(2025, 11, 20)))
+        }.isInstanceOf(ValidationException::class.java)
+            .hasMessageContaining("Jane Doe")
+        verify(exactly = 0) { movies.saveAndFlush(any<com.moviecatalogue.catalogue.movie.Movie>()) }
+    }
+
+    @Test
+    fun `updateMovie allows a release date compatible with all credited people`() {
+        val id = UUID.randomUUID()
+        val personId = UUID.randomUUID()
+        val movie = com.moviecatalogue.catalogue.movie.Movie(id = id, title = "Title")
+        every { movies.findById(id) } returns java.util.Optional.of(movie)
+        every { credits.findAllByMovieId(id) } returns listOf(
+            com.moviecatalogue.catalogue.credit.MovieCredit(
+                UUID.randomUUID(), id, personId, "ACTOR", CreditCategory.CAST, characterName = "X",
+            ),
+        )
+        every { peopleClient.getPeople(listOf(personId)) } returns mapOf(
+            personId to PersonData(personId, null, "Jane Doe", "", java.time.LocalDate.of(1980, 1, 1), null, null, null, 0),
+        )
+        every { movies.saveAndFlush(any<com.moviecatalogue.catalogue.movie.Movie>()) } answers { firstArg() }
+
+        val saved = useCases.updateMovie(updateCommand(id, 0, java.time.LocalDate.of(2020, 1, 1)))
+        assertThat(saved.releaseDate).isEqualTo(java.time.LocalDate.of(2020, 1, 1))
     }
 }
 

@@ -13,7 +13,14 @@ import {
 } from '$lib/server/operations';
 import { uploadMovieArtwork, deleteMovieArtwork } from '$lib/server/media';
 import { messageForCode, isValidationError } from '$lib/errors';
-import { codeForError, requestContext, throwPageLoadError } from '$lib/server/request';
+import {
+  codeForError,
+  fieldErrorsForError,
+  messageForError,
+  requestContext,
+  throwPageLoadError
+} from '$lib/server/request';
+import { isFieldError, validateOptionalDate, validateOptionalInt, validateVersion } from '$lib/server/validation';
 
 export const load: PageServerLoad = async ({ params, request }) => {
   const context = requestContext(request);
@@ -35,22 +42,47 @@ export const actions: Actions = {
   update: async ({ params, request }) => {
     const context = requestContext(request);
     const form = await request.formData();
-    const expectedVersion = Number(form.get('expectedVersion') ?? '0');
+
+    const expectedVersion = validateVersion(String(form.get('expectedVersion') ?? ''));
+    if (isFieldError(expectedVersion)) {
+      return fail(400, { message: expectedVersion.error.message, fieldErrors: undefined, section: 'details' });
+    }
+    const releaseDate = validateOptionalDate(String(form.get('releaseDate') ?? ''), 'releaseDate');
+    if (isFieldError(releaseDate)) {
+      return fail(400, {
+        message: releaseDate.error.message,
+        fieldErrors: { [releaseDate.error.field]: releaseDate.error.message },
+        section: 'details'
+      });
+    }
+    const runtimeMinutes = validateOptionalInt(String(form.get('runtimeMinutes') ?? ''), 'runtimeMinutes');
+    if (isFieldError(runtimeMinutes)) {
+      return fail(400, {
+        message: runtimeMinutes.error.message,
+        fieldErrors: { [runtimeMinutes.error.field]: runtimeMinutes.error.message },
+        section: 'details'
+      });
+    }
+
     const input: Record<string, unknown> = {
       title: String(form.get('title') ?? '').trim(),
       originalTitle: (String(form.get('originalTitle') ?? '') || null),
       synopsis: String(form.get('synopsis') ?? ''),
-      releaseDate: String(form.get('releaseDate') ?? '') || null,
-      runtimeMinutes: form.get('runtimeMinutes') ? Number(form.get('runtimeMinutes')) : null,
+      releaseDate: releaseDate.value,
+      runtimeMinutes: runtimeMinutes.value,
       originalLanguage: String(form.get('originalLanguage') ?? '') || null,
       genreCodes: form.getAll('genreCodes').map(String)
     };
     try {
-      await updateMovie(params.id, expectedVersion, input, context);
+      await updateMovie(params.id, expectedVersion.value, input, context);
       return { updated: true };
     } catch (e) {
       const code = codeForError(e);
-      return fail(isValidationError(code) ? 400 : 409, { message: messageForCode(code), section: 'details' });
+      return fail(isValidationError(code) ? 400 : 409, {
+        message: messageForError(e, code),
+        fieldErrors: fieldErrorsForError(e),
+        section: 'details'
+      });
     }
   },
 
@@ -95,7 +127,11 @@ export const actions: Actions = {
       return { creditAdded: true };
     } catch (e) {
       const code = codeForError(e);
-      return fail(isValidationError(code) ? 400 : 409, { message: messageForCode(code), section: 'credit' });
+      return fail(isValidationError(code) ? 400 : 409, {
+        message: messageForError(e, code),
+        fieldErrors: fieldErrorsForError(e),
+        section: 'credit'
+      });
     }
   },
 

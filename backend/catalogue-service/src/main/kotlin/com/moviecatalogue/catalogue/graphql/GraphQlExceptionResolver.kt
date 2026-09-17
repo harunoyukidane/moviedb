@@ -24,23 +24,25 @@ class GraphQlExceptionResolver : DataFetcherExceptionResolverAdapter() {
     private val log = LoggerFactory.getLogger(javaClass)
 
     override fun resolveToSingleError(ex: Throwable, env: DataFetchingEnvironment): GraphQLError {
-        val (code, errorType, message) = classify(ex)
-        if (code == "INTERNAL_ERROR") {
+        val mapped = classify(ex)
+        if (mapped.code == "INTERNAL_ERROR") {
             // Log the real cause server-side (with correlation via MDC in later phases),
             // but never expose it to the client.
             log.error("Unhandled GraphQL error at {}", env.field?.name, ex)
         }
+        val extensions = mutableMapOf<String, Any>("code" to mapped.code)
+        mapped.field?.let { extensions["field"] = it }
         return GraphqlErrorBuilder.newError(env)
-            .errorType(errorType)
-            .message(message)
-            .extensions(mapOf("code" to code))
+            .errorType(mapped.type)
+            .message(mapped.message)
+            .extensions(extensions)
             .build()
     }
 
-    private data class Mapped(val code: String, val type: ErrorType, val message: String)
+    private data class Mapped(val code: String, val type: ErrorType, val message: String, val field: String? = null)
 
     private fun classify(ex: Throwable): Mapped = when (ex) {
-        is ValidationException -> Mapped("BAD_USER_INPUT", ErrorType.BAD_REQUEST, ex.message ?: "invalid input")
+        is ValidationException -> Mapped("BAD_USER_INPUT", ErrorType.BAD_REQUEST, ex.message ?: "invalid input", ex.field)
         is NotFoundException -> Mapped("NOT_FOUND", ErrorType.NOT_FOUND, ex.message ?: "not found")
         is ConflictException -> Mapped("CONFLICT", ErrorType.BAD_REQUEST, ex.message ?: "conflict")
         is PersonInUseException -> Mapped("PERSON_IN_USE", ErrorType.BAD_REQUEST, ex.message ?: "person in use")

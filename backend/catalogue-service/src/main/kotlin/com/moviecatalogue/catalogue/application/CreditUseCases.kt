@@ -32,9 +32,9 @@ class CreditUseCases(
     @Transactional
     fun addCredit(command: AddCreditCommand): CreditView {
         // 1. shape validation
-        if (!movies.existsById(command.movieId)) throw NotFoundException("movie '${command.movieId}' not found")
+        val movie = movies.findById(command.movieId).orElseThrow { NotFoundException("movie '${command.movieId}' not found") }
         val role = roleCodes.findById(command.roleCode).orElse(null)
-        CreditRules.requireActiveCode(role != null, role?.active ?: false, "role", command.roleCode)
+        CreditRules.requireActiveCode(role != null, role?.active ?: false, "role", command.roleCode, field = "roleCode")
         val category = role!!.category
         val characterName = CreditRules.normalizeCharacterName(command.characterName)
         CreditRules.validateCharacterForCategory(category, characterName)
@@ -43,6 +43,7 @@ class CreditUseCases(
         // 2. validate the logical person reference over gRPC (throws DEPENDENCY_UNAVAILABLE
         //    on outage, NOT_FOUND if the person doesn't exist) — before any insert.
         val person = peopleClient.getPerson(command.personId)
+        CreditRules.validateCreditAge(person.name, person.birthDate, movie.releaseDate, field = "personId")
         val sourceRoleName = CreditRules.normalizeSourceRoleName(command.sourceRoleName)
 
         // Idempotent upsert by TMDB credit id (§12.3): update in place if present.
@@ -87,7 +88,7 @@ class CreditUseCases(
 
         if (command.maskRole) {
             val role = roleCodes.findById(command.roleCode!!).orElse(null)
-            CreditRules.requireActiveCode(role != null, role?.active ?: false, "role", command.roleCode)
+            CreditRules.requireActiveCode(role != null, role?.active ?: false, "role", command.roleCode, field = "roleCode")
             // role's category must still agree with the credit's category (can't move CAST<->CREW here)
             CreditRules.validateRoleCategoryAgreement(role!!.category, credit.category)
             credit.roleCode = command.roleCode

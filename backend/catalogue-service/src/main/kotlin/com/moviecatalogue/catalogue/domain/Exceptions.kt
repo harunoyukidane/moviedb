@@ -8,8 +8,12 @@ package com.moviecatalogue.catalogue.domain
 sealed class CatalogueException(message: String, cause: Throwable? = null) :
     RuntimeException(message, cause)
 
-/** Field/rule validation failed. -> BAD_USER_INPUT */
-class ValidationException(message: String) : CatalogueException(message)
+/**
+ * Field/rule validation failed. -> BAD_USER_INPUT. [field] is the GraphQL field
+ * name (not the DB column) so the BFF can key the message straight to a form
+ * input; null when the violation isn't attributable to one field.
+ */
+class ValidationException(message: String, val field: String? = null) : CatalogueException(message)
 
 /** Requested movie/person/credit/code does not exist. -> NOT_FOUND */
 class NotFoundException(message: String) : CatalogueException(message)

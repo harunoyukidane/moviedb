@@ -15,14 +15,17 @@ import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 import org.springframework.data.domain.Pageable
+import java.time.Clock
 import java.time.LocalDate
+import java.time.ZoneOffset
 import java.util.Optional
 import java.util.UUID
 
 class PeopleApplicationServiceTest {
 
     private val repository = mockk<PersonRepository>(relaxed = false)
-    private val service = PeopleApplicationService(repository)
+    private val clock: Clock = Clock.fixed(LocalDate.of(2026, 1, 1).atStartOfDay(ZoneOffset.UTC).toInstant(), ZoneOffset.UTC)
+    private val service = PeopleApplicationService(repository, clock)
 
     private fun person(
         id: UUID = UUID.randomUUID(),

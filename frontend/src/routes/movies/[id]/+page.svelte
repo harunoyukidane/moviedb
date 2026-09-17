@@ -5,6 +5,8 @@
   import CommentSection from '$lib/features/comments/CommentSection.svelte';
   import IconLink from '$lib/components/IconLink.svelte';
   import StateBanner from '$lib/components/StateBanner.svelte';
+  import FieldError from '$lib/components/FieldError.svelte';
+  import { tick } from 'svelte';
 
   export let data: PageData;
   export let form: ActionData;
@@ -14,6 +16,15 @@
   let tab: 'cast' | 'creators' = 'cast';
   let submittingComment = false;
   let commentForm: HTMLFormElement;
+  $: commentFieldErrors = (form?.section === 'comment' ? (form?.fieldErrors ?? {}) : {}) as Record<string, string>;
+
+  async function focusFirstInvalidComment() {
+    await tick();
+    const field = Object.keys(commentFieldErrors)[0];
+    if (!field) return;
+    const el = commentForm?.querySelector<HTMLElement>(`#${field}`);
+    el?.focus();
+  }
 
   $: hasPrevComments = comments.offset > 0;
   $: hasNextComments = comments.offset + comments.limit < comments.total;
@@ -99,16 +110,34 @@
         await update();
         submittingComment = false;
         if (form?.commentAdded) commentForm?.reset();
+        await focusFirstInvalidComment();
       };
     }}
   >
     <div class="field">
       <label for="authorDisplayName">Your name</label>
-      <input id="authorDisplayName" name="authorDisplayName" maxlength="50" required />
+      <input
+        id="authorDisplayName"
+        name="authorDisplayName"
+        maxlength="50"
+        required
+        aria-invalid={!!commentFieldErrors.authorDisplayName}
+        aria-describedby="authorDisplayName-error"
+      />
+      <FieldError id="authorDisplayName-error" message={commentFieldErrors.authorDisplayName} />
     </div>
     <div class="field">
       <label for="text">Comment</label>
-      <textarea id="text" name="text" rows="3" maxlength="2000" required></textarea>
+      <textarea
+        id="text"
+        name="text"
+        rows="3"
+        maxlength="2000"
+        required
+        aria-invalid={!!commentFieldErrors.text}
+        aria-describedby="text-error"
+      ></textarea>
+      <FieldError id="text-error" message={commentFieldErrors.text} />
     </div>
     <button type="submit" class="primary" disabled={submittingComment}>
       {submittingComment ? 'Posting…' : 'Post comment'}

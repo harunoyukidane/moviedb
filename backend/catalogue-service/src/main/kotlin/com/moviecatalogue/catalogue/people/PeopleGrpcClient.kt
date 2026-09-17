@@ -14,6 +14,7 @@ import com.moviecatalogue.people.v1.PersonPatch
 import com.moviecatalogue.people.v1.PersonResponse
 import com.moviecatalogue.people.v1.SearchPeopleRequest
 import com.moviecatalogue.people.v1.UpdatePersonRequest
+import io.grpc.Metadata
 import io.grpc.Status
 import io.grpc.StatusRuntimeException
 import net.devh.boot.grpc.client.inject.GrpcClient
@@ -130,7 +131,7 @@ class PeopleGrpcClient(
         Status.Code.ALREADY_EXISTS -> ConflictException(status.description ?: "person already exists")
         Status.Code.ABORTED -> ConflictException(status.description ?: "person was modified concurrently")
         Status.Code.INVALID_ARGUMENT, Status.Code.FAILED_PRECONDITION ->
-            ValidationException(status.description ?: "invalid person request")
+            ValidationException(status.description ?: "invalid person request", trailers?.get(FIELD_METADATA_KEY))
         Status.Code.UNAVAILABLE, Status.Code.DEADLINE_EXCEEDED -> {
             log.warn("People service unavailable: {} {}", status.code, status.description)
             DependencyUnavailableException(cause = this)
@@ -139,6 +140,12 @@ class PeopleGrpcClient(
             log.warn("Unexpected People gRPC status: {} {}", status.code, status.description)
             DependencyUnavailableException(cause = this)
         }
+    }
+
+    companion object {
+        /** Carries ValidationException.field across the gRPC boundary (mirrors x-correlation-id). */
+        private val FIELD_METADATA_KEY: Metadata.Key<String> =
+            Metadata.Key.of("x-field", Metadata.ASCII_STRING_MARSHALLER)
     }
 
     private fun PersonResponse.toData(): PersonData = PersonData(

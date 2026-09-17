@@ -147,8 +147,8 @@ class SearchUseCases(
     /** Blank/whitespace queries are rejected (consistent rule); length 1..100. */
     private fun normalizeQuery(raw: String?): String {
         val q = raw?.trim().orEmpty()
-        if (q.isEmpty()) throw ValidationException("search query must not be blank")
-        if (q.length > 100) throw ValidationException("search query must be at most 100 characters")
+        if (q.isEmpty()) throw ValidationException("search query must not be blank", field = "query")
+        if (q.length > 100) throw ValidationException("search query must be at most 100 characters", field = "query")
         return q
     }
 }

@@ -3,8 +3,13 @@ package com.moviecatalogue.catalogue.domain
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
+import java.time.Clock
+import java.time.LocalDate
+import java.time.ZoneOffset
 
 class MovieRulesTest {
+
+    private val fixedClock: Clock = Clock.fixed(LocalDate.of(2026, 1, 1).atStartOfDay(ZoneOffset.UTC).toInstant(), ZoneOffset.UTC)
 
     @Test
     fun `normalizeTitle trims and validates`() {
@@ -48,6 +53,30 @@ class MovieRulesTest {
         assertThatThrownBy { MovieRules.validateReleaseYear(MovieRules.RELEASE_YEAR_MIN - 1) }
             .isInstanceOf(ValidationException::class.java)
         assertThatThrownBy { MovieRules.validateReleaseYear(MovieRules.RELEASE_YEAR_MAX + 1) }
+            .isInstanceOf(ValidationException::class.java)
+    }
+
+    @Test
+    fun `validateReleaseDate allows null and accepts the 1888-10-14 floor, rejects the day before`() {
+        MovieRules.validateReleaseDate(null, fixedClock)
+        MovieRules.validateReleaseDate(LocalDate.of(1888, 10, 14), fixedClock)
+        assertThatThrownBy { MovieRules.validateReleaseDate(LocalDate.of(1888, 10, 13), fixedClock) }
+            .isInstanceOf(ValidationException::class.java)
+    }
+
+    @Test
+    fun `validateReleaseDate accepts ten years out and rejects ten years and a day`() {
+        val today = LocalDate.now(fixedClock)
+        MovieRules.validateReleaseDate(today.plusYears(10), fixedClock)
+        assertThatThrownBy { MovieRules.validateReleaseDate(today.plusYears(10).plusDays(1), fixedClock) }
+            .isInstanceOf(ValidationException::class.java)
+    }
+
+    @Test
+    fun `validateReleaseDate reads today from the injected clock, not the system clock`() {
+        val futureClock = Clock.fixed(LocalDate.of(2000, 1, 1).atStartOfDay(ZoneOffset.UTC).toInstant(), ZoneOffset.UTC)
+        // 2011-01-01 is more than 10 years after 2000-01-01, but not after the real system clock's "today".
+        assertThatThrownBy { MovieRules.validateReleaseDate(LocalDate.of(2011, 1, 2), futureClock) }
             .isInstanceOf(ValidationException::class.java)
     }
 }
@@ -117,6 +146,28 @@ class CreditRulesTest {
             .isInstanceOf(ValidationException::class.java)
         assertThatThrownBy { CreditRules.normalizeSourceRoleName("a".repeat(151)) }
             .isInstanceOf(ValidationException::class.java)
+    }
+
+    @Test
+    fun `a credit is rejected when the person was not yet born at the movie's release`() {
+        assertThatThrownBy {
+            CreditRules.validateCreditAge("Jane Doe", LocalDate.of(2026, 4, 4), LocalDate.of(2025, 11, 20))
+        }.isInstanceOf(ValidationException::class.java)
+    }
+
+    @Test
+    fun `a credit for a person who was 1 at release is allowed - only unborn is rejected`() {
+        // born a year before release: allowed, even though very young
+        CreditRules.validateCreditAge("Jane Doe", LocalDate.of(1964, 1, 1), LocalDate.of(1965, 1, 1))
+        // born on the release date itself: allowed (not after)
+        CreditRules.validateCreditAge("Jane Doe", LocalDate.of(1965, 1, 1), LocalDate.of(1965, 1, 1))
+    }
+
+    @Test
+    fun `validateCreditAge is a no-op when either date is absent`() {
+        CreditRules.validateCreditAge("Jane Doe", null, LocalDate.of(2020, 1, 1))
+        CreditRules.validateCreditAge("Jane Doe", LocalDate.of(2020, 1, 1), null)
+        CreditRules.validateCreditAge("Jane Doe", null, null)
     }
 }
 

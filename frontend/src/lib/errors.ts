@@ -13,7 +13,7 @@ export type ErrorCode =
   | 'INTERNAL_ERROR';
 
 const MESSAGES: Record<ErrorCode, string> = {
-  BAD_USER_INPUT: 'Please check the highlighted fields and try again.',
+  BAD_USER_INPUT: 'Please correct the highlighted field and try again.',
   NOT_FOUND: "We couldn't find what you were looking for.",
   CONFLICT:
     'This was changed by someone else since you loaded it. Reload to get the latest version, then reapply your changes.',
@@ -40,4 +40,17 @@ export function messageForCode(code: string | undefined | null): string {
 /** Whether a code represents a user-fixable validation problem (surfaced inline). */
 export function isValidationError(code: string | undefined | null): boolean {
   return code === 'BAD_USER_INPUT';
+}
+
+/**
+ * The message to show for a validation failure: the backend's own curated
+ * message when one is present (it already names the offending value and rule),
+ * falling back to the generic copy otherwise.
+ */
+export function messageForValidation(
+  code: string | undefined | null,
+  serverMessage: string | undefined | null
+): string {
+  if (code === 'BAD_USER_INPUT' && serverMessage) return serverMessage;
+  return messageForCode(code);
 }

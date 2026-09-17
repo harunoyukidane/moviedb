@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isErrorCode, isValidationError, messageForCode, type ErrorCode } from './errors';
+import { isErrorCode, isValidationError, messageForCode, messageForValidation, type ErrorCode } from './errors';
 
 describe('error boundary', () => {
   const codes: ErrorCode[] = [
@@ -46,5 +46,20 @@ describe('error boundary', () => {
     expect(isErrorCode('NOPE')).toBe(false);
     expect(isValidationError('BAD_USER_INPUT')).toBe(true);
     expect(isValidationError('CONFLICT')).toBe(false);
+  });
+
+  it('messageForValidation prefers the server message for BAD_USER_INPUT', () => {
+    expect(messageForValidation('BAD_USER_INPUT', 'title must be at most 300 characters')).toBe(
+      'title must be at most 300 characters'
+    );
+  });
+
+  it('messageForValidation falls back to the generic copy when no server message is present', () => {
+    expect(messageForValidation('BAD_USER_INPUT', undefined)).toBe(messageForCode('BAD_USER_INPUT'));
+    expect(messageForValidation('BAD_USER_INPUT', null)).toBe(messageForCode('BAD_USER_INPUT'));
+  });
+
+  it('messageForValidation ignores the server message for non-validation codes', () => {
+    expect(messageForValidation('CONFLICT', 'some internal detail')).toBe(messageForCode('CONFLICT'));
   });
 });

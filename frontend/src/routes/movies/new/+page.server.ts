@@ -1,8 +1,9 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
 import { createMovie, listGenres, listLanguages, type CreateMovieInput } from '$lib/server/operations';
-import { messageForCode, isValidationError } from '$lib/errors';
-import { codeForError, requestContext } from '$lib/server/request';
+import { isValidationError } from '$lib/errors';
+import { codeForError, fieldErrorsForError, messageForError, requestContext } from '$lib/server/request';
+import { isFieldError, validateOptionalDate, validateOptionalInt } from '$lib/server/validation';
 
 export const load: PageServerLoad = async ({ request }) => {
   const context = requestContext(request);
@@ -27,12 +28,29 @@ export const actions: Actions = {
       genreCodes: form.getAll('genreCodes').map(String)
     };
 
+    const releaseDate = validateOptionalDate(values.releaseDate, 'releaseDate');
+    if (isFieldError(releaseDate)) {
+      return fail(400, {
+        message: releaseDate.error.message,
+        fieldErrors: { [releaseDate.error.field]: releaseDate.error.message },
+        values
+      });
+    }
+    const runtimeMinutes = validateOptionalInt(values.runtimeMinutes, 'runtimeMinutes');
+    if (isFieldError(runtimeMinutes)) {
+      return fail(400, {
+        message: runtimeMinutes.error.message,
+        fieldErrors: { [runtimeMinutes.error.field]: runtimeMinutes.error.message },
+        values
+      });
+    }
+
     const input: CreateMovieInput = {
       title,
       originalTitle: values.originalTitle || null,
       synopsis: values.synopsis,
-      releaseDate: values.releaseDate || null,
-      runtimeMinutes: values.runtimeMinutes ? Number(values.runtimeMinutes) : null,
+      releaseDate: releaseDate.value,
+      runtimeMinutes: runtimeMinutes.value,
       originalLanguage: values.originalLanguage || null,
       genreCodes: values.genreCodes
     };
@@ -44,7 +62,11 @@ export const actions: Actions = {
     } catch (e) {
       const code = codeForError(e);
       // preserve the user's input so the form can re-render it
-      return fail(isValidationError(code) ? 400 : 503, { message: messageForCode(code), values });
+      return fail(isValidationError(code) ? 400 : 503, {
+        message: messageForError(e, code),
+        fieldErrors: fieldErrorsForError(e),
+        values
+      });
     }
     throw redirect(303, `/movies/${id}`);
   }

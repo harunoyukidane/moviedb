@@ -14,6 +14,7 @@ import org.springframework.data.domain.PageRequest
 import org.springframework.orm.ObjectOptimisticLockingFailureException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Clock
 import java.util.UUID
 
 /**
@@ -25,6 +26,7 @@ import java.util.UUID
 @Service
 class PeopleApplicationService(
     private val repository: PersonRepository,
+    private val clock: Clock,
 ) {
 
     /** Known field-mask paths for UpdatePerson; anything else is a precondition failure. */
@@ -87,11 +89,13 @@ class PeopleApplicationService(
     fun createPerson(command: CreatePersonCommand): PersonView {
         val name = PersonRules.normalizeName(command.name)
         val placeOfBirth = PersonRules.normalizeOptionalText(
-            command.placeOfBirth, PersonRules.PLACE_OF_BIRTH_MAX, "place_of_birth",
+            command.placeOfBirth, PersonRules.PLACE_OF_BIRTH_MAX, "placeOfBirth",
         )
         val profilePath = PersonRules.normalizeOptionalText(
-            command.profilePath, PersonRules.PROFILE_PATH_MAX, "profile_path",
+            command.profilePath, PersonRules.PROFILE_PATH_MAX, "profilePath",
         )
+        PersonRules.validateBirthDate(command.birthDate, clock)
+        PersonRules.validateDeathDate(command.deathDate, clock)
         PersonRules.validateLifeDates(command.birthDate, command.deathDate)
 
         // tmdb_id idempotency: reject a create that would duplicate an existing provenance id.
@@ -136,16 +140,22 @@ class PeopleApplicationService(
 
         if ("name" in command.maskPaths) person.name = PersonRules.normalizeName(command.name)
         if ("biography" in command.maskPaths) person.biography = command.biography?.trim().orEmpty()
-        if ("birth_date" in command.maskPaths) person.birthDate = command.birthDate
-        if ("death_date" in command.maskPaths) person.deathDate = command.deathDate
+        if ("birth_date" in command.maskPaths) {
+            PersonRules.validateBirthDate(command.birthDate, clock)
+            person.birthDate = command.birthDate
+        }
+        if ("death_date" in command.maskPaths) {
+            PersonRules.validateDeathDate(command.deathDate, clock)
+            person.deathDate = command.deathDate
+        }
         if ("place_of_birth" in command.maskPaths) {
             person.placeOfBirth = PersonRules.normalizeOptionalText(
-                command.placeOfBirth, PersonRules.PLACE_OF_BIRTH_MAX, "place_of_birth",
+                command.placeOfBirth, PersonRules.PLACE_OF_BIRTH_MAX, "placeOfBirth",
             )
         }
         if ("profile_path" in command.maskPaths) {
             person.profilePath = PersonRules.normalizeOptionalText(
-                command.profilePath, PersonRules.PROFILE_PATH_MAX, "profile_path",
+                command.profilePath, PersonRules.PROFILE_PATH_MAX, "profilePath",
             )
         }
         PersonRules.validateLifeDates(person.birthDate, person.deathDate)

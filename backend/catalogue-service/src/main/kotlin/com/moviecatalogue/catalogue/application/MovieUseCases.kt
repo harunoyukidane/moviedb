@@ -2,21 +2,26 @@ package com.moviecatalogue.catalogue.application
 
 import com.moviecatalogue.catalogue.common.UuidV7
 import com.moviecatalogue.catalogue.common.OffsetPageRequest
+import com.moviecatalogue.catalogue.credit.CreditRepository
 import com.moviecatalogue.catalogue.domain.ConflictException
 import com.moviecatalogue.catalogue.domain.CreditRules
 import com.moviecatalogue.catalogue.domain.MovieRules
 import com.moviecatalogue.catalogue.domain.NotFoundException
+import com.moviecatalogue.catalogue.domain.ValidationException
 import com.moviecatalogue.catalogue.movie.Movie
 import com.moviecatalogue.catalogue.movie.MovieGenre
 import com.moviecatalogue.catalogue.movie.MovieGenreId
 import com.moviecatalogue.catalogue.movie.MovieGenreRepository
 import com.moviecatalogue.catalogue.movie.MovieRepository
+import com.moviecatalogue.catalogue.people.PeopleClient
 import com.moviecatalogue.catalogue.reference.GenreCodeRepository
 import com.moviecatalogue.catalogue.reference.LanguageCodeRepository
 import org.springframework.data.domain.Sort
 import org.springframework.orm.ObjectOptimisticLockingFailureException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Clock
+import java.time.LocalDate
 import java.util.UUID
 
 @Service
@@ -25,6 +30,9 @@ class MovieUseCases(
     private val movieGenres: MovieGenreRepository,
     private val genreCodes: GenreCodeRepository,
     private val languageCodes: LanguageCodeRepository,
+    private val credits: CreditRepository,
+    private val peopleClient: PeopleClient,
+    private val clock: Clock,
 ) {
 
     @Transactional(readOnly = true)
@@ -38,7 +46,7 @@ class MovieUseCases(
         val genreCode = filter?.genreCode
         if (genreCode != null) {
             val genre = genreCodes.findById(genreCode).orElse(null)
-            CreditRules.requireExistingCode(genre != null, "genre", genreCode)
+            CreditRules.requireExistingCode(genre != null, "genre", genreCode, field = "genreCode")
         }
         MovieRules.validateReleaseYear(filter?.releaseYear)
 
@@ -63,6 +71,7 @@ class MovieUseCases(
         val originalLanguage = MovieRules.normalizeOptionalText(command.originalLanguage, MovieRules.ORIGINAL_LANGUAGE_MAX, "originalLanguage")
         validateLanguageCode(originalLanguage)
         MovieRules.validateRuntime(command.runtimeMinutes)
+        MovieRules.validateReleaseDate(command.releaseDate, clock)
         validateGenreCodes(command.genreCodes)
 
         // Idempotent upsert by TMDB provenance id (§12.3): update in place if present.
@@ -106,7 +115,11 @@ class MovieUseCases(
         if (command.maskTitle) movie.title = MovieRules.normalizeTitle(command.title)
         if (command.maskOriginalTitle) movie.originalTitle = MovieRules.normalizeOptionalText(command.originalTitle, MovieRules.TITLE_MAX, "originalTitle")
         if (command.maskSynopsis) movie.synopsis = command.synopsis?.trim().orEmpty()
-        if (command.maskReleaseDate) movie.releaseDate = command.releaseDate
+        if (command.maskReleaseDate) {
+            MovieRules.validateReleaseDate(command.releaseDate, clock)
+            if (command.releaseDate != null) validateCreditedPeopleAgainstReleaseDate(movie.id, command.releaseDate)
+            movie.releaseDate = command.releaseDate
+        }
         if (command.maskRuntime) {
             MovieRules.validateRuntime(command.runtimeMinutes)
             movie.runtimeMinutes = command.runtimeMinutes
@@ -159,13 +172,13 @@ class MovieUseCases(
     private fun validateLanguageCode(code: String?) {
         if (code == null) return
         val language = languageCodes.findById(code).orElse(null)
-        CreditRules.requireActiveCode(language != null, language?.active ?: false, "language", code)
+        CreditRules.requireActiveCode(language != null, language?.active ?: false, "language", code, field = "originalLanguage")
     }
 
     private fun validateGenreCodes(codes: List<String>) {
         for (code in codes.distinct()) {
             val genre = genreCodes.findById(code).orElse(null)
-            CreditRules.requireActiveCode(genre != null, genre?.active ?: false, "genre", code)
+            CreditRules.requireActiveCode(genre != null, genre?.active ?: false, "genre", code, field = "genreCodes")
         }
     }
 
@@ -174,6 +187,30 @@ class MovieUseCases(
             movieGenres.save(MovieGenre(MovieGenreId(movieId, code)))
         }
         movieGenres.flush()
+    }
+
+    /**
+     * V2.2-03b: moving a movie's release date must not put it before a
+     * credited person's birth. One batched People fetch (no N+1); a People
+     * outage refuses the save with DEPENDENCY_UNAVAILABLE rather than saving
+     * unchecked, matching how CreditUseCases.addCredit already behaves.
+     */
+    private fun validateCreditedPeopleAgainstReleaseDate(movieId: UUID, releaseDate: LocalDate) {
+        val personIds = credits.findAllByMovieId(movieId).map { it.personId }.distinct()
+        if (personIds.isEmpty()) return
+        val people = peopleClient.getPeople(personIds)
+        val violators = personIds.mapNotNull { id ->
+            people[id]?.takeIf { CreditRules.isBornAfterRelease(it.birthDate, releaseDate) }
+        }
+        if (violators.isEmpty()) return
+        val named = violators.take(3).joinToString(", ") { it.name }
+        val summary = if (violators.size > 3) " and ${violators.size - 3} others" else ""
+        val verb = if (violators.size == 1) "was" else "were"
+        throw ValidationException(
+            "Can't save: $named$summary $verb born after this movie's new release date of $releaseDate. " +
+                "Check the dates and try again.",
+            field = "releaseDate",
+        )
     }
 }
 

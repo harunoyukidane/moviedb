@@ -1,5 +1,6 @@
 package com.moviecatalogue.people.person
 
+import com.moviecatalogue.people.ClockConfig
 import com.moviecatalogue.people.application.CreatePersonCommand
 import com.moviecatalogue.people.application.PeopleApplicationService
 import com.moviecatalogue.people.application.SearchPeopleCommand
@@ -29,7 +30,7 @@ import java.time.LocalDate
 @Testcontainers
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import(PeopleApplicationService::class)
+@Import(PeopleApplicationService::class, ClockConfig::class)
 class PeopleSearchIntegrationTest {
 
     companion object {

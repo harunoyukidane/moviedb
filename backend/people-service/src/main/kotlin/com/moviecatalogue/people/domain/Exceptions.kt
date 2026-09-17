@@ -9,8 +9,12 @@ package com.moviecatalogue.people.domain
 sealed class PeopleException(message: String, cause: Throwable? = null) :
     RuntimeException(message, cause)
 
-/** Invalid input (blank/overlong name, bad date, bad ID, bad query). -> INVALID_ARGUMENT */
-class ValidationException(message: String) : PeopleException(message)
+/**
+ * Invalid input (blank/overlong name, bad date, bad ID, bad query). -> INVALID_ARGUMENT.
+ * [field] is the GraphQL field name (not the DB column), carried to the Catalogue
+ * over gRPC metadata so the BFF can key the message straight to a form input.
+ */
+class ValidationException(message: String, val field: String? = null) : PeopleException(message)
 
 /** A requested person does not exist. -> NOT_FOUND */
 class PersonNotFoundException(message: String = "person not found") : PeopleException(message)

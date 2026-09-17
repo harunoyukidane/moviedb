@@ -2,9 +2,11 @@
   import type { PageData, ActionData } from './$types';
   import { enhance } from '$app/forms';
   import StateBanner from '$lib/components/StateBanner.svelte';
+  import FieldError from '$lib/components/FieldError.svelte';
   import ArtworkUpload from '$lib/components/ArtworkUpload.svelte';
   import DateField from '$lib/components/DateField.svelte';
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
+  import { tick } from 'svelte';
 
   export let data: PageData;
   export let form: ActionData;
@@ -13,6 +15,18 @@
   let saving = false;
   let photoError = false;
   let confirmDeleteOpen = false;
+  let detailsForm: HTMLFormElement;
+  $: fieldErrors = (
+    form && 'fieldErrors' in form && form.section === 'details' ? (form.fieldErrors ?? {}) : {}
+  ) as Record<string, string>;
+
+  async function focusFirstInvalid() {
+    await tick();
+    const field = Object.keys(fieldErrors)[0];
+    if (!field) return;
+    const el = detailsForm?.querySelector<HTMLElement>(`#${field}`);
+    el?.focus();
+  }
 
   function submitDelete() {
     const f = document.getElementById('delete-person-form');
@@ -35,36 +49,62 @@
   <form
     method="POST"
     action="?/update"
+    bind:this={detailsForm}
     use:enhance={() => {
       saving = true;
       return async ({ update }) => {
         await update();
         saving = false;
+        await focusFirstInvalid();
       };
     }}
   >
     <input type="hidden" name="expectedVersion" value={person.version} />
     <div class="field">
       <label for="name">Name *</label>
-      <input id="name" name="name" required value={person.name} />
+      <input
+        id="name"
+        name="name"
+        required
+        value={person.name}
+        aria-invalid={!!fieldErrors.name}
+        aria-describedby="name-error"
+      />
+      <FieldError id="name-error" message={fieldErrors.name} />
     </div>
     <div class="field">
       <label for="biography">Biography</label>
-      <textarea id="biography" name="biography" rows="4">{person.biography}</textarea>
+      <textarea
+        id="biography"
+        name="biography"
+        rows="4"
+        aria-invalid={!!fieldErrors.biography}
+        aria-describedby="biography-error">{person.biography}</textarea
+      >
+      <FieldError id="biography-error" message={fieldErrors.biography} />
     </div>
     <div class="form-grid-2">
       <div class="field">
         <label for="birthDate">Birth date</label>
         <DateField id="birthDate" name="birthDate" value={person.birthDate} />
+        <FieldError id="birthDate-error" message={fieldErrors.birthDate} />
       </div>
       <div class="field">
         <label for="deathDate">Death date</label>
         <DateField id="deathDate" name="deathDate" value={person.deathDate} />
+        <FieldError id="deathDate-error" message={fieldErrors.deathDate} />
       </div>
     </div>
     <div class="field">
       <label for="placeOfBirth">Place of birth</label>
-      <input id="placeOfBirth" name="placeOfBirth" value={person.placeOfBirth ?? ''} />
+      <input
+        id="placeOfBirth"
+        name="placeOfBirth"
+        value={person.placeOfBirth ?? ''}
+        aria-invalid={!!fieldErrors.placeOfBirth}
+        aria-describedby="placeOfBirth-error"
+      />
+      <FieldError id="placeOfBirth-error" message={fieldErrors.placeOfBirth} />
     </div>
     <button type="submit" class="primary" disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button>
   </form>

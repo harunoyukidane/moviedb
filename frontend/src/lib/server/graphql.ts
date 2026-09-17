@@ -11,12 +11,17 @@ const endpoint = env.CATALOGUE_GRAPHQL_URL ?? 'http://localhost:8080/graphql';
 /** Header the backend reads to propagate a correlation id into gRPC. */
 export const CORRELATION_HEADER = 'X-Correlation-ID';
 
-/** A normalized GraphQL error carrying the stable extensions.code (§8.2). */
+/**
+ * A normalized GraphQL error carrying the stable extensions.code (§8.2) and,
+ * for BAD_USER_INPUT, the offending GraphQL field name (extensions.field) so
+ * the BFF can key the message straight to a form input.
+ */
 export class GraphQlRequestError extends Error {
   constructor(
     public readonly code: string,
     message: string,
-    public readonly correlationId: string
+    public readonly correlationId: string,
+    public readonly field?: string
   ) {
     super(message);
     this.name = 'GraphQlRequestError';
@@ -49,7 +54,8 @@ export async function gql<T>(
       const first = e.response.errors?.[0];
       const code = (first?.extensions?.code as string | undefined) ?? 'INTERNAL_ERROR';
       const message = first?.message ?? 'Request failed';
-      throw new GraphQlRequestError(code, message, correlationId);
+      const field = first?.extensions?.field as string | undefined;
+      throw new GraphQlRequestError(code, message, correlationId, field);
     }
     // Network/transport failure: the dependency (Catalogue) is unreachable.
     throw new GraphQlRequestError(

@@ -3,9 +3,13 @@ package com.moviecatalogue.people.domain
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
+import java.time.Clock
 import java.time.LocalDate
+import java.time.ZoneOffset
 
 class PersonRulesTest {
+
+    private val fixedClock: Clock = Clock.fixed(LocalDate.of(2026, 1, 1).atStartOfDay(ZoneOffset.UTC).toInstant(), ZoneOffset.UTC)
 
     @Test
     fun `normalizeName trims and accepts a valid name`() {
@@ -42,10 +46,12 @@ class PersonRulesTest {
     }
 
     @Test
-    fun `validateLifeDates rejects death before birth`() {
+    fun `validateLifeDates rejects death before birth, naming both values`() {
         assertThatThrownBy {
             PersonRules.validateLifeDates(LocalDate.of(2000, 1, 1), LocalDate.of(1999, 1, 1))
         }.isInstanceOf(ValidationException::class.java)
+            .hasMessageContaining("1999-01-01")
+            .hasMessageContaining("2000-01-01")
     }
 
     @Test
@@ -58,6 +64,62 @@ class PersonRulesTest {
         PersonRules.validateLifeDates(null, LocalDate.of(2000, 1, 1))
         PersonRules.validateLifeDates(LocalDate.of(2000, 1, 1), null)
         PersonRules.validateLifeDates(null, null)
+    }
+
+    @Test
+    fun `validateLifeDates rejects an implausible lifespan over 130 years`() {
+        PersonRules.validateLifeDates(LocalDate.of(1900, 1, 1), LocalDate.of(2030, 1, 1))
+        assertThatThrownBy {
+            PersonRules.validateLifeDates(LocalDate.of(1900, 1, 1), LocalDate.of(2031, 1, 2))
+        }.isInstanceOf(ValidationException::class.java)
+    }
+
+    @Test
+    fun `validateBirthDate rejects a future date, naming the value`() {
+        assertThatThrownBy { PersonRules.validateBirthDate(LocalDate.of(2026, 4, 4), fixedClock) }
+            .isInstanceOf(ValidationException::class.java)
+            .hasMessageContaining("2026-04-04")
+    }
+
+    @Test
+    fun `validateBirthDate rejects a date less than two years ago and accepts exactly two`() {
+        val today = LocalDate.now(fixedClock)
+        PersonRules.validateBirthDate(today.minusYears(2), fixedClock)
+        assertThatThrownBy { PersonRules.validateBirthDate(today.minusYears(2).plusDays(1), fixedClock) }
+            .isInstanceOf(ValidationException::class.java)
+    }
+
+    @Test
+    fun `validateBirthDate rejects a year before 1850`() {
+        PersonRules.validateBirthDate(LocalDate.of(1850, 1, 1), fixedClock)
+        assertThatThrownBy { PersonRules.validateBirthDate(LocalDate.of(1849, 12, 31), fixedClock) }
+            .isInstanceOf(ValidationException::class.java)
+    }
+
+    @Test
+    fun `validateBirthDate allows null`() {
+        PersonRules.validateBirthDate(null, fixedClock)
+    }
+
+    @Test
+    fun `validateDeathDate rejects a future date`() {
+        val today = LocalDate.now(fixedClock)
+        PersonRules.validateDeathDate(today, fixedClock)
+        assertThatThrownBy { PersonRules.validateDeathDate(today.plusDays(1), fixedClock) }
+            .isInstanceOf(ValidationException::class.java)
+    }
+
+    @Test
+    fun `validateDeathDate allows null`() {
+        PersonRules.validateDeathDate(null, fixedClock)
+    }
+
+    @Test
+    fun `date rules read today from the injected clock, not the system clock`() {
+        val pastClock = Clock.fixed(LocalDate.of(2000, 1, 1).atStartOfDay(ZoneOffset.UTC).toInstant(), ZoneOffset.UTC)
+        // 2000-06-01 is in the "future" relative to the fixed clock, even though it is long past for the real clock.
+        assertThatThrownBy { PersonRules.validateBirthDate(LocalDate.of(2000, 6, 1), pastClock) }
+            .isInstanceOf(ValidationException::class.java)
     }
 
     @Test

@@ -2,7 +2,13 @@ import type { PageServerLoad, Actions } from './$types';
 import { error, fail } from '@sveltejs/kit';
 import { addMovieComment, getMovie, listComments, type AddMovieCommentInput } from '$lib/server/operations';
 import { messageForCode, isValidationError } from '$lib/errors';
-import { codeForError, requestContext, throwPageLoadError } from '$lib/server/request';
+import {
+  codeForError,
+  fieldErrorsForError,
+  messageForError,
+  requestContext,
+  throwPageLoadError
+} from '$lib/server/request';
 
 const COMMENTS_PAGE_SIZE = 10;
 
@@ -47,7 +53,11 @@ export const actions: Actions = {
       return { commentAdded: true };
     } catch (e) {
       const code = codeForError(e);
-      return fail(isValidationError(code) ? 400 : 503, { message: messageForCode(code), section: 'comment' });
+      return fail(isValidationError(code) ? 400 : 503, {
+        message: messageForError(e, code),
+        fieldErrors: fieldErrorsForError(e),
+        section: 'comment'
+      });
     }
   }
 };

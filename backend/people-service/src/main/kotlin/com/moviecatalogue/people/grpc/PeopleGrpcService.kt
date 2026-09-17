@@ -1,6 +1,7 @@
 package com.moviecatalogue.people.grpc
 
 import com.google.protobuf.Empty
+import io.grpc.Metadata
 import com.moviecatalogue.people.application.CreatePersonCommand
 import com.moviecatalogue.people.application.PeopleApplicationService
 import com.moviecatalogue.people.application.PersonView
@@ -81,8 +82,8 @@ class PeopleGrpcService(
                 tmdbId = if (request.hasTmdbId()) request.tmdbId else null,
                 name = request.name,
                 biography = request.biography,
-                birthDate = DateHelpers.parseOptional(if (request.hasBirthDate()) request.birthDate else null),
-                deathDate = DateHelpers.parseOptional(if (request.hasDeathDate()) request.deathDate else null),
+                birthDate = DateHelpers.parseOptional(if (request.hasBirthDate()) request.birthDate else null, "birthDate"),
+                deathDate = DateHelpers.parseOptional(if (request.hasDeathDate()) request.deathDate else null, "deathDate"),
                 placeOfBirth = if (request.hasPlaceOfBirth()) request.placeOfBirth else null,
                 profilePath = if (request.hasProfilePath()) request.profilePath else null,
             )
@@ -102,8 +103,8 @@ class PeopleGrpcService(
                 maskPaths = maskPaths,
                 name = patch.name,
                 biography = patch.biography,
-                birthDate = DateHelpers.parseOptional(if (patch.hasBirthDate()) patch.birthDate else null),
-                deathDate = DateHelpers.parseOptional(if (patch.hasDeathDate()) patch.deathDate else null),
+                birthDate = DateHelpers.parseOptional(if (patch.hasBirthDate()) patch.birthDate else null, "birthDate"),
+                deathDate = DateHelpers.parseOptional(if (patch.hasDeathDate()) patch.deathDate else null, "deathDate"),
                 placeOfBirth = if (patch.hasPlaceOfBirth()) patch.placeOfBirth else null,
                 profilePath = if (patch.hasProfilePath()) patch.profilePath else null,
             )
@@ -140,7 +141,11 @@ class PeopleGrpcService(
             observer.onNext(result)
             observer.onCompleted()
         } catch (e: Exception) {
-            observer.onError(e.toStatus().asRuntimeException())
+            val trailers = Metadata()
+            if (e is ValidationException) {
+                e.field?.let { trailers.put(FIELD_METADATA_KEY, it) }
+            }
+            observer.onError(e.toStatus().asRuntimeException(trailers))
         }
     }
 
@@ -156,6 +161,12 @@ class PeopleGrpcService(
         -> Status.UNAVAILABLE.withDescription("people datastore unavailable")
         is StatusRuntimeException -> this.status
         else -> Status.INTERNAL.withDescription(this.message)
+    }
+
+    companion object {
+        /** Carries ValidationException.field across the gRPC boundary (mirrors x-correlation-id). */
+        val FIELD_METADATA_KEY: Metadata.Key<String> =
+            Metadata.Key.of("x-field", Metadata.ASCII_STRING_MARSHALLER)
     }
 }
 

@@ -3,7 +3,14 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import { deletePerson, getPerson, updatePerson } from '$lib/server/operations';
 import { uploadPersonPhoto, deletePersonPhoto } from '$lib/server/media';
 import { messageForCode, isValidationError } from '$lib/errors';
-import { codeForError, requestContext, throwPageLoadError } from '$lib/server/request';
+import {
+  codeForError,
+  fieldErrorsForError,
+  messageForError,
+  requestContext,
+  throwPageLoadError
+} from '$lib/server/request';
+import { isFieldError, validateOptionalDate, validateVersion } from '$lib/server/validation';
 
 export const load: PageServerLoad = async ({ params, request }) => {
   try {
@@ -19,20 +26,45 @@ export const actions: Actions = {
   update: async ({ params, request }) => {
     const context = requestContext(request);
     const form = await request.formData();
-    const expectedVersion = Number(form.get('expectedVersion') ?? '0');
+
+    const expectedVersion = validateVersion(String(form.get('expectedVersion') ?? ''));
+    if (isFieldError(expectedVersion)) {
+      return fail(400, { message: expectedVersion.error.message, fieldErrors: undefined, section: 'details' });
+    }
+    const birthDate = validateOptionalDate(String(form.get('birthDate') ?? ''), 'birthDate');
+    if (isFieldError(birthDate)) {
+      return fail(400, {
+        message: birthDate.error.message,
+        fieldErrors: { [birthDate.error.field]: birthDate.error.message },
+        section: 'details'
+      });
+    }
+    const deathDate = validateOptionalDate(String(form.get('deathDate') ?? ''), 'deathDate');
+    if (isFieldError(deathDate)) {
+      return fail(400, {
+        message: deathDate.error.message,
+        fieldErrors: { [deathDate.error.field]: deathDate.error.message },
+        section: 'details'
+      });
+    }
+
     const input: Record<string, unknown> = {
       name: String(form.get('name') ?? '').trim(),
       biography: String(form.get('biography') ?? ''),
-      birthDate: String(form.get('birthDate') ?? '') || null,
-      deathDate: String(form.get('deathDate') ?? '') || null,
+      birthDate: birthDate.value,
+      deathDate: deathDate.value,
       placeOfBirth: String(form.get('placeOfBirth') ?? '') || null
     };
     try {
-      await updatePerson(params.id, expectedVersion, input, context);
+      await updatePerson(params.id, expectedVersion.value, input, context);
       return { updated: true };
     } catch (e) {
       const code = codeForError(e);
-      return fail(isValidationError(code) ? 400 : 409, { message: messageForCode(code), section: 'details' });
+      return fail(isValidationError(code) ? 400 : 409, {
+        message: messageForError(e, code),
+        fieldErrors: fieldErrorsForError(e),
+        section: 'details'
+      });
     }
   },
 
