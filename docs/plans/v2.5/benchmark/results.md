@@ -52,6 +52,48 @@ requirements' 100 concurrent users, at the DB connection-pool layer)
 | Person name search, `%man%` | **8.0 tps / 2508ms** | 2909 tps / 6.9ms | **~364x** |
 | Person `countByNamePattern`, `%man%` | **8.4 tps / 2386ms** | 4651 tps / 4.3ms | **~555x** |
 
+## Option B: pagination pushdown (measured 2026-09-19)
+
+Same method as above — an isolated throwaway container, 500k people, seeded
+identically — this time comparing the current app-side
+`fetch(offset+limit).drop(offset).take(limit)` pattern against a real
+DB-pushed `LIMIT :limit OFFSET :offset`, at increasing page depths. The term
+(`%on%`) was chosen for ~145k matches (29% of rows), so deep offsets are
+actually reachable within the match set.
+
+| Offset | Single connection (DB time only) | 20 concurrent (includes row transfer) |
+|---|---|---|
+| 0 | parity (~10-14ms either way) | — |
+| 1,000 | — | 46.1ms → 28.6ms avg (**~1.6x**), 433 → 700 tps |
+| 5,000 | 45.6ms → 26.2ms (**~1.7x**) | — |
+| 20,000 | 111.6ms → 88.5ms (**~1.3x**) | **1.06s → 517ms avg (~2.1x)**, 18.8 → 38.7 tps |
+
+**Why the gain is real but modest, unlike V2.5-01's:** Postgres's `OFFSET`
+is still O(offset) internally — it scans past and discards the skipped rows
+itself, the same fundamental cost the app-side `.drop()` pays, just done on
+the DB side. There's no index that lets it seek directly to row 20,000.
+So the database's own query-execution cost barely changes (1.3–1.7x). What
+actually improves is everything downstream of query execution: the current
+code pulls `offset + limit` full rows back to the JVM (20,020 rows for a
+20-row page at offset 20,000) and only then discards the prefix in Kotlin.
+The fix cuts that to exactly `limit` rows — a savings in network transfer
+and row materialization, which is why the effect is larger under concurrent
+load (transfer cost competes for resources across connections: ~2.1x at
+offset 20,000) than in a single isolated query (~1.3x same offset). In the
+real Spring/Hibernate stack the gain is plausibly somewhat larger than these
+raw-`psql` numbers, since JPA entity hydration per row costs more than
+`psql`'s text output — not verified, since that would require running it
+through the actual service rather than raw SQL.
+
+**Conclusion:** worth doing (and done — see
+[plans/v2.5/README.md#v25-02](../README.md#v25-02-push-search-offsetlimit-to-the-database)),
+but this is a moderate, linear-ish optimization, not the kind of
+regime-changing fix V2.5-01 was. Scoped down to Option B (the two
+single-source search paths) rather than Option A (pushing into the unified
+top-bar search, which needs rank-in-SQL plus a new count-query branch) on
+exactly that basis: the added complexity of Option A wasn't worth it for a
+~1.3–2.1x gain.
+
 ## This changes the risk assessment in ADR-9
 
 The earlier write-up in [ADR-9](../../../decisions/0009-defer-search-cache-messaging.md#evolution-triggered-2026-09-18)

@@ -143,6 +143,33 @@ class PeopleSearchIntegrationTest {
         assertThat(all).hasSize(5)
     }
 
+    /**
+     * V2.5-02: a non-page-aligned offset (7 is not a multiple of the limit,
+     * 3) must still land on the correct slice now that the offset is pushed
+     * straight to the DB via [com.moviecatalogue.people.common.OffsetPageRequest]
+     * instead of being sliced out of an offset+limit fetch-window in memory.
+     */
+    @Test
+    fun `search with a non-page-aligned offset returns the correct slice`() {
+        val created = (1..10).map { create("Offset %02d".format(it)) }
+
+        val page = service.searchPeople(SearchPeopleCommand("Offset", limit = 3, offset = 7))
+
+        assertThat(page.total).isEqualTo(10)
+        assertThat(page.people.map { it.id }).containsExactly(created[7].id, created[8].id, created[9].id)
+    }
+
+    /** V2.5-02: same offset-pushdown fix, for the blank-query "list all" branch. */
+    @Test
+    fun `blank query list with a non-page-aligned offset returns the correct slice`() {
+        val created = (1..10).map { create("Listed %02d".format(it)) }
+
+        val page = service.searchPeople(SearchPeopleCommand(query = "", limit = 3, offset = 7))
+
+        assertThat(page.total).isEqualTo(10)
+        assertThat(page.people.map { it.id }).containsExactly(created[7].id, created[8].id, created[9].id)
+    }
+
     @Test
     fun `findAllByIdIn returns matches for a batch`() {
         val a = create("Batch A")

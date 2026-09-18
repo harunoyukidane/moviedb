@@ -1,5 +1,6 @@
 package com.moviecatalogue.people.application
 
+import com.moviecatalogue.people.common.OffsetPageRequest
 import com.moviecatalogue.people.common.UuidV7
 import com.moviecatalogue.people.domain.DuplicateTmdbIdException
 import com.moviecatalogue.people.domain.PersonNotFoundException
@@ -13,7 +14,6 @@ import com.moviecatalogue.people.person.PersonRepository
 import com.moviecatalogue.people.reference.CountryCode
 import com.moviecatalogue.people.reference.CountryCodeRepository
 import org.slf4j.LoggerFactory
-import org.springframework.data.domain.PageRequest
 import org.springframework.orm.ObjectOptimisticLockingFailureException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -83,21 +83,20 @@ class PeopleApplicationService(
         // so this branch and the search branch never disagree about sort order.
         if (raw.isEmpty()) {
             val total = repository.count()
-            // offset may not be a multiple of limit, so fetch offset+limit rows in a
-            // stable order and drop the offset prefix, same as the search branch below.
-            val fetched = repository.findAllOrderByName(PageRequest.of(0, offset + limit))
-            val results = fetched.drop(offset).take(limit)
-            return SearchPeopleResult(results.map { it.toView() }, total)
+            // OffsetPageRequest (V2.5-02) pushes the arbitrary offset straight to the
+            // DB via setFirstResult/setMaxResults, instead of fetching offset+limit
+            // rows and dropping the prefix in application memory. Unsorted: the
+            // native query already carries its own ORDER BY (ICU-collated); a
+            // sorted Pageable would append a second, conflicting ORDER BY clause.
+            val fetched = repository.findAllOrderByName(OffsetPageRequest(limit, offset.toLong()))
+            return SearchPeopleResult(fetched.map { it.toView() }, total)
         }
 
         val query = PersonRules.normalizeQuery(raw)
         val pattern = PersonSearch.containsPattern(query)
         val total = repository.countByNamePattern(pattern)
-        // offset may not be a multiple of limit, so fetch offset+limit rows in a
-        // stable order and drop the offset prefix. Fine for the catalogue's scale.
-        val fetched = repository.searchByNamePattern(pattern, PageRequest.of(0, offset + limit))
-        val results = fetched.drop(offset).take(limit)
-        return SearchPeopleResult(results.map { it.toView() }, total)
+        val fetched = repository.searchByNamePattern(pattern, OffsetPageRequest(limit, offset.toLong()))
+        return SearchPeopleResult(fetched.map { it.toView() }, total)
     }
 
     /**

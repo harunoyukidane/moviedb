@@ -21,7 +21,7 @@ scopes that evolution into concrete work; it does not change either decision.
 | Item | Area | Status |
 |---|---|---|
 | [V2.5-01](#v25-01-trigram-index-for-substring-search) | `pg_trgm` GIN index for movie/person search | ✅ done — index, tests, and benchmark all verified |
-| [V2.5-02](#v25-02-push-search-offsetlimit-to-the-database) | Push search offset/limit to the database | ☐ not started |
+| [V2.5-02](#v25-02-push-search-offsetlimit-to-the-database) | Push search offset/limit to the database | ✅ done for `PeopleApplicationService.searchPeople` (Option B); unified search left as-is |
 
 ## What the review found
 
@@ -112,6 +112,20 @@ infrequent relative to reads) before assuming it's free.
 **Goal:** stop re-fetching and discarding an ever-growing prefix of results
 on every paged request.
 
+**Measured impact (2026-09-19), before implementing:** unlike V2.5-01, this
+is a moderate win, not a dramatic one — see
+[benchmark/results.md](benchmark/results.md#option-b-pagination-pushdown-measured-2026-09-19)
+for the full numbers. Postgres's `OFFSET` is still O(offset) internally (it
+scans and discards the skipped rows itself — there's no index that lets it
+seek straight to row 20,000), so the database-side compute cost barely
+changes: ~1.3–1.7x at offsets from 5,000–20,000, single connection. The real
+saving is downstream of the query — network transfer and JPA entity
+hydration for `offset` rows the app was going to throw away anyway — which
+is why it shows up more under concurrent load (transfer competes for
+resources across connections): **~1.6x at offset 1,000, ~2.1x at offset
+20,000**, 20 concurrent connections. Worth doing, priced correctly as a
+moderate optimization rather than a correctness-adjacent fix like V2.5-01.
+
 **Why it's not a one-line fix for unified search:** `SearchUseCases.search`
 ranks movie hits (exact-prefix title > substring title > related-credit-only)
 *after* merging two different sources — the Catalogue's own title search and
@@ -119,46 +133,58 @@ movies reached via people matched by the People service's gRPC search. That
 merged ranking has to happen in memory once both sources are in hand; it
 can't be expressed as one SQL query's `OFFSET`. Pushing the offset to each
 per-source fetch is still worth doing, it just doesn't remove the in-memory
-merge/rank step.
+merge/rank step. This is why the plan considered two options:
 
-**Steps:**
-1. `PeopleApplicationService.searchPeople` (both the blank-query "list all"
-   path and the non-blank search path,
-   [lines 82-104](../../../backend/people-service/src/main/kotlin/com/moviecatalogue/people/application/PeopleApplicationService.kt)):
-   replace the `PageRequest.of(0, offset + limit)` + `.drop(offset).take(limit)`
-   pattern with a real DB-pushed offset. `PageRequest.of(page, size)` can
-   only express page-aligned offsets (`offset = page * size`), so an
-   arbitrary offset needs either a custom `Pageable` whose `getOffset()`
-   returns the exact value (Spring Data JPA's `SimpleJpaRepository` calls
-   `setFirstResult(pageable.getOffset())` directly, so this works without
-   forcing page alignment), or bypassing `Pageable` for this query and
-   calling `EntityManager`/`TypedQuery.setFirstResult(offset).setMaxResults(limit)`
-   explicitly in a custom repository method. Prefer the explicit
-   `EntityManager` route — clearer than relying on `Pageable` internals.
-   This also removes the `offset % limit == 0` fast-path special-casing
-   currently needed as a workaround (lines 88-93) — it becomes unnecessary
-   once arbitrary offsets are pushed to the DB directly.
-2. `SearchUseCases.search` (catalogue): push the real offset+limit to
-   `movies.searchByTitlePattern` for the movies-only path. For the unified
-   (title + people-matched) path, a design call is needed:
-   - **Option A (recommended to start):** push DB-side offset/limit
-     whenever no people matched (`relatedByMovie` is empty), which is the
-     majority case since most searches don't have a related-credit
-     component; fall back to the current fetch-window + in-memory merge
-     only when related-credit movies must be interleaved.
-   - **Option B:** leave unified search as-is and only fix the two
-     single-source paths (plain movie list/search, plain people search),
-     since those are the ones with genuinely unbounded offset cost. Simpler,
-     smaller change; revisit unified search only if it shows up in
-     measurement.
-3. Add/extend tests asserting a large offset does not fetch a
-   proportionally large row set from the DB (e.g. assert on the SQL/`EXPLAIN`
-   row estimate, or a repository-call assertion that the requested window
-   size no longer grows with `offset`).
-4. Update ADR-8's "Evidence" section once implemented.
+- **Option A:** push DB-side offset/limit whenever no people matched
+  (`relatedByMovie` is empty), falling back to the current fetch-window +
+  in-memory merge only when related-credit movies must be interleaved.
+  Needs rank computed in SQL (a `CASE WHEN` prefix-match expression in
+  `ORDER BY`) plus a new count query to know whether a page is safely
+  within the title-only tier before trusting a DB-side page — real added
+  complexity for a moderate win, so **not done**.
+- **Option B:** leave unified search as-is and fix only the two
+  single-source paths (plain people list/search — the plain movie list
+  already used this pattern via `OffsetPageRequest`). Simpler, no
+  correctness-critical branch. **Done — see below.**
+
+**Done — `PeopleApplicationService.searchPeople` (Option B):**
+1. Ported catalogue-service's `OffsetPageRequest` (already proven there, in
+   `MovieUseCases.listMovies`) to people-service as
+   [`com.moviecatalogue.people.common.OffsetPageRequest`](../../../backend/people-service/src/main/kotlin/com/moviecatalogue/people/common/OffsetPageRequest.kt) —
+   a custom `Pageable` whose `getOffset()` returns an arbitrary (not
+   page-aligned) value; `SimpleJpaRepository` calls `setFirstResult`/
+   `setMaxResults` directly from it. (Duplicated rather than shared: the two
+   services don't share code, per ADR-1.)
+2. Both branches of
+   [`PeopleApplicationService.searchPeople`](../../../backend/people-service/src/main/kotlin/com/moviecatalogue/people/application/PeopleApplicationService.kt)
+   (blank-query "list all" and the name-search path) now call
+   `OffsetPageRequest(limit, offset.toLong())` instead of
+   `PageRequest.of(0, offset + limit)` + `.drop(offset).take(limit)`. Passed
+   **unsorted** — both `findAllOrderByName` and `searchByNamePattern` are
+   native queries with their own ICU-collated `ORDER BY` baked in (V2.4); a
+   sorted `Pageable` would append a second, conflicting `ORDER BY` — exactly
+   the bug the "Alphabet pagenation" commit's own
+   `movie filter combines genre and year...` test currently hits against
+   `MovieRepository.findAllByFilter` (`ERROR: syntax error at or near
+   "order"`, still failing as of 2026-09-19, unrelated to this change and
+   not fixed here since it's someone else's in-progress work).
+3. Tests: ported `OffsetPageRequestTest` to people-service, and added two
+   integration tests (`PeopleSearchIntegrationTest`) asserting a
+   **non-page-aligned** offset (7, with limit 3) returns the exact correct
+   slice for both branches — the case the old `drop/take` workaround existed
+   specifically to handle, now handled by the DB instead.
+4. `SearchUseCases` (catalogue's unified top-bar search) is **untouched** —
+   still does its own fetch-window + in-memory rank/merge/slice, per Option
+   B. `movies.searchByTitlePattern` itself was already left alone too, since
+   its only caller is the unified search path.
+
+**Not done:** ADR-8's "Evidence" section update, and Option A (unified
+search pushdown) — deferred per the measured-impact note above; revisit only
+if unified search's deep-offset cost shows up in real usage.
 
 ## Sequencing
 
-V2.5-01 (trigram index) is safe to ship independently and first — additive,
-no behavior change. V2.5-02 (pagination) touches control flow and needs the
-Option A/B call above before starting.
+Both items are now done. V2.5-01 shipped first (additive, no behavior
+change); V2.5-02 followed once the Option A/B call was made (Option B,
+scoped down after the pagination benchmark showed a moderate rather than
+dramatic gain).
