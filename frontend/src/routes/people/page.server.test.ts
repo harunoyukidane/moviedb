@@ -35,4 +35,33 @@ describe('/people load', () => {
     expect(result.page.items[0].photoUrl).toEqual('/api/people/p1/photo');
     expect(result.page.items[1].photoUrl).toBeNull();
   });
+
+  it('passes a trimmed query string through to listPeople', async () => {
+    listPeopleMock.mockResolvedValue({ items: [], total: 0, limit: 24, offset: 0 });
+    const result = (await load(makeEvent('?q=%20Keanu%20'))) as any;
+    expect(listPeopleMock).toHaveBeenCalledWith('Keanu', 24, 0, expect.anything());
+    expect(result.query).toEqual('Keanu');
+  });
+
+  it('collapses a blank query to null', async () => {
+    listPeopleMock.mockResolvedValue({ items: [], total: 0, limit: 24, offset: 0 });
+    const result = (await load(makeEvent('?q=%20%20'))) as any;
+    expect(listPeopleMock).toHaveBeenCalledWith(null, 24, 0, expect.anything());
+    expect(result.query).toBeNull();
+  });
+
+  it('clamps an overlong query to 100 characters', async () => {
+    listPeopleMock.mockResolvedValue({ items: [], total: 0, limit: 24, offset: 0 });
+    const long = 'a'.repeat(150);
+    const result = (await load(makeEvent(`?q=${long}`))) as any;
+    expect(result.query).toHaveLength(100);
+    expect(listPeopleMock).toHaveBeenCalledWith('a'.repeat(100), 24, 0, expect.anything());
+  });
+
+  it('retains the query across pagination via the offset param', async () => {
+    listPeopleMock.mockResolvedValue({ items: [], total: 50, limit: 24, offset: 24 });
+    const result = (await load(makeEvent('?q=Keanu&offset=24'))) as any;
+    expect(listPeopleMock).toHaveBeenCalledWith('Keanu', 24, 24, expect.anything());
+    expect(result.query).toEqual('Keanu');
+  });
 });

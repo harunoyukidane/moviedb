@@ -2,6 +2,7 @@
   import type { PageData } from './$types';
   import StateBanner from '$lib/components/StateBanner.svelte';
   import PersonListRow from '$lib/features/people/PersonListRow.svelte';
+  import PersonSearch from '$lib/features/people/PersonSearch.svelte';
 
   export let data: PageData;
   $: page = data.page;
@@ -13,6 +14,18 @@
     const born = person.birthDate.slice(0, 4);
     return person.deathDate ? `${born}–${person.deathDate.slice(0, 4)}` : born;
   }
+
+  /** Pager hrefs carry the active search query so paging never drops it. */
+  function pagerHref(offset: number, query: string | null): string {
+    const params = new URLSearchParams();
+    if (query) params.set('q', query);
+    if (offset > 0) params.set('offset', String(offset));
+    const qs = params.toString();
+    return qs ? `/people?${qs}` : '/people';
+  }
+
+  $: prevHref = pagerHref(Math.max(0, page.offset - page.limit), data.query);
+  $: nextHref = pagerHref(page.offset + page.limit, data.query);
 </script>
 
 <div class="head-row">
@@ -20,10 +33,18 @@
   <a class="new-link" href="/people/new">+ New person</a>
 </div>
 
+<PersonSearch query={data.query} />
+
 {#if data.error}
   <StateBanner variant="error">{data.error}</StateBanner>
 {:else if page.items.length === 0}
-  <StateBanner variant="info">No people yet. Add someone to start crediting them on movies.</StateBanner>
+  <StateBanner variant="info">
+    {#if data.query}
+      No people match “{data.query}”.
+    {:else}
+      No people yet. Add someone to start crediting them on movies.
+    {/if}
+  </StateBanner>
 {:else}
   <ul class="photo-grid" aria-label="People">
     {#each page.items as person (person.id)}
@@ -33,9 +54,9 @@
     {/each}
   </ul>
   <nav class="pager" aria-label="Pagination">
-    {#if hasPrev}<a href={`/people?offset=${Math.max(0, page.offset - page.limit)}`}>← Previous</a>{/if}
+    {#if hasPrev}<a href={prevHref}>← Previous</a>{/if}
     <span class="count">{page.offset + 1}–{Math.min(page.offset + page.limit, page.total)} of {page.total}</span>
-    {#if hasNext}<a href={`/people?offset=${page.offset + page.limit}`}>Next →</a>{/if}
+    {#if hasNext}<a href={nextHref}>Next →</a>{/if}
   </nav>
 {/if}
 
