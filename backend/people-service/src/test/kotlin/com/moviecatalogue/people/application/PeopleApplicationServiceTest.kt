@@ -236,6 +236,35 @@ class PeopleApplicationServiceTest {
     }
 
     @Test
+    fun `updatePerson with only birth_country_code in the mask leaves the rest of the profile untouched`() {
+        // Regression: selecting a country and saving must not wipe name, biography,
+        // dates or place of birth - only the masked field may change.
+        val id = UUID.randomUUID()
+        val existing = person(id = id, name = "Al Pacino", version = 5)
+        existing.biography = "Legendary American actor known for The Godfather."
+        existing.birthDate = LocalDate.of(1940, 4, 25)
+        existing.placeOfBirth = "New York City"
+        every { repository.findById(id) } returns Optional.of(existing)
+        every { repository.saveAndFlush(any()) } answers { firstArg() }
+        every { countryCodes.findById("FR") } returns
+            Optional.of(com.moviecatalogue.people.reference.CountryCode(code = "FR", name = "France", active = true))
+
+        val view = service.updatePerson(
+            UpdatePersonCommand(
+                id = id, expectedVersion = 5, maskPaths = setOf("birth_country_code"),
+                name = null, biography = null, birthDate = null, deathDate = null,
+                placeOfBirth = null, profilePath = null, birthCountryCode = "FR",
+            ),
+        )
+
+        assertThat(view.birthCountryCode).isEqualTo("FR")
+        assertThat(view.name).isEqualTo("Al Pacino")
+        assertThat(view.biography).isEqualTo("Legendary American actor known for The Godfather.")
+        assertThat(view.birthDate).isEqualTo(LocalDate.of(1940, 4, 25))
+        assertThat(view.placeOfBirth).isEqualTo("New York City")
+    }
+
+    @Test
     fun `updatePerson maps stale version to VersionConflict`() {
         val id = UUID.randomUUID()
         every { repository.findById(id) } returns Optional.of(person(id = id, version = 9))

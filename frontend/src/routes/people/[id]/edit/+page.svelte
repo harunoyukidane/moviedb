@@ -106,7 +106,11 @@
       await checkStale();
       saving = true;
       return async ({ update }) => {
-        await update();
+        // Fields here are populated from server data (`value={v.name}`, etc.),
+        // not via bind:value, so the default reset-to-defaultValue on success
+        // would blank them until the user reloads: reload data without
+        // resetting the form (mirrors the movie edit page's fix for the same bug).
+        await update({ reset: false });
         saving = false;
         await focusFirstInvalid();
       };

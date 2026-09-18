@@ -75,6 +75,36 @@ describe('/people/[id]/edit update action', () => {
     );
   });
 
+  it('selecting a country only sends birthCountryCode - the rest of the profile is not wiped', async () => {
+    // Regression: reported as "select a country and save, and the whole
+    // profile got wiped". The mask must stay narrow to exactly the field
+    // that changed (F21/V2.2-11), never widen to every field in the form.
+    updatePersonMock.mockResolvedValue({});
+    await actions.update(
+      makeActionEvent({
+        expectedVersion: '5',
+        'base.name': 'Al Pacino',
+        name: 'Al Pacino', // unchanged
+        'base.biography': 'Legendary American actor known for The Godfather.',
+        biography: 'Legendary American actor known for The Godfather.', // unchanged
+        'base.birthDate': '1940-04-25',
+        birthDate: '1940-04-25', // unchanged
+        'base.deathDate': '',
+        deathDate: '', // unchanged
+        'base.placeOfBirth': 'New York City',
+        placeOfBirth: 'New York City', // unchanged
+        'base.birthCountryCode': '',
+        birthCountryCode: 'FR' // the only real change
+      })
+    );
+    expect(updatePersonMock).toHaveBeenCalledWith(
+      'p1',
+      5,
+      { birthCountryCode: 'FR' },
+      expect.anything()
+    );
+  });
+
   it('only changed fields are sent in the update mask (F21)', async () => {
     updatePersonMock.mockResolvedValue({});
     await actions.update(
