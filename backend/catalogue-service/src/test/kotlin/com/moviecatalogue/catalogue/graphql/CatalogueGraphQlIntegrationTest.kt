@@ -722,6 +722,22 @@ class CatalogueGraphQlIntegrationTest {
     }
 
     @Test
+    fun `a script-payload comment, in text and author name, round-trips unmodified through addMovieComment and comments (V2.3-03)`() {
+        val movieId = createMovie("ScriptPayloadComments")
+        val payload = """<script>alert('xss')</script>"""
+        tester.document(
+            """mutation(${'$'}author: String!, ${'$'}text: String!) {
+                 addMovieComment(movieId: "$movieId", input: { authorDisplayName: ${'$'}author, text: ${'$'}text }) { id } }""",
+        ).variable("author", payload).variable("text", payload).execute()
+
+        val result = tester.document(
+            """query { comments(movieId: "$movieId") { items { authorDisplayName text } } }""",
+        ).execute()
+        assertThat(result.path("comments.items[0].authorDisplayName").entity(String::class.java).get()).isEqualTo(payload)
+        assertThat(result.path("comments.items[0].text").entity(String::class.java).get()).isEqualTo(payload)
+    }
+
+    @Test
     fun `comments are returned in reverse chronological order with pagination`() {
         val movieId = createMovie("Chatty")
         val ids = (1..3).map { addComment(movieId, "Author $it", "Comment $it") }

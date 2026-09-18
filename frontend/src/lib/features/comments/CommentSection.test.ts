@@ -32,6 +32,18 @@ describe('CommentSection', () => {
     expect(screen.getByText('Loved it')).toBeInTheDocument();
   });
 
+  it('renders a script payload in text and author name as escaped text, not executable markup (V2.3-03)', () => {
+    const payload = '<script>window.__xss = true;</script>';
+    render(CommentSection, {
+      props: { comments: [comment({ id: 'c1', authorDisplayName: payload, text: payload })] }
+    });
+
+    // Two occurrences: author name and comment text, both rendered as literal text.
+    expect(screen.getAllByText(payload)).toHaveLength(2);
+    expect(document.querySelector('script')).toBeNull();
+    expect((window as unknown as { __xss?: boolean }).__xss).toBeUndefined();
+  });
+
   it('preserves the given comment order rather than re-sorting (server already orders reverse-chronologically)', () => {
     render(CommentSection, {
       props: {

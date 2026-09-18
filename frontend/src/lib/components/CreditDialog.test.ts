@@ -2,8 +2,30 @@ import { render, screen } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { tick } from 'svelte';
-import CreditDialog from './CreditDialog.svelte';
 import type { CreditRoleCode } from '$lib/server/types';
+
+// The addCredit form must go through SvelteKit's progressive enhancement
+// (`use:enhance`), not a native browser POST navigation: a native top-level
+// form POST here was found to omit the `Origin` header, which SvelteKit's
+// CSRF check rejects with "Cross-site POST form submissions are forbidden"
+// even though the request is same-origin. Every other form action in this
+// app already uses `use:enhance`; this one didn't, which is what broke it.
+const enhanceSpy = vi.fn();
+const mockUpdate = vi.fn(async () => {});
+vi.mock('$app/forms', () => ({
+  enhance: (form: HTMLFormElement, submit: () => any) => {
+    enhanceSpy(form);
+    const handler = async (event: Event) => {
+      event.preventDefault();
+      const callback = await submit();
+      if (callback) await callback({ update: mockUpdate });
+    };
+    form.addEventListener('submit', handler);
+    return { destroy: () => form.removeEventListener('submit', handler) };
+  }
+}));
+
+import CreditDialog from './CreditDialog.svelte';
 
 const roles: CreditRoleCode[] = [
   { code: 'ACTOR', title: 'Actor', category: 'CAST', department: 'Acting', description: '', active: true },
@@ -89,5 +111,29 @@ describe('CreditDialog', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(/couldn't search people/i);
     // the spinner clears rather than sticking around forever
     expect(screen.queryByText('Searching…')).not.toBeInTheDocument();
+  });
+
+  it('submits the addCredit form through use:enhance rather than a native POST, and closes on success', async () => {
+    enhanceSpy.mockClear();
+    mockUpdate.mockClear();
+    const user = userEvent.setup();
+    render(CreditDialog, { props: { open: true, roles } });
+    await tick();
+
+    await user.type(screen.getByLabelText('Person'), 'Jane');
+    await new Promise((r) => setTimeout(r, 260));
+    await user.click(await screen.findByRole('button', { name: 'Jane Star' }));
+    await user.selectOptions(screen.getByLabelText('Role'), 'DIRECTOR');
+
+    // A form submitted natively (no use:enhance) never reaches our mocked
+    // `enhance`, so this also guards against someone dropping the directive.
+    expect(enhanceSpy).toHaveBeenCalledWith(expect.any(HTMLFormElement));
+
+    await user.click(screen.getByRole('button', { name: 'Add credit' }));
+
+    expect(mockUpdate).toHaveBeenCalledOnce();
+    // close() runs after update(): the dialog unmounts instead of the page
+    // doing a full navigation (which is what native submission did before).
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });

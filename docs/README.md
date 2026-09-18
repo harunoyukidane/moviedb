@@ -20,7 +20,7 @@ last_verified: 2026-09-17
 | Deciding something hard to reverse | [decisions/README.md](decisions/README.md), then write a new ADR |
 | Checking what's actually done | [verification/README.md](verification/README.md) |
 | Input validation / error messages / error codes | [plans/v2.2/README.md](plans/v2.2/README.md) — the reviewed state of the whole validation path and the open backlog against it |
-| Security hardening (CSP, injection defenses) | [plans/v2.3/README.md](plans/v2.3/README.md) — blocked on v2.2 |
+| Security hardening (CSP, injection defenses) | [plans/v2.3/README.md](plans/v2.3/README.md) — done |
 
 ## Rules
 
@@ -45,6 +45,6 @@ docs/
 ├── plans/v2/                    active v2 backlog (release hardening only; features archived)
 ├── plans/v2.1/                  post-v2 UI fixes backlog
 ├── plans/v2.2/                  validation + error-handling backlog
-├── plans/v2.3/                  injection hardening (blocked on v2.2)
+├── plans/v2.3/                  injection hardening (done)
 └── archive/                     superseded content, historical reference only
 ```

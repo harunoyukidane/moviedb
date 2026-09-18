@@ -1,5 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher, tick } from 'svelte';
+  import { enhance } from '$app/forms';
   import type { CreditRoleCode } from '$lib/server/types';
   import CharCounter from './CharCounter.svelte';
 
@@ -120,7 +121,14 @@
     >
       <h2 id="credit-title">Add credit</h2>
 
-      <form method="POST" action="?/addCredit">
+      <form
+        method="POST"
+        action="?/addCredit"
+        use:enhance={() => async ({ update }) => {
+          await update();
+          close();
+        }}
+      >
         <div class="field">
           <label for="personQuery">Person</label>
           <input

@@ -3,14 +3,11 @@
 ```yaml
 status: current
 canonical_for: v2.3-backlog
-last_verified: 2026-09-17
+last_verified: 2026-09-18
 ```
 
-**Blocked by [plans/v2.2/README.md](../v2.2/README.md).** Do not start this
-until every v2.2 item is implemented, tested and verified. Nothing here fixes a
-live defect; it is defense-in-depth layered *beneath* protections that
-currently hold, and mixing it into the v2.2 slice would make that slice harder
-to review and harder to sign off.
+v2.2 is fully done (see [plans/v2.2/README.md](../v2.2/README.md) status
+table), so this slice is unblocked and implemented below.
 
 Scope came out of the injection audit run during the v2.2 review — see
 [Injection: what was checked, and what is actually missing](../v2.2/README.md#injection-what-was-checked-and-what-is-actually-missing)
@@ -21,9 +18,9 @@ comment fields.
 
 | Item | Area | Status |
 |---|---|---|
-| [V2.3-01](#v23-01-content-security-policy-at-the-bff) | A Content-Security-Policy at the BFF | ☐ blocked on v2.2 |
-| [V2.3-02](#v23-02-security-headers-at-the-public-entry-point) | Security headers at the public entry point | ☐ blocked on v2.2 |
-| [V2.3-03](#v23-03-standing-injection-tests) | Standing injection tests | ☐ blocked on v2.2 |
+| [V2.3-01](#v23-01-content-security-policy-at-the-bff) | A Content-Security-Policy at the BFF | ✅ done |
+| [V2.3-02](#v23-02-security-headers-at-the-public-entry-point) | Security headers at the public entry point | ✅ done |
+| [V2.3-03](#v23-03-standing-injection-tests) | Standing injection tests | ✅ done |
 
 ## What the audit found
 
@@ -51,10 +48,11 @@ a DOM sink — which is exactly when nobody is thinking about CSP.
 
 ---
 
-## V2.3-01: Content-Security-Policy at the BFF
+## V2.3-01: Content-Security-Policy at the BFF ✅
 
-Add a `kit.csp` block to `svelte.config.js` with `mode: 'auto'`, so SvelteKit
-emits nonces for its own inline scripts rather than forcing `'unsafe-inline'`:
+Added a `kit.csp` block to [svelte.config.js](../../../frontend/svelte.config.js)
+with `mode: 'auto'`, so SvelteKit emits nonces for its own inline scripts
+rather than forcing `'unsafe-inline'`:
 
 - `default-src 'self'`
 - `object-src 'none'`
@@ -62,39 +60,49 @@ emits nonces for its own inline scripts rather than forcing `'unsafe-inline'`:
 - `frame-ancestors 'none'`
 - `img-src 'self' data:` — artwork and person photos are served same-origin
   through the BFF media proxy, so no remote image host is needed
+- `style-src-attr 'unsafe-inline'` — scoped narrowly to the `style` HTML
+  attribute only (not `style-src` generally, and not `script-src`).
+  [ArtworkUpload.svelte](../../../frontend/src/lib/components/ArtworkUpload.svelte)
+  sets an inline `style` attribute for its progress-bar width, computed at
+  runtime, which SvelteKit's own nonce/hash handling doesn't cover (that only
+  applies to `<style>` blocks and script tags). The static
+  `style="display: contents"` wrapper in `app.html` was moved to a CSS class
+  instead of relying on this exception.
 
-**Verify the media paths under it before merging.** `/api/artwork/[artworkId]`
-and `/api/people/[personId]/photo` are the highest-risk thing to break, and a
-CSP that silently stops images loading is worse than no CSP. Check both the
-present-image and fallback paths.
+**Media paths verified before merging**, against the real Catalogue/People
+services: a movie list, a movie detail page (poster image), and the movie
+edit page all render with zero CSP console violations. Went straight to
+enforcing rather than `Content-Security-Policy-Report-Only` — the only
+violation found in testing (the inline `style` attribute above) was
+diagnosed and fixed, not just observed, so there was nothing left to watch in
+report-only mode.
 
-Start in `Content-Security-Policy-Report-Only` for one release if anything
-looks marginal, then switch to enforcing. Report-only is a legitimate rollout
-step, not an excuse to stop half-way — pick a release to flip it and record it
-here.
+## V2.3-02: security headers at the public entry point ✅
 
-## V2.3-02: security headers at the public entry point
-
-Mirror the Catalogue's `SecurityHeadersFilter` set at the BFF, via
-`hooks.server.ts`, since that is the surface a browser actually reaches. The
-Catalogue keeps its own copy: the two are defense-in-depth for different
+Mirrors the Catalogue's `SecurityHeadersFilter` set at the BFF, via
+[hooks.server.ts](../../../frontend/src/hooks.server.ts) calling
+[`applySecurityHeaders`](../../../frontend/src/lib/server/security-headers.ts).
+The Catalogue keeps its own copy: the two are defense-in-depth for different
 consumers, not a duplication to consolidate.
 
-## V2.3-03: standing injection tests
+## V2.3-03: standing injection tests ✅
 
-Turn the one-off audit into tests, so it cannot silently rot:
+Turned the one-off audit into tests, so it cannot silently rot:
 
-- **Stored XSS:** post a comment whose text *and* author display name are
-  script payloads, then assert the rendered page contains them as escaped text
-  and that no script executes. This is the natural companion to v2.2's emoji
-  round-trip test — both prove the comment path stores exactly what it was
-  given and renders it safely.
-- **Source guard:** assert no `.svelte` file introduces `{@html}` and no
-  frontend source introduces `innerHTML`, `outerHTML`, `eval(` or
-  `new Function`. Cheap, and the kind of check that only ever fails on the day
-  it matters.
-- **Header test:** assert the CSP and the security headers are present on a BFF
-  HTML response.
+- **Stored XSS:** [CatalogueGraphQlIntegrationTest.kt](../../../backend/catalogue-service/src/test/kotlin/com/moviecatalogue/catalogue/graphql/CatalogueGraphQlIntegrationTest.kt)
+  round-trips a `<script>` payload through `addMovieComment`/`comments` in both
+  `text` and `authorDisplayName`, unmodified — the natural companion to
+  v2.2's emoji round-trip test, both proving the comment path stores exactly
+  what it was given. [CommentSection.test.ts](../../../frontend/src/lib/features/comments/CommentSection.test.ts)
+  renders the same payload and asserts it lands as literal text (no `<script>`
+  element created, no execution).
+- **Source guard:** [source-guard.test.ts](../../../frontend/src/source-guard.test.ts)
+  asserts no `.svelte` file introduces `{@html}` and no frontend source
+  introduces `innerHTML`, `outerHTML`, `eval(` or `new Function`.
+- **Header test:** [security-headers.spec.ts](../../../frontend/e2e/security-headers.spec.ts)
+  asserts the CSP and the security headers are present on a built BFF HTML
+  response (CSP is emitted by SvelteKit itself only on a real rendered
+  response, so this has to be a Playwright e2e test, not a unit test).
 
 Deliberately **not** input-side filtering: no HTML or script blocklist on
 stored text. Escaping at render is the defense and it works; CSP is the layer

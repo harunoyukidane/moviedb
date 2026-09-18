@@ -1,3 +1,7 @@
+.sveltekit-body-wrapper {
+  display: contents;
+}
+
 :root {
   /* One accent colour; restrained cinema palette. */
   --accent: #e0b64a;
