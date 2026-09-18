@@ -9,18 +9,32 @@
 # Usage:
 #   ./scripts/setup.sh              # bring up + seed (needs TMDB_READ_TOKEN)
 #   ./scripts/setup.sh --skip-seed  # bring up an empty, usable app; no seeding
+#   ./scripts/setup.sh --frontend   # rebuild+redeploy the frontend only (no db reset/reseed)
+#   ./scripts/setup.sh --backend    # rebuild+redeploy the backend services only (no db reset/reseed)
+#   ./scripts/setup.sh --buildall   # rebuild+redeploy everything (no db reset/reseed)
 #
 set -euo pipefail
 
 cd "$(dirname "$0")/.."   # repo root
 
 SKIP_SEED=0
+FRONTEND_ONLY=0
+BACKEND_ONLY=0
+BUILD_ALL=0
 for arg in "$@"; do
   case "$arg" in
     --skip-seed) SKIP_SEED=1 ;;
+    --frontend) FRONTEND_ONLY=1 ;;
+    --backend) BACKEND_ONLY=1 ;;
+    --buildall) BUILD_ALL=1 ;;
     *) echo "unknown option: $arg" >&2; exit 2 ;;
   esac
 done
+
+if [ $((FRONTEND_ONLY + BACKEND_ONLY + BUILD_ALL)) -gt 1 ]; then
+  echo "ERROR: --frontend, --backend, and --buildall are mutually exclusive." >&2
+  exit 2
+fi
 
 # --- 1. validate tooling ---
 if ! command -v docker >/dev/null 2>&1; then
@@ -37,14 +51,48 @@ if [ -f .env ]; then
   set -a; . ./.env; set +a
 fi
 
+build_backend_jars() {
+  echo "==> Building service jars on the host…"
+  ( cd backend && ./gradlew :catalogue-service:bootJar :people-service:bootJar --no-daemon )
+}
+
+build_frontend() {
+  # The frontend image copies a host-built adapter-node bundle.
+  echo "==> Building the frontend on the host…"
+  ( cd frontend && { [ -d node_modules ] || npm install --no-audit --no-fund; } && npm run build )
+}
+
+# --- partial build+deploy modes: never touch the databases, never reseed ---
+if [ "$FRONTEND_ONLY" -eq 1 ] || [ "$BACKEND_ONLY" -eq 1 ] || [ "$BUILD_ALL" -eq 1 ]; then
+  [ "$FRONTEND_ONLY" -eq 1 -o "$BUILD_ALL" -eq 1 ] && build_frontend
+  [ "$BACKEND_ONLY" -eq 1 -o "$BUILD_ALL" -eq 1 ] && build_backend_jars
+
+  if [ "$FRONTEND_ONLY" -eq 1 ]; then
+    echo "==> Rebuilding and redeploying the frontend container only…"
+    docker compose up -d --build --wait frontend
+  elif [ "$BACKEND_ONLY" -eq 1 ]; then
+    echo "==> Rebuilding and redeploying the backend containers only…"
+    docker compose up -d --build --wait catalogue-service people-service
+  else
+    echo "==> Rebuilding and redeploying the full stack (databases untouched, no reseed)…"
+    docker compose up -d --build --wait
+  fi
+
+  CATALOGUE_PORT="${CATALOGUE_HTTP_PORT:-8080}"
+  echo ""
+  echo "======================================================================"
+  echo " MovieDB redeployed (databases untouched, no reseed)."
+  echo "   Browser UI (BFF):   http://localhost:${FRONTEND_PORT:-4173}"
+  echo "   Catalogue GraphQL:  http://localhost:${CATALOGUE_PORT}/graphql"
+  echo "   Catalogue health:   http://localhost:${CATALOGUE_PORT}/actuator/health"
+  echo "======================================================================"
+  exit 0
+fi
+
 # --- 2 & 3. build the boot jars on the host, then build + start containers ---
 # The images copy host-built jars (see the Dockerfiles), so build them first.
-echo "==> Building service jars on the host…"
-( cd backend && ./gradlew :catalogue-service:bootJar :people-service:bootJar --no-daemon )
-
-# The frontend image copies a host-built adapter-node bundle.
-echo "==> Building the frontend on the host…"
-( cd frontend && { [ -d node_modules ] || npm install --no-audit --no-fund; } && npm run build )
+build_backend_jars
+build_frontend
 
 echo "==> Starting stack (building images, waiting for health)…"
 docker compose up -d --build --wait

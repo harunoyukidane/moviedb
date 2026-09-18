@@ -17,20 +17,48 @@
   It publishes People's gRPC to localhost, trusts the intercepting proxy CA, and
   runs the importer on the host.
 
+.PARAMETER Frontend
+  Rebuild and redeploy only the frontend (host bundle + its container). Never
+  touches the databases and never seeds.
+
+.PARAMETER Backend
+  Rebuild and redeploy only the backend services (catalogue-service,
+  people-service). Never touches the databases and never seeds.
+
+.PARAMETER BuildAll
+  Rebuild and redeploy everything (frontend + backend + supporting containers)
+  without dropping the databases or reseeding. Use this for a regular
+  redeploy once the demo catalogue is already populated.
+
 .EXAMPLE
   ./scripts/setup.ps1
 .EXAMPLE
   ./scripts/setup.ps1 -SkipSeed
 .EXAMPLE
   ./scripts/setup.ps1 -Cloudflare
+.EXAMPLE
+  ./scripts/setup.ps1 -Frontend
+.EXAMPLE
+  ./scripts/setup.ps1 -Backend
+.EXAMPLE
+  ./scripts/setup.ps1 -BuildAll
 #>
 [CmdletBinding()]
 param(
   [switch]$SkipSeed,
-  [switch]$Cloudflare
+  [switch]$Cloudflare,
+  [switch]$Frontend,
+  [switch]$Backend,
+  [switch]$BuildAll
 )
 
 $ErrorActionPreference = 'Stop'
+
+$partialModeCount = @($Frontend, $Backend, $BuildAll) | Where-Object { $_ } | Measure-Object | Select-Object -ExpandProperty Count
+if ($partialModeCount -gt 1) {
+  Write-Error '-Frontend, -Backend, and -BuildAll are mutually exclusive.'
+  exit 2
+}
 
 # repo root = parent of this script's folder
 $repoRoot = Split-Path -Parent $PSScriptRoot
@@ -63,31 +91,66 @@ if (Test-Path .env) {
   }
 }
 
+function Build-BackendJars {
+  Write-Host '==> Building service jars on the host...'
+  Push-Location backend
+  try {
+    & .\gradlew.bat ':catalogue-service:bootJar' ':people-service:bootJar' `
+      --no-daemon --console=plain '-Djavax.net.ssl.trustStoreType=WINDOWS-ROOT'
+    if ($LASTEXITCODE -ne 0) { throw "gradle bootJar failed (exit $LASTEXITCODE)" }
+  } finally {
+    Pop-Location
+  }
+}
+
+function Build-Frontend {
+  Write-Host '==> Building the frontend on the host...'
+  Push-Location frontend
+  try {
+    if (-not (Test-Path node_modules)) { npm install --no-audit --no-fund }
+    npm run build
+    if ($LASTEXITCODE -ne 0) { throw "frontend build failed (exit $LASTEXITCODE)" }
+  } finally {
+    Pop-Location
+  }
+}
+
+# --- partial build+deploy modes: never touch the databases, never reseed ---
+if ($Frontend -or $Backend -or $BuildAll) {
+  if ($Frontend -or $BuildAll) { Build-Frontend }
+  if ($Backend -or $BuildAll) { Build-BackendJars }
+
+  if ($Frontend) {
+    Write-Host '==> Rebuilding and redeploying the frontend container only...'
+    docker compose up -d --build --wait frontend
+  } elseif ($Backend) {
+    Write-Host '==> Rebuilding and redeploying the backend containers only...'
+    docker compose up -d --build --wait catalogue-service people-service
+  } else {
+    Write-Host '==> Rebuilding and redeploying the full stack (databases untouched, no reseed)...'
+    docker compose up -d --build --wait
+  }
+  if ($LASTEXITCODE -ne 0) { Write-Error 'docker compose up failed.'; exit 1 }
+
+  $cataloguePort = if ($env:CATALOGUE_HTTP_PORT) { $env:CATALOGUE_HTTP_PORT } else { '8080' }
+  Write-Host ''
+  Write-Host '======================================================================'
+  Write-Host ' MovieDB redeployed (databases untouched, no reseed).'
+  $frontendPort = if ($env:FRONTEND_PORT) { $env:FRONTEND_PORT } else { '4173' }
+  Write-Host "   Browser UI (BFF):   http://localhost:$frontendPort"
+  Write-Host "   Catalogue GraphQL:  http://localhost:$cataloguePort/graphql"
+  Write-Host "   Catalogue health:   http://localhost:$cataloguePort/actuator/health"
+  Write-Host '======================================================================'
+  exit 0
+}
+
 # --- 2 & 3. build the boot jars on the host, then build+start containers ---
 # The images copy host-built jars (see the Dockerfiles), so build them first.
-# The trust-store flag lets Gradle download through a TLS-intercepting proxy on
-# Windows; harmless elsewhere.
-Write-Host '==> Building service jars on the host...'
-Push-Location backend
-try {
-  & .\gradlew.bat ':catalogue-service:bootJar' ':people-service:bootJar' `
-    --no-daemon --console=plain '-Djavax.net.ssl.trustStoreType=WINDOWS-ROOT'
-  if ($LASTEXITCODE -ne 0) { throw "gradle bootJar failed (exit $LASTEXITCODE)" }
-} finally {
-  Pop-Location
-}
+Build-BackendJars
 
 # The frontend image copies a host-built adapter-node bundle (same rationale as
 # the backend images: avoids npm install inside the container).
-Write-Host '==> Building the frontend on the host...'
-Push-Location frontend
-try {
-  if (-not (Test-Path node_modules)) { npm install --no-audit --no-fund }
-  npm run build
-  if ($LASTEXITCODE -ne 0) { throw "frontend build failed (exit $LASTEXITCODE)" }
-} finally {
-  Pop-Location
-}
+Build-Frontend
 
 Write-Host '==> Starting stack (building images, waiting for health)...'
 docker compose up -d --build --wait
