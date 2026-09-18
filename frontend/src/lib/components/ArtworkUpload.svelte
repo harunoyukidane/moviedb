@@ -1,5 +1,6 @@
 <script lang="ts">
   import { invalidateAll } from '$app/navigation';
+  import { deserialize } from '$app/forms';
   import { messageForCode } from '$lib/errors';
 
   // Posts multipart to a SvelteKit form action (server relays to the media
@@ -36,27 +37,27 @@
     });
     xhr.addEventListener('load', async () => {
       uploading = false;
-      if (xhr.status >= 200 && xhr.status < 300) {
+      // SvelteKit form actions respond HTTP 200 for both success AND fail() -
+      // the real outcome is the `type`/`status` inside the response envelope,
+      // never the transport-level xhr.status. Trusting xhr.status here showed
+      // "Artwork uploaded." for a rejected file (bad image, too large, etc.)
+      // even though nothing was saved. `deserialize` is SvelteKit's own parser
+      // for this envelope (the counterpart to what `use:enhance` uses).
+      let result: ReturnType<typeof deserialize> | undefined;
+      try {
+        result = deserialize(xhr.responseText);
+      } catch {
+        result = undefined;
+      }
+      if (result?.type === 'success') {
         progress = 100;
         message = 'Artwork uploaded.';
         messageVariant = 'info';
         file = null;
         await invalidateAll();
       } else {
-        // SvelteKit action failures return a JSON envelope; extract our code/message
-        let code = 'INTERNAL_ERROR';
-        try {
-          const parsed = JSON.parse(xhr.responseText);
-          const data = parsed?.data ? JSON.parse(parsed.data) : parsed;
-          if (typeof data?.message === 'string') {
-            message = data.message;
-            messageVariant = 'error';
-          }
-        } catch {
-          message = messageForCode(code);
-          messageVariant = 'error';
-        }
-        if (!message) message = messageForCode(code);
+        const data = result?.type === 'failure' ? (result.data as { message?: string } | undefined) : undefined;
+        message = typeof data?.message === 'string' ? data.message : messageForCode('INTERNAL_ERROR');
         messageVariant = 'error';
       }
     });

@@ -21,7 +21,10 @@ export const load: PageServerLoad = async ({ params, request }) => {
       listCountries(context).catch(() => [])
     ]);
     if (!person) throw error(404, { message: messageForCode('NOT_FOUND') });
-    return { person, countries, photoUrl: `/api/people/${params.id}/photo` };
+    // Versioned so the browser's 30-day photo cache (PersonPhotoController) is
+    // busted whenever the person changes - including a photo re-upload, which
+    // bumps @Version - instead of showing the old photo until the cache expires.
+    return { person, countries, photoUrl: `/api/people/${params.id}/photo?v=${person.version}` };
   } catch (e) {
     throwPageLoadError(e);
   }

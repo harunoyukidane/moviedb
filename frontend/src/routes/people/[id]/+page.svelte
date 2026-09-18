@@ -8,6 +8,10 @@
 
   $: person = data.person;
   let photoError = false;
+  // A person with no photo yet 404s on the initial <img>, latching photoError.
+  // A photo upload/delete elsewhere changes data.photoUrl (it's version-busted);
+  // without this, the image would stay hidden forever after navigating back here.
+  $: data.photoUrl, (photoError = false);
 
   $: birthPlace = [person.placeOfBirth, person.birthCountry?.name].filter(Boolean).join(' — ');
 </script>

@@ -18,6 +18,10 @@
   $: person = data.person;
   let saving = false;
   let photoError = false;
+  // A person with no photo yet 404s on the initial <img>, latching photoError.
+  // Uploading a photo changes data.photoUrl (it's version-busted); without this,
+  // the image would stay hidden forever since photoError never clears itself.
+  $: data.photoUrl, (photoError = false);
   let confirmDeleteOpen = false;
   let detailsForm: HTMLFormElement;
   let stale = false;
