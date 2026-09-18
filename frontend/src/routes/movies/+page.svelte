@@ -2,6 +2,7 @@
   import type { PageData } from './$types';
   import { page } from '$app/stores';
   import StateBanner from '$lib/components/StateBanner.svelte';
+  import AlphabetPager from '$lib/components/AlphabetPager.svelte';
   import MovieListToolbar from '$lib/features/movies/MovieListToolbar.svelte';
   import MovieViewToggle from '$lib/features/movies/MovieViewToggle.svelte';
   import MovieClusterView from '$lib/features/movies/MovieClusterView.svelte';
@@ -49,6 +50,24 @@
   $: nextHref = buildMovieHref(nextOffset, view, data.filter);
   $: clusterHref = buildMovieHref(pageData.offset, 'cluster', data.filter);
   $: listHref = buildMovieHref(pageData.offset, 'list', data.filter);
+
+  /** Letter hrefs carry the active view/filters but drop offset - the server recomputes it from the letter. */
+  function letterHref(
+    letter: string,
+    targetView: 'cluster' | 'list',
+    filter: { genreCode: string | null; releaseYear: number | null }
+  ): string {
+    const params = new URLSearchParams();
+    if (filter.genreCode) params.set('genreCode', filter.genreCode);
+    if (filter.releaseYear != null) params.set('releaseYear', String(filter.releaseYear));
+    if (targetView !== 'cluster') params.set('view', targetView);
+    params.set('letter', letter);
+    return `/movies?${params.toString()}`;
+  }
+
+  $: activeLetter = /^[A-Za-z]/.test(pageData.items[0]?.title ?? '')
+    ? pageData.items[0].title[0].toUpperCase()
+    : null;
 </script>
 
 <div class="head-row">
@@ -89,6 +108,7 @@
     <span class="count">{pageData.offset + 1}–{Math.min(pageData.offset + pageData.limit, pageData.total)} of {pageData.total}</span>
     {#if hasNext}<a href={nextHref}>Next →</a>{/if}
   </nav>
+  <AlphabetPager hrefFor={(letter) => letterHref(letter, view, data.filter)} {activeLetter} />
 {/if}
 
 <style>

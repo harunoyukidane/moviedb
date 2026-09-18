@@ -10,6 +10,7 @@ import com.moviecatalogue.people.v1.DeletePersonRequest
 import com.moviecatalogue.people.v1.GetPeopleRequest
 import com.moviecatalogue.people.v1.GetPersonRequest
 import com.moviecatalogue.people.v1.ListCountriesRequest
+import com.moviecatalogue.people.v1.NameOffsetRequest
 import com.moviecatalogue.people.v1.PeopleServiceGrpc
 import com.moviecatalogue.people.v1.PersonPatch
 import com.moviecatalogue.people.v1.PersonResponse
@@ -86,6 +87,14 @@ class PeopleGrpcClient(
             limit = limit,
             offset = offset,
         )
+    }
+
+    override fun nameOffset(letter: String, query: String?): Int = call {
+        val request = NameOffsetRequest.newBuilder()
+            .setLetter(letter)
+            .setQuery(query ?: "")
+            .build()
+        read().getNameOffset(request).offset
     }
 
     override fun createPerson(command: CreatePersonData): PersonData = call {

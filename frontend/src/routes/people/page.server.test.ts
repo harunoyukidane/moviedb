@@ -1,9 +1,11 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 const listPeopleMock = vi.fn();
+const personNameOffsetMock = vi.fn();
 
 vi.mock('$lib/server/operations', () => ({
-  listPeople: (...args: unknown[]) => listPeopleMock(...args)
+  listPeople: (...args: unknown[]) => listPeopleMock(...args),
+  personNameOffset: (...args: unknown[]) => personNameOffsetMock(...args)
 }));
 
 import { load } from './+page.server';
@@ -17,7 +19,10 @@ function makeEvent(search: string): any {
 }
 
 describe('/people load', () => {
-  beforeEach(() => listPeopleMock.mockReset());
+  beforeEach(() => {
+    listPeopleMock.mockReset();
+    personNameOffsetMock.mockReset();
+  });
 
   it('passes through photoUrl on each item unchanged', async () => {
     listPeopleMock.mockResolvedValue({
@@ -63,5 +68,59 @@ describe('/people load', () => {
     const result = (await load(makeEvent('?q=Keanu&offset=24'))) as any;
     expect(listPeopleMock).toHaveBeenCalledWith('Keanu', 24, 24, expect.anything());
     expect(result.query).toEqual('Keanu');
+  });
+
+  it('resolves the offset from personNameOffset when a letter param is present', async () => {
+    personNameOffsetMock.mockResolvedValue(137);
+    listPeopleMock.mockResolvedValue({ items: [], total: 500, limit: 24, offset: 137 });
+    const result = (await load(makeEvent('?letter=C'))) as any;
+    expect(personNameOffsetMock).toHaveBeenCalledWith('C', null, expect.anything());
+    expect(listPeopleMock).toHaveBeenCalledWith(null, 24, 137, expect.anything());
+    expect(result.page.offset).toEqual(137);
+  });
+
+  it('uppercases the letter param and passes the active query through to personNameOffset', async () => {
+    personNameOffsetMock.mockResolvedValue(10);
+    listPeopleMock.mockResolvedValue({ items: [], total: 10, limit: 24, offset: 10 });
+    await load(makeEvent('?letter=c&q=Keanu'));
+    expect(personNameOffsetMock).toHaveBeenCalledWith('C', 'Keanu', expect.anything());
+  });
+
+  it('prefers letter over a simultaneous offset param', async () => {
+    personNameOffsetMock.mockResolvedValue(50);
+    listPeopleMock.mockResolvedValue({ items: [], total: 500, limit: 24, offset: 50 });
+    await load(makeEvent('?letter=D&offset=200'));
+    expect(listPeopleMock).toHaveBeenCalledWith(null, 24, 50, expect.anything());
+  });
+
+  it('ignores an invalid letter param and falls back to the offset param', async () => {
+    listPeopleMock.mockResolvedValue({ items: [], total: 0, limit: 24, offset: 24 });
+    await load(makeEvent('?letter=1&offset=24'));
+    expect(personNameOffsetMock).not.toHaveBeenCalled();
+    expect(listPeopleMock).toHaveBeenCalledWith(null, 24, 24, expect.anything());
+  });
+
+  it('falls back to the last page when a letter jump lands past the end of the list', async () => {
+    personNameOffsetMock.mockResolvedValue(500);
+    listPeopleMock
+      .mockResolvedValueOnce({ items: [], total: 500, limit: 24, offset: 500 })
+      .mockResolvedValueOnce({
+        items: [{ id: 'p1', name: 'Zendaya', birthDate: null, deathDate: null, version: 0, photoUrl: null }],
+        total: 500,
+        limit: 24,
+        offset: 480
+      });
+    const result = (await load(makeEvent('?letter=Z'))) as any;
+    expect(listPeopleMock).toHaveBeenNthCalledWith(1, null, 24, 500, expect.anything());
+    expect(listPeopleMock).toHaveBeenNthCalledWith(2, null, 24, 480, expect.anything());
+    expect(result.page.items).toHaveLength(1);
+    expect(result.page.offset).toEqual(480);
+  });
+
+  it('does not refetch when the catalogue is genuinely empty', async () => {
+    personNameOffsetMock.mockResolvedValue(0);
+    listPeopleMock.mockResolvedValue({ items: [], total: 0, limit: 24, offset: 0 });
+    await load(makeEvent('?letter=Z'));
+    expect(listPeopleMock).toHaveBeenCalledTimes(1);
   });
 });

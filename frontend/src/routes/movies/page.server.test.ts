@@ -2,10 +2,12 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 const listMoviesMock = vi.fn();
 const listGenresMock = vi.fn();
+const movieTitleOffsetMock = vi.fn();
 
 vi.mock('$lib/server/operations', () => ({
   listMovies: (...args: unknown[]) => listMoviesMock(...args),
-  listGenres: (...args: unknown[]) => listGenresMock(...args)
+  listGenres: (...args: unknown[]) => listGenresMock(...args),
+  movieTitleOffset: (...args: unknown[]) => movieTitleOffsetMock(...args)
 }));
 
 import { load } from './+page.server';
@@ -27,6 +29,7 @@ describe('/movies load', () => {
   beforeEach(() => {
     listMoviesMock.mockReset();
     listGenresMock.mockReset();
+    movieTitleOffsetMock.mockReset();
     listGenresMock.mockResolvedValue(GENRES);
     listMoviesMock.mockResolvedValue({ items: [], total: 0, limit: 24, offset: 0 });
   });
@@ -97,5 +100,63 @@ describe('/movies load', () => {
     const result = (await load(makeEvent(''))) as any;
     expect(result.genres).toEqual([]);
     expect(result.error).toBeNull();
+  });
+
+  it('resolves the offset from movieTitleOffset when a letter param is present', async () => {
+    movieTitleOffsetMock.mockResolvedValue(80);
+    listMoviesMock.mockResolvedValue({ items: [], total: 300, limit: 24, offset: 80 });
+    const result = (await load(makeEvent('?letter=C'))) as any;
+    expect(movieTitleOffsetMock).toHaveBeenCalledWith('C', null, expect.anything());
+    expect(listMoviesMock).toHaveBeenCalledWith(24, 80, null, expect.anything());
+    expect(result.page.offset).toEqual(80);
+  });
+
+  it('passes the active genre/year filter through to movieTitleOffset', async () => {
+    movieTitleOffsetMock.mockResolvedValue(5);
+    listMoviesMock.mockResolvedValue({ items: [], total: 5, limit: 24, offset: 5 });
+    await load(makeEvent('?letter=c&genreCode=HORROR&releaseYear=2020'));
+    expect(movieTitleOffsetMock).toHaveBeenCalledWith(
+      'C',
+      { genreCode: 'HORROR', releaseYear: 2020 },
+      expect.anything()
+    );
+  });
+
+  it('prefers letter over a simultaneous offset param', async () => {
+    movieTitleOffsetMock.mockResolvedValue(50);
+    listMoviesMock.mockResolvedValue({ items: [], total: 300, limit: 24, offset: 50 });
+    await load(makeEvent('?letter=D&offset=200'));
+    expect(listMoviesMock).toHaveBeenCalledWith(24, 50, null, expect.anything());
+  });
+
+  it('ignores an invalid letter param and falls back to the offset param', async () => {
+    listMoviesMock.mockResolvedValue({ items: [], total: 0, limit: 24, offset: 24 });
+    await load(makeEvent('?letter=1&offset=24'));
+    expect(movieTitleOffsetMock).not.toHaveBeenCalled();
+    expect(listMoviesMock).toHaveBeenCalledWith(24, 24, null, expect.anything());
+  });
+
+  it('falls back to the last page when a letter jump lands past the end of the list', async () => {
+    movieTitleOffsetMock.mockResolvedValue(300);
+    listMoviesMock
+      .mockResolvedValueOnce({ items: [], total: 300, limit: 24, offset: 300 })
+      .mockResolvedValueOnce({
+        items: [{ id: 'm1', title: 'Zodiac', synopsis: '', releaseDate: null, runtimeMinutes: null, version: 0 }],
+        total: 300,
+        limit: 24,
+        offset: 288
+      });
+    const result = (await load(makeEvent('?letter=Z'))) as any;
+    expect(listMoviesMock).toHaveBeenNthCalledWith(1, 24, 300, null, expect.anything());
+    expect(listMoviesMock).toHaveBeenNthCalledWith(2, 24, 288, null, expect.anything());
+    expect(result.page.items).toHaveLength(1);
+    expect(result.page.offset).toEqual(288);
+  });
+
+  it('does not refetch when no movies match the current filter at all', async () => {
+    movieTitleOffsetMock.mockResolvedValue(0);
+    listMoviesMock.mockResolvedValue({ items: [], total: 0, limit: 24, offset: 0 });
+    await load(makeEvent('?letter=Z'));
+    expect(listMoviesMock).toHaveBeenCalledTimes(1);
   });
 });

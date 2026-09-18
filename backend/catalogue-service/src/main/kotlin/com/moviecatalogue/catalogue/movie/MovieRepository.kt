@@ -35,30 +35,63 @@ interface MovieRepository : JpaRepository<Movie, UUID> {
      * combined with AND semantics (§8.1). The genre match is an EXISTS
      * subquery against `movie_genre` rather than a join, so a movie with
      * multiple matching rows is never duplicated in the result.
+     *
+     * Ordered by `lower(title) COLLATE "und-x-icu"` (matches [countTitlesBefore])
+     * so an accented title interleaves with its base letter instead of trailing
+     * after every ASCII title (this DB's default libc collation compares by raw
+     * code point) - the caller passes an unsorted Pageable so this ORDER BY isn't
+     * overridden. Native SQL because JPQL/HQL's `collate()` function only accepts
+     * a bare-identifier collation name, and "und-x-icu" isn't one (see V8
+     * migration for the matching index).
      */
     @Query(
         value = """
-        SELECT m FROM Movie m
+        SELECT * FROM movie m
         WHERE (:genreCode IS NULL OR EXISTS (
-            SELECT 1 FROM MovieGenre mg
-            WHERE mg.id.movieId = m.id AND mg.id.genreCode = :genreCode
+            SELECT 1 FROM movie_genre mg
+            WHERE mg.movie_id = m.id AND mg.genre_code = :genreCode
         ))
-        AND (:releaseYear IS NULL OR YEAR(m.releaseDate) = :releaseYear)
+        AND (:releaseYear IS NULL OR EXTRACT(YEAR FROM m.release_date) = :releaseYear)
+        ORDER BY lower(m.title) COLLATE "und-x-icu" ASC, m.id ASC
         """,
         countQuery = """
-        SELECT COUNT(m) FROM Movie m
+        SELECT COUNT(*) FROM movie m
         WHERE (:genreCode IS NULL OR EXISTS (
-            SELECT 1 FROM MovieGenre mg
-            WHERE mg.id.movieId = m.id AND mg.id.genreCode = :genreCode
+            SELECT 1 FROM movie_genre mg
+            WHERE mg.movie_id = m.id AND mg.genre_code = :genreCode
         ))
-        AND (:releaseYear IS NULL OR YEAR(m.releaseDate) = :releaseYear)
+        AND (:releaseYear IS NULL OR EXTRACT(YEAR FROM m.release_date) = :releaseYear)
         """,
+        nativeQuery = true,
     )
     fun findAllByFilter(
         @Param("genreCode") genreCode: String?,
         @Param("releaseYear") releaseYear: Int?,
         pageable: Pageable,
     ): Page<Movie>
+
+    /**
+     * Count of movies sorting before [letter] within the same genre/release-year
+     * filter as [findAllByFilter] (alphabet-jump pagination, V2.4). Same
+     * ICU-collated comparison and native-SQL rationale as [findAllByFilter].
+     */
+    @Query(
+        value = """
+        SELECT COUNT(*) FROM movie m
+        WHERE lower(m.title) COLLATE "und-x-icu" < lower(:letter) COLLATE "und-x-icu"
+        AND (:genreCode IS NULL OR EXISTS (
+            SELECT 1 FROM movie_genre mg
+            WHERE mg.movie_id = m.id AND mg.genre_code = :genreCode
+        ))
+        AND (:releaseYear IS NULL OR EXTRACT(YEAR FROM m.release_date) = :releaseYear)
+        """,
+        nativeQuery = true,
+    )
+    fun countTitlesBefore(
+        @Param("letter") letter: String,
+        @Param("genreCode") genreCode: String?,
+        @Param("releaseYear") releaseYear: Int?,
+    ): Long
 }
 
 interface MovieGenreRepository : JpaRepository<MovieGenre, MovieGenreId> {

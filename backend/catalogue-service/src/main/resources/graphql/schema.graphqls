@@ -7,8 +7,10 @@ scalar Long
 type Query {
   movie(id: ID!): Movie
   movies(page: PageInput = { limit: 20, offset: 0 }, filter: MovieFilterInput): MoviePage!
+  movieTitleOffset(letter: String!, filter: MovieFilterInput): Int!
   person(id: ID!): Person
   people(query: String, page: PageInput = { limit: 20, offset: 0 }): PersonPage!
+  personNameOffset(letter: String!, query: String): Int!
   search(query: String!, page: PageInput = { limit: 10, offset: 0 }): SearchResult!
   genres(activeOnly: Boolean = true): [GenreCode!]!
   creditRoles(category: CreditCategory, activeOnly: Boolean = true): [CreditRoleCode!]!

@@ -34,3 +34,13 @@ breaking existing clients.
 - Simple, predictable pagination with totals and page jumps now.
 - Deep offsets scan-and-skip; acceptable at the target scale, with the keyset path
   ready if needed.
+
+## Gap found (2026-09-18)
+
+A search-scaling review found that `SearchUseCases.search` and
+`PeopleApplicationService.searchPeople` don't fully deliver on this decision:
+both fetch `offset + limit` rows from position 0 and slice with
+`.drop(offset).take(limit)` in application memory, instead of pushing the
+offset to the database as offset pagination is meant to. This is a gap in the
+implementation, not a reason to move to keyset yet. Scoped as concrete work in
+[plans/v2.5/README.md](../plans/v2.5/README.md#v25-02-push-search-offsetlimit-to-the-database).

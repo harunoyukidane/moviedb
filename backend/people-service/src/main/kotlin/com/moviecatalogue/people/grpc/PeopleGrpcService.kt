@@ -21,6 +21,8 @@ import com.moviecatalogue.people.v1.GetPeopleResponse
 import com.moviecatalogue.people.v1.GetPersonRequest
 import com.moviecatalogue.people.v1.ListCountriesRequest
 import com.moviecatalogue.people.v1.ListCountriesResponse
+import com.moviecatalogue.people.v1.NameOffsetRequest
+import com.moviecatalogue.people.v1.NameOffsetResponse
 import com.moviecatalogue.people.v1.PeopleServiceGrpc
 import com.moviecatalogue.people.v1.PersonResponse
 import com.moviecatalogue.people.v1.SearchPeopleRequest
@@ -76,6 +78,13 @@ class PeopleGrpcService(
                 .addAllPeople(result.people.map { it.toProto() })
                 .setTotal(result.total)
                 .build()
+        }
+    }
+
+    override fun getNameOffset(request: NameOffsetRequest, responseObserver: StreamObserver<NameOffsetResponse>) {
+        handle(responseObserver) {
+            val offset = app.nameOffset(request.letter, if (request.query.isEmpty()) null else request.query)
+            NameOffsetResponse.newBuilder().setOffset(offset).build()
         }
     }
 

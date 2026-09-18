@@ -20,14 +20,37 @@ interface PersonRepository : JpaRepository<Person, UUID> {
 
     fun existsByTmdbId(tmdbId: Long): Boolean
 
+    /**
+     * Ordered by `lower(name) COLLATE "und-x-icu"` (matches [findAllOrderByName]/
+     * [countByNameLessThan]/[countByNamePatternLessThan]) so an accented name
+     * interleaves with its base letter instead of trailing after every ASCII
+     * name (this DB's default libc collation compares by raw code point).
+     * Native SQL because JPQL/HQL's `collate()` function only accepts a
+     * bare-identifier collation name, and "und-x-icu" isn't one (see V4
+     * migration for the matching index).
+     */
     @Query(
         value = """
-            SELECT p FROM Person p
+            SELECT * FROM person p
             WHERE lower(p.name) LIKE lower(:pattern) ESCAPE '\'
-            ORDER BY lower(p.name) ASC, p.id ASC
+            ORDER BY lower(p.name) COLLATE "und-x-icu" ASC, p.id ASC
         """,
+        nativeQuery = true,
     )
     fun searchByNamePattern(@Param("pattern") pattern: String, pageable: Pageable): List<Person>
+
+    /**
+     * Paged listing of all people (blank query = list all). Same ICU-collated
+     * ordering and native-SQL rationale as [searchByNamePattern].
+     */
+    @Query(
+        value = """
+            SELECT * FROM person p
+            ORDER BY lower(p.name) COLLATE "und-x-icu" ASC, p.id ASC
+        """,
+        nativeQuery = true,
+    )
+    fun findAllOrderByName(pageable: Pageable): List<Person>
 
     @Query(
         value = """
@@ -36,6 +59,35 @@ interface PersonRepository : JpaRepository<Person, UUID> {
         """,
     )
     fun countByNamePattern(@Param("pattern") pattern: String): Long
+
+    /**
+     * Count of all people sorting before [letter] (alphabet-jump pagination,
+     * blank query). Same ICU-collated comparison and native-SQL rationale as
+     * [searchByNamePattern].
+     */
+    @Query(
+        value = """
+            SELECT count(*) FROM person p
+            WHERE lower(p.name) COLLATE "und-x-icu" < lower(:letter) COLLATE "und-x-icu"
+        """,
+        nativeQuery = true,
+    )
+    fun countByNameLessThan(@Param("letter") letter: String): Long
+
+    /**
+     * Count of people matching [pattern] that also sort before [letter]
+     * (alphabet-jump pagination, active search). Same ICU-collated comparison
+     * and native-SQL rationale as [searchByNamePattern].
+     */
+    @Query(
+        value = """
+            SELECT count(*) FROM person p
+            WHERE lower(p.name) LIKE lower(:pattern) ESCAPE '\'
+              AND lower(p.name) COLLATE "und-x-icu" < lower(:letter) COLLATE "und-x-icu"
+        """,
+        nativeQuery = true,
+    )
+    fun countByNamePatternLessThan(@Param("pattern") pattern: String, @Param("letter") letter: String): Long
 
     /** Storage keys currently referenced by person profile metadata. */
     @Query("SELECT p.profilePath FROM Person p WHERE p.profilePath IS NOT NULL")

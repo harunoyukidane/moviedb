@@ -22,6 +22,9 @@ interface PeopleClient {
     /** Paged people listing/search returning full people + total (blank query = list all). */
     fun searchPeoplePage(query: String?, limit: Int, offset: Int): PersonPage
 
+    /** Alphabet-jump pagination (V2.4): offset of the first person sorting at/after [letter], within [query] if given. */
+    fun nameOffset(letter: String, query: String?): Int
+
     fun createPerson(command: CreatePersonData): PersonData
 
     fun updatePerson(command: UpdatePersonData): PersonData

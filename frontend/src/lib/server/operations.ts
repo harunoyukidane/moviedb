@@ -61,6 +61,17 @@ export function listMovies(
   ).then((r) => r.movies);
 }
 
+/** Alphabet-jump pagination: offset of the first movie sorting at/after `letter`, within `filter` if given. */
+export function movieTitleOffset(letter: string, filter?: MovieFilterInput | null, ctx?: RequestContext) {
+  return gql<{ movieTitleOffset: number }>(
+    `query($letter: String!, $filter: MovieFilterInput) {
+      movieTitleOffset(letter: $letter, filter: $filter)
+    }`,
+    { letter, filter: filter ?? null },
+    ctx
+  ).then((r) => r.movieTitleOffset);
+}
+
 export function getMovie(id: string, ctx?: RequestContext) {
   return gql<{ movie: Movie | null }>(
     `query($id: ID!) { movie(id: $id) { ${MOVIE_FIELDS} } }`,
@@ -189,6 +200,17 @@ export function listPeople(query: string | null, limit: number, offset: number, 
     { query, limit, offset },
     ctx
   ).then((r) => r.people);
+}
+
+/** Alphabet-jump pagination: offset of the first person sorting at/after `letter`, within `query` if given. */
+export function personNameOffset(letter: string, query: string | null, ctx?: RequestContext) {
+  return gql<{ personNameOffset: number }>(
+    `query($letter: String!, $query: String) {
+      personNameOffset(letter: $letter, query: $query)
+    }`,
+    { letter, query },
+    ctx
+  ).then((r) => r.personNameOffset);
 }
 
 export function getPerson(id: string, ctx?: RequestContext) {

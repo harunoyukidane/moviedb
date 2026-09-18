@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import StateBanner from '$lib/components/StateBanner.svelte';
+  import AlphabetPager from '$lib/components/AlphabetPager.svelte';
   import PersonListRow from '$lib/features/people/PersonListRow.svelte';
   import PersonSearch from '$lib/features/people/PersonSearch.svelte';
 
@@ -26,6 +27,16 @@
 
   $: prevHref = pagerHref(Math.max(0, page.offset - page.limit), data.query);
   $: nextHref = pagerHref(page.offset + page.limit, data.query);
+
+  /** Letter hrefs carry the active search query but drop offset - the server recomputes it from the letter. */
+  function letterHref(letter: string, query: string | null): string {
+    const params = new URLSearchParams();
+    if (query) params.set('q', query);
+    params.set('letter', letter);
+    return `/people?${params.toString()}`;
+  }
+
+  $: activeLetter = /^[A-Za-z]/.test(page.items[0]?.name ?? '') ? page.items[0].name[0].toUpperCase() : null;
 </script>
 
 <div class="head-row">
@@ -58,6 +69,7 @@
     <span class="count">{page.offset + 1}–{Math.min(page.offset + page.limit, page.total)} of {page.total}</span>
     {#if hasNext}<a href={nextHref}>Next →</a>{/if}
   </nav>
+  <AlphabetPager hrefFor={(letter) => letterHref(letter, data.query)} {activeLetter} />
 {/if}
 
 <style>

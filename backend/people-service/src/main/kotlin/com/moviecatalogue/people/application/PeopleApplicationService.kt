@@ -79,18 +79,14 @@ class PeopleApplicationService(
 
         // A blank query means "list all people" (paged), so the Catalogue's
         // `people` list query has a backing read. A non-blank query searches names.
+        // Ordered by lower(name), matching searchByNamePattern/countByNameLessThan,
+        // so this branch and the search branch never disagree about sort order.
         if (raw.isEmpty()) {
             val total = repository.count()
-            val page = repository.findAll(
-                PageRequest.of(offset / limit, limit, org.springframework.data.domain.Sort.by("name").ascending()),
-            )
-            // offset may not be a multiple of limit; slice defensively.
-            val results = if (offset % limit == 0) {
-                page.content
-            } else {
-                repository.findAll(PageRequest.of(0, offset + limit, org.springframework.data.domain.Sort.by("name").ascending()))
-                    .content.drop(offset).take(limit)
-            }
+            // offset may not be a multiple of limit, so fetch offset+limit rows in a
+            // stable order and drop the offset prefix, same as the search branch below.
+            val fetched = repository.findAllOrderByName(PageRequest.of(0, offset + limit))
+            val results = fetched.drop(offset).take(limit)
             return SearchPeopleResult(results.map { it.toView() }, total)
         }
 
@@ -102,6 +98,27 @@ class PeopleApplicationService(
         val fetched = repository.searchByNamePattern(pattern, PageRequest.of(0, offset + limit))
         val results = fetched.drop(offset).take(limit)
         return SearchPeopleResult(results.map { it.toView() }, total)
+    }
+
+    /**
+     * Alphabet-jump pagination (V2.4): how many people (within [query], if any)
+     * sort before [letter], so the caller can page directly to that offset.
+     * Mirrors the blank/non-blank query split in [searchPeople].
+     */
+    @Transactional(readOnly = true)
+    fun nameOffset(letter: String, query: String?): Int {
+        val normalizedLetter = letter.trim()
+        if (normalizedLetter.length != 1 || !normalizedLetter[0].isLetter()) {
+            throw ValidationException("letter must be a single alphabetic character", field = "letter")
+        }
+        val raw = query?.trim().orEmpty()
+        val count = if (raw.isEmpty()) {
+            repository.countByNameLessThan(normalizedLetter)
+        } else {
+            val pattern = PersonSearch.containsPattern(PersonRules.normalizeQuery(raw))
+            repository.countByNamePatternLessThan(pattern, normalizedLetter)
+        }
+        return count.toInt()
     }
 
     @Transactional

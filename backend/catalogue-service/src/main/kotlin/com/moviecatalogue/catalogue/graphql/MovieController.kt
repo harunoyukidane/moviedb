@@ -37,6 +37,12 @@ class MovieController(
         return MoviePageGql(view.items.map { it.toGql() }, view.total, view.limit, view.offset)
     }
 
+    @QueryMapping
+    fun movieTitleOffset(@Argument letter: String, @Argument filter: MovieFilterInput?): Int {
+        val f = filter?.let { MovieFilter(it.genreCode, it.releaseYear) }
+        return movieUseCases.movieTitleOffset(letter, f)
+    }
+
     // --- Movie nested fields ---------------------------------------------
 
     @SchemaMapping(typeName = "Movie", field = "genres")

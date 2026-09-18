@@ -34,6 +34,9 @@ class PersonUseCases(
     fun listPeople(query: String?, limit: Int, offset: Int): com.moviecatalogue.catalogue.people.PersonPage =
         peopleClient.searchPeoplePage(query, MovieRules.clampLimit(limit), MovieRules.clampOffset(offset))
 
+    /** Alphabet-jump pagination (V2.4): offset to request so paging lands at [letter], within [query] if given. */
+    fun personNameOffset(letter: String, query: String?): Int = peopleClient.nameOffset(letter, query)
+
     fun createPerson(
         name: String,
         biography: String,

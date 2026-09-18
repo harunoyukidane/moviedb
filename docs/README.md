@@ -21,6 +21,7 @@ last_verified: 2026-09-17
 | Checking what's actually done | [verification/README.md](verification/README.md) |
 | Input validation / error messages / error codes | [plans/v2.2/README.md](plans/v2.2/README.md) — the reviewed state of the whole validation path and the open backlog against it |
 | Security hardening (CSP, injection defenses) | [plans/v2.3/README.md](plans/v2.3/README.md) — done |
+| Search / pagination scaling for large datasets | [plans/v2.5/README.md](plans/v2.5/README.md) — not started |
 
 ## Rules
 
@@ -46,5 +47,6 @@ docs/
 ├── plans/v2.1/                  post-v2 UI fixes backlog
 ├── plans/v2.2/                  validation + error-handling backlog
 ├── plans/v2.3/                  injection hardening (done)
+├── plans/v2.5/                  search/pagination scaling for large datasets (not started)
 └── archive/                     superseded content, historical reference only
 ```

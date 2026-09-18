@@ -43,3 +43,11 @@ If search latency or relevance degrades with data growth:
 - No extra services to run, secure, or back up for the current scale.
 - Substring `LIKE '%term%'` cannot use a plain B-tree index for the leading
   wildcard; acceptable now, with the trigram path ready if needed.
+
+## Evolution triggered (2026-09-18)
+
+A search-scaling review against the requirements.md ceiling (100k movies,
+500k people, search p95 under 750ms) found the substring-LIKE cost above is
+no longer purely theoretical at that scale. The trigram index from the
+evolution path is now scoped as concrete work in
+[plans/v2.5/README.md](../plans/v2.5/README.md#v25-01-trigram-index-for-substring-search).

@@ -94,6 +94,13 @@ class CatalogueGraphQlIntegrationTest {
             )
         }
 
+        override fun nameOffset(letter: String, query: String?): Int {
+            if (unavailable) throw DependencyUnavailableException()
+            val q = query?.trim().orEmpty()
+            val matched = store.values.filter { q.isEmpty() || it.name.contains(q, ignoreCase = true) }
+            return matched.count { it.name.lowercase() < letter.lowercase() }
+        }
+
         override fun createPerson(command: CreatePersonData): PersonData {
             val id = UUID.randomUUID()
             val data = PersonData(

@@ -17,7 +17,6 @@ import com.moviecatalogue.catalogue.people.PeopleClient
 import com.moviecatalogue.catalogue.reference.GenreCodeRepository
 import com.moviecatalogue.catalogue.reference.LanguageCodeRepository
 import org.slf4j.LoggerFactory
-import org.springframework.data.domain.Sort
 import org.springframework.orm.ObjectOptimisticLockingFailureException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -53,7 +52,10 @@ class MovieUseCases(
         }
         MovieRules.validateReleaseYear(filter?.releaseYear)
 
-        val pageable = OffsetPageRequest(clampedLimit, clampedOffset.toLong(), Sort.by("title").ascending())
+        // Unsorted: findAllByFilter's own ORDER BY lower(title) already gives the
+        // right order (and matching an explicit Sort here would just be appended
+        // after it, which the query doesn't need and complicates JpaSort validation).
+        val pageable = OffsetPageRequest(clampedLimit, clampedOffset.toLong())
         val page = movies.findAllByFilter(genreCode, filter?.releaseYear, pageable)
         return MoviePageView(
             items = page.content.map { it.toView() },
@@ -61,6 +63,16 @@ class MovieUseCases(
             limit = clampedLimit,
             offset = clampedOffset,
         )
+    }
+
+    /** Alphabet-jump pagination (V2.4): offset to request so paging lands at [letter], within [filter] if given. */
+    @Transactional(readOnly = true)
+    fun movieTitleOffset(letter: String, filter: MovieFilter? = null): Int {
+        val normalizedLetter = letter.trim()
+        if (normalizedLetter.length != 1 || !normalizedLetter[0].isLetter()) {
+            throw ValidationException("letter must be a single alphabetic character", field = "letter")
+        }
+        return movies.countTitlesBefore(normalizedLetter, filter?.genreCode, filter?.releaseYear).toInt()
     }
 
     @Transactional(readOnly = true)

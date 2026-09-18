@@ -32,6 +32,10 @@ class PersonQueryController(
         )
     }
 
+    @QueryMapping
+    fun personNameOffset(@Argument letter: String, @Argument query: String?): Int =
+        personUseCases.personNameOffset(letter, query)
+
     @SchemaMapping(typeName = "Person", field = "credits")
     fun credits(person: PersonGql): List<PersonCreditGql> =
         personUseCases.creditsForPerson(parseId(person.id, "person")).map { it.toGql() }

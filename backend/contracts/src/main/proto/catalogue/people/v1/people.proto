@@ -14,6 +14,9 @@ service PeopleService {
   rpc GetPerson(GetPersonRequest) returns (PersonResponse);
   rpc GetPeople(GetPeopleRequest) returns (GetPeopleResponse);
   rpc SearchPeople(SearchPeopleRequest) returns (SearchPeopleResponse);
+  // Alphabet-jump pagination (V2.4): count of people sorting before `letter`
+  // within the current `query` filter, so the caller can request that offset.
+  rpc GetNameOffset(NameOffsetRequest) returns (NameOffsetResponse);
   rpc CreatePerson(CreatePersonRequest) returns (PersonResponse);
   rpc UpdatePerson(UpdatePersonRequest) returns (PersonResponse);
   rpc DeletePerson(DeletePersonRequest) returns (google.protobuf.Empty);
@@ -25,6 +28,8 @@ service PeopleService {
 message GetPersonRequest { string id = 1; }
 message GetPeopleRequest { repeated string ids = 1; }
 message SearchPeopleRequest { string query = 1; int32 limit = 2; int32 offset = 3; }
+message NameOffsetRequest { string letter = 1; string query = 2; }
+message NameOffsetResponse { int32 offset = 1; }
 
 message PersonResponse {
   string id = 1;
