@@ -1,8 +1,8 @@
-import { CONSIDERED_CREW_JOBS, CREW_JOB_MAP, GENRE_MAP, MAX_CAST } from './mappings.js';
+import { COUNTRY_NAME_ALIASES, CONSIDERED_CREW_JOBS, CREW_JOB_MAP, GENRE_MAP, MAX_CAST } from './mappings.js';
 import { commentsFor } from './comments.js';
 import { InvalidTokenError, NotFoundError } from './errors.js';
 import type { ArtworkPort, CataloguePort, CommentsPort, PeoplePort } from './ports.js';
-import type { TmdbClient, TmdbMovie } from './tmdb.js';
+import type { TmdbClient, TmdbMovie, TmdbPersonDetails } from './tmdb.js';
 
 export interface MovieOutcome {
   tmdbId: number;
@@ -75,13 +75,24 @@ export async function importMovie(tmdbId: number, deps: Dependencies): Promise<M
     for (const c of selected) {
       let personId = personIdByTmdb.get(c.personTmdbId);
       if (!personId) {
+        // Person detail fetch is best-effort (§13): a failure here must not
+        // fail the whole movie import, so it falls back to the prior
+        // empty/null values rather than throwing.
+        let details: TmdbPersonDetails | null = null;
+        try {
+          details = await deps.tmdb.getPerson(c.personTmdbId);
+        } catch {
+          details = null;
+        }
+        const placeOfBirth = details?.place_of_birth ?? null;
         personId = await deps.people.upsertPerson({
           tmdbId: c.personTmdbId,
           name: c.personName,
-          biography: '',
-          birthDate: null,
-          deathDate: null,
-          placeOfBirth: null
+          biography: details?.biography ?? '',
+          birthDate: emptyToNull(details?.birthday ?? undefined),
+          deathDate: emptyToNull(details?.deathday ?? undefined),
+          placeOfBirth,
+          birthCountryCode: await resolveBirthCountry(placeOfBirth, deps.people)
         });
         personIdByTmdb.set(c.personTmdbId, personId);
         outcome.peopleImported++;
@@ -217,6 +228,29 @@ export function selectCredits(movie: TmdbMovie): SelectedCredit[] {
 
 function emptyToNull(s: string | undefined): string | null {
   return s && s.length > 0 ? s : null;
+}
+
+/**
+ * Best-effort match of the trailing comma-separated token of a free-text
+ * `place_of_birth` (e.g. "Honolulu, Hawaii, USA") against the controlled
+ * country_code table: alias table first, then an exact case-insensitive name
+ * match. No fuzzy matching - an unmatched token leaves the country unset
+ * rather than inventing a code (mirrors mapGenres/CREW_JOB_MAP).
+ */
+export async function resolveBirthCountry(
+  placeOfBirth: string | null,
+  people: Pick<PeoplePort, 'listCountries'>
+): Promise<string | null> {
+  if (!placeOfBirth) return null;
+  const tokens = placeOfBirth.split(',').map((t) => t.trim()).filter((t) => t.length > 0);
+  if (tokens.length === 0) return null;
+  const last = tokens[tokens.length - 1].toLowerCase();
+
+  const countries = await people.listCountries();
+  const aliasName = COUNTRY_NAME_ALIASES[last];
+  const target = (aliasName ?? last).toLowerCase();
+  const match = countries.find((c) => c.name.toLowerCase() === target);
+  return match?.code ?? null;
 }
 
 /** Run the whole manifest with bounded concurrency; aggregate outcomes. */

@@ -9,11 +9,20 @@ export interface PersonUpsert {
   birthDate: string | null;
   deathDate: string | null;
   placeOfBirth: string | null;
+  birthCountryCode: string | null;
+}
+
+export interface CountryCode {
+  code: string;
+  name: string;
+  active: boolean;
 }
 
 export interface PeoplePort {
   /** Idempotent by tmdb_id: returns the app person id (create-or-find). */
   upsertPerson(person: PersonUpsert): Promise<string>;
+  /** The controlled country_code reference table, for best-effort birth-country matching. */
+  listCountries(): Promise<CountryCode[]>;
 }
 
 export interface MovieUpsert {

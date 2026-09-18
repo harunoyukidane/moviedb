@@ -35,6 +35,15 @@ export interface TmdbMovie {
   credits?: { cast?: TmdbCastMember[]; crew?: TmdbCrewMember[] };
 }
 
+export interface TmdbPersonDetails {
+  id: number;
+  name: string;
+  biography?: string | null;
+  birthday?: string | null;
+  deathday?: string | null;
+  place_of_birth?: string | null;
+}
+
 export type FetchFn = (url: string, init?: RequestInit) => Promise<Response>;
 export type SleepFn = (ms: number) => Promise<void>;
 
@@ -67,6 +76,28 @@ export class TmdbClient {
       throw new MalformedResponseError(`movie ${id}: missing required fields`);
     }
     return movie;
+  }
+
+  /**
+   * Fetch person details (biography/dates/place of birth). Best-effort from the
+   * caller's perspective: throws the same classified errors as getMovie, so a
+   * missing/failed person fetch is on the caller to catch and fall back on -
+   * it must never fail the whole movie import.
+   */
+  async getPerson(id: number): Promise<TmdbPersonDetails> {
+    const url = `${this.config.tmdbApiBase}/3/person/${id}`;
+    const res = await this.requestWithRetry(url);
+    let json: unknown;
+    try {
+      json = await res.json();
+    } catch {
+      throw new MalformedResponseError(`person ${id}: response was not JSON`);
+    }
+    const person = json as TmdbPersonDetails;
+    if (typeof person?.id !== 'number' || typeof person?.name !== 'string') {
+      throw new MalformedResponseError(`person ${id}: missing required fields`);
+    }
+    return person;
   }
 
   /** Download poster bytes; returns null if there is no poster or it can't be fetched. */

@@ -50,3 +50,35 @@ export const CONSIDERED_CREW_JOBS = new Set<string>([
 
 /** Cap on cast entries kept per movie (top-N by order). */
 export const MAX_CAST = 12;
+
+/**
+ * TMDB's `place_of_birth` trailing country token -> the `name` stored in the
+ * People service's `country_code` table (V3__add_country_reference_data.sql,
+ * seeded with the ISO 3166-1 English short names). Only covers the common
+ * free-text variants TMDB actually produces; anything else falls through to
+ * an exact case-insensitive match against the country_code names themselves.
+ * Never invent a country code - an unmatched token just leaves
+ * birthCountryCode unset (see resolveBirthCountry in importer.ts).
+ */
+export const COUNTRY_NAME_ALIASES: Record<string, string> = {
+  usa: 'United States',
+  'u.s.a.': 'United States',
+  'u.s.a': 'United States',
+  'united states of america': 'United States',
+  us: 'United States',
+  uk: 'United Kingdom',
+  'u.k.': 'United Kingdom',
+  england: 'United Kingdom',
+  scotland: 'United Kingdom',
+  wales: 'United Kingdom',
+  'northern ireland': 'United Kingdom',
+  'south korea': 'South Korea',
+  'korea, republic of': 'South Korea',
+  'republic of korea': 'South Korea',
+  russia: 'Russia',
+  'russian federation': 'Russia',
+  'czech republic': 'Czechia',
+  'ivory coast': "Cote d'Ivoire",
+  'the netherlands': 'Netherlands',
+  'hong kong sar china': 'Hong Kong'
+};

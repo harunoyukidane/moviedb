@@ -1,31 +1,43 @@
 import { describe, expect, it } from 'vitest';
-import { importMovie, runImport, mapGenres, selectCredits, type Dependencies } from './importer.js';
+import { importMovie, runImport, mapGenres, resolveBirthCountry, selectCredits, type Dependencies } from './importer.js';
 import { commentsFor } from './comments.js';
 import type {
   ArtworkPort,
   CataloguePort,
   CommentsPort,
   CommentUpsert,
+  CountryCode,
   PeoplePort,
   MovieUpsert,
   CreditUpsert,
   PersonUpsert
 } from './ports.js';
 import { InvalidTokenError, NotFoundError, TransientError } from './errors.js';
-import type { TmdbMovie } from './tmdb.js';
+import type { TmdbMovie, TmdbPersonDetails } from './tmdb.js';
 
 // --- in-memory fakes standing in for the application interfaces ---
 
+const FAKE_COUNTRIES: CountryCode[] = [
+  { code: 'US', name: 'United States', active: true },
+  { code: 'GB', name: 'United Kingdom', active: true },
+  { code: 'FR', name: 'France', active: true }
+];
+
 class FakePeople implements PeoplePort {
   byTmdb = new Map<number, string>();
+  upserts: PersonUpsert[] = [];
   calls = 0;
   async upsertPerson(p: PersonUpsert): Promise<string> {
     this.calls++;
+    this.upserts.push(p);
     const existing = this.byTmdb.get(p.tmdbId);
     if (existing) return existing; // idempotent by tmdb id
     const id = `person-${p.tmdbId}`;
     this.byTmdb.set(p.tmdbId, id);
     return id;
+  }
+  async listCountries(): Promise<CountryCode[]> {
+    return FAKE_COUNTRIES;
   }
 }
 
@@ -84,6 +96,14 @@ class FakeTmdb {
     private posterProvider: () => Promise<{ bytes: Uint8Array; contentType: string } | null> = async () => ({
       bytes: new Uint8Array([1, 2, 3]),
       contentType: 'image/jpeg'
+    }),
+    private personProvider: (id: number) => Promise<TmdbPersonDetails> = async (id) => ({
+      id,
+      name: `Person ${id}`,
+      biography: '',
+      birthday: null,
+      deathday: null,
+      place_of_birth: null
     })
   ) {}
   getMovie(id: number) {
@@ -91,6 +111,9 @@ class FakeTmdb {
   }
   getPoster() {
     return this.posterProvider();
+  }
+  getPerson(id: number) {
+    return this.personProvider(id);
   }
   getProfileImage(profilePath: string | null | undefined) {
     if (!profilePath) return Promise.resolve(null);
@@ -245,6 +268,69 @@ describe('importMovie', () => {
     const outcome = await importMovie(9, deps(tmdb));
     expect(outcome.status).toBe('imported');
     expect(outcome.creditsImported).toBe(0);
+  });
+
+  it('fetches person details and forwards biography/dates/place of birth/country into the upsert', async () => {
+    const people = new FakePeople();
+    const tmdb = new FakeTmdb(
+      async (id) => sampleMovie(id),
+      undefined,
+      async (id) => ({
+        id,
+        name: `Person ${id}`,
+        biography: 'A notable career.',
+        birthday: '1960-01-01',
+        deathday: null,
+        place_of_birth: 'Los Angeles, California, USA'
+      })
+    );
+    await importMovie(10, deps(tmdb, people));
+    expect(people.upserts).toHaveLength(4); // 4 distinct people, per the dedupe test above
+    for (const u of people.upserts) {
+      expect(u.biography).toBe('A notable career.');
+      expect(u.birthDate).toBe('1960-01-01');
+      expect(u.placeOfBirth).toBe('Los Angeles, California, USA');
+      expect(u.birthCountryCode).toBe('US'); // "USA" resolved via the alias table
+    }
+  });
+
+  it('a failed person-detail fetch falls back to empty values instead of failing the person', async () => {
+    const people = new FakePeople();
+    const tmdb = new FakeTmdb(
+      async (id) => sampleMovie(id),
+      undefined,
+      async () => {
+        throw new TransientError('tmdb person lookup failed');
+      }
+    );
+    const outcome = await importMovie(11, deps(tmdb, people));
+    expect(outcome.status).toBe('imported');
+    for (const u of people.upserts) {
+      expect(u.biography).toBe('');
+      expect(u.birthDate).toBeNull();
+      expect(u.placeOfBirth).toBeNull();
+      expect(u.birthCountryCode).toBeNull();
+    }
+  });
+});
+
+describe('resolveBirthCountry', () => {
+  const people = { listCountries: async (): Promise<CountryCode[]> => FAKE_COUNTRIES };
+
+  it('returns null for a null place of birth', async () => {
+    expect(await resolveBirthCountry(null, people)).toBeNull();
+  });
+
+  it('matches via the alias table (USA -> United States)', async () => {
+    expect(await resolveBirthCountry('Chicago, Illinois, USA', people)).toBe('US');
+  });
+
+  it('matches an exact country name case-insensitively with no alias needed', async () => {
+    expect(await resolveBirthCountry('Paris, france', people)).toBe('FR');
+  });
+
+  it('leaves the country unset (never fabricates a code) when nothing matches', async () => {
+    expect(await resolveBirthCountry('Atlantis', people)).toBeNull();
   });
 });
 
