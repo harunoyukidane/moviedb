@@ -722,7 +722,7 @@ class CatalogueGraphQlIntegrationTest {
     }
 
     @Test
-    fun `a script-payload comment, in text and author name, round-trips unmodified through addMovieComment and comments (V2.3-03)`() {
+    fun `a script-payload comment, in text and author name, round-trips unmodified through addMovieComment and comments (V2_3-03)`() {
         val movieId = createMovie("ScriptPayloadComments")
         val payload = """<script>alert('xss')</script>"""
         tester.document(
