@@ -3,10 +3,11 @@
 ```yaml
 status: current
 canonical_for: v2.5-backlog
-last_verified: 2026-09-18
+last_verified: 2026-09-19
 ```
 
-Not started. Triggered by a search-scaling review against the stated target
+V2.5-01 done and benchmark-verified; V2.5-02 not started. Triggered by a
+search-scaling review against the stated target
 in [product/requirements.md](../../product/requirements.md#L44-L48) — under
 100,000 movies, 500,000 people, 100 concurrent users, search p95 under 750ms.
 
@@ -19,7 +20,7 @@ scopes that evolution into concrete work; it does not change either decision.
 
 | Item | Area | Status |
 |---|---|---|
-| [V2.5-01](#v25-01-trigram-index-for-substring-search) | `pg_trgm` GIN index for movie/person search | ☐ not started |
+| [V2.5-01](#v25-01-trigram-index-for-substring-search) | `pg_trgm` GIN index for movie/person search | ✅ done — index, tests, and benchmark all verified |
 | [V2.5-02](#v25-02-push-search-offsetlimit-to-the-database) | Push search offset/limit to the database | ☐ not started |
 
 ## What the review found
@@ -52,13 +53,15 @@ use an index instead of a scan.
 **Steps:**
 1. Enable `pg_trgm` and add a GIN trigram index per searched column, via new
    Flyway migrations:
-   - catalogue-service — `V8__add_search_trigram_indexes.sql`:
+   - catalogue-service — `V9__add_search_trigram_indexes.sql` (V8 was taken
+     by `V8__movie_title_icu_index.sql`, landed independently):
      ```sql
      CREATE EXTENSION IF NOT EXISTS pg_trgm;
      CREATE INDEX ix_movie_title_trgm ON movie USING GIN (lower(title) gin_trgm_ops);
      CREATE INDEX ix_movie_original_title_trgm ON movie USING GIN (lower(original_title) gin_trgm_ops);
      ```
-   - people-service — `V4__add_search_trigram_index.sql`:
+   - people-service — `V5__add_search_trigram_index.sql` (V4 was taken by
+     `V4__person_name_icu_index.sql`, landed independently):
      ```sql
      CREATE EXTENSION IF NOT EXISTS pg_trgm;
      CREATE INDEX ix_person_name_trgm ON person USING GIN (lower(name) gin_trgm_ops);
@@ -80,6 +83,24 @@ use an index instead of a scan.
 5. Update the doc comments in `MovieRepository.kt` / `PersonRepository.kt`
    (currently reference only the `_lower` index) and the ADR-9 "Reinforced"
    section once shipped.
+
+**Done — all steps.** Migrations
+([`V9__add_search_trigram_indexes.sql`](../../../backend/catalogue-service/src/main/resources/db/migration/V9__add_search_trigram_indexes.sql),
+[`V5__add_search_trigram_index.sql`](../../../backend/people-service/src/main/resources/db/migration/V5__add_search_trigram_index.sql)),
+repository doc comments, a regression test in each service
+(`CatalogueRepositoryIntegrationTest`, `PeopleSearchIntegrationTest`)
+confirming the index is structurally usable, and — step 4 — a full
+before/after benchmark at the requirements.md ceiling (100k movies, 500k
+people) with both `EXPLAIN ANALYZE` and concurrent-load (`pgbench`) numbers.
+See [benchmark/results.md](benchmark/results.md) for the full write-up.
+Headline: common-term searches were already fine (the existing B-tree lets
+Postgres walk in sorted order and stop at `LIMIT`); rare/specific terms and
+the production `countByNamePattern` query were not — up to **~555x** slower
+without the index under just 20 concurrent connections (well under the
+requirements' 100-user ceiling), with average latency reaching 1.6–2.5
+**seconds**, 2-3x over the 750ms search budget. This was a real, already
+reachable gap at the documented target scale, not speculative
+future-proofing — see the ADR-9 update below.
 
 **Cost to weigh:** GIN trigram indexes are larger and more expensive to
 maintain on write than the existing B-tree ones. Worth confirming against

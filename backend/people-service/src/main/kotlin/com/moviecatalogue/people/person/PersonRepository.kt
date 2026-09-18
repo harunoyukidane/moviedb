@@ -9,10 +9,12 @@ import java.util.UUID
 /**
  * Outbound port for people persistence (Spring Data JPA adapter).
  *
- * Search matches on `lower(name)` so it can use the `ix_person_name_lower`
- * functional index (§7.3). The caller passes a LIKE pattern whose user-supplied
- * `%`, `_` and `\` have already been escaped (see [PersonSearch]); `ESCAPE '\'`
- * makes those literals rather than wildcards.
+ * Search matches on `lower(name)` with a `%term%` substring pattern (§7.3),
+ * accelerated by the GIN trigram index `ix_person_name_trgm` (V2.5-01)
+ * rather than the B-tree `ix_person_name_lower`, which only helps prefix
+ * matches. The caller passes a LIKE pattern whose user-supplied `%`, `_` and
+ * `\` have already been escaped (see [PersonSearch]); `ESCAPE '\'` makes
+ * those literals rather than wildcards.
  */
 interface PersonRepository : JpaRepository<Person, UUID> {
 

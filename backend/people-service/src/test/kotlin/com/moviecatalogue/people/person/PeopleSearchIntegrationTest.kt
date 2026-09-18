@@ -51,6 +51,7 @@ class PeopleSearchIntegrationTest {
 
     @Autowired lateinit var repository: PersonRepository
     @Autowired lateinit var service: PeopleApplicationService
+    @Autowired lateinit var dataSource: javax.sql.DataSource
 
     private fun create(name: String, tmdbId: Long? = null) =
         service.createPerson(CreatePersonCommand(tmdbId, name, "", null, null, null, null))
@@ -171,5 +172,25 @@ class PeopleSearchIntegrationTest {
         assertThat(read.birthDate).isEqualTo(LocalDate.of(1900, 1, 1))
         assertThat(read.deathDate).isEqualTo(LocalDate.of(1980, 6, 15))
         assertThat(read.placeOfBirth).isEqualTo("Somewhere")
+    }
+
+    /**
+     * V2.5-01: confirms the GIN trigram index exists with the right operator
+     * class for the `%term%` substring search predicate. `enable_seqscan` is
+     * disabled so the planner is forced to reveal whether a usable index
+     * plan exists at all, rather than picking a seq scan because the test
+     * table is tiny — actual seq-scan-vs-index-scan cost tradeoffs at real
+     * data volumes are a load-test concern (plans/v2.5), not this test's.
+     */
+    @Test
+    fun `name trigram index serves the substring search predicate`() {
+        create("Trigram Probe Person")
+        val jdbc = org.springframework.jdbc.core.JdbcTemplate(dataSource)
+        jdbc.execute("SET enable_seqscan = off")
+
+        val plan = jdbc.queryForList(
+            "EXPLAIN SELECT * FROM person WHERE lower(name) LIKE lower('%robe%') ESCAPE '\\'",
+        ).joinToString("\n") { it.values.first().toString() }
+        assertThat(plan).contains("ix_person_name_trgm")
     }
 }

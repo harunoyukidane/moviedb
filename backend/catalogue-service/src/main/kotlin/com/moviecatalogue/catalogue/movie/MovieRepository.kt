@@ -16,9 +16,12 @@ interface MovieRepository : JpaRepository<Movie, UUID> {
 
     /**
      * Case-insensitive title / original-title search (§9). Matches on
-     * `lower(title)` (uses ix_movie_title_lower) and `lower(original_title)`.
-     * The pattern's user-supplied `%`/`_`/`\` are escaped by the caller and
-     * `ESCAPE '\'` makes them literal (§14).
+     * `lower(title)` and `lower(original_title)` with a `%term%` substring
+     * pattern, accelerated by the GIN trigram indexes `ix_movie_title_trgm` /
+     * `ix_movie_original_title_trgm` (V2.5-01) rather than the B-tree
+     * `ix_movie_title_lower`, which only helps prefix matches. The pattern's
+     * user-supplied `%`/`_`/`\` are escaped by the caller and `ESCAPE '\'`
+     * makes them literal (§14).
      */
     @Query(
         """

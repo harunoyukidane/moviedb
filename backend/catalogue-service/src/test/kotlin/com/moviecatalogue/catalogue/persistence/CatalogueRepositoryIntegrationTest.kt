@@ -66,6 +66,7 @@ class CatalogueRepositoryIntegrationTest {
     @Autowired lateinit var languages: LanguageCodeRepository
     @Autowired lateinit var artwork: ArtworkRepository
     @Autowired lateinit var comments: CommentRepository
+    @Autowired lateinit var dataSource: javax.sql.DataSource
 
     private fun newMovie(title: String = "Movie") =
         Movie(id = UuidV7.generate(), title = title)
@@ -219,7 +220,11 @@ class CatalogueRepositoryIntegrationTest {
         movieGenres.saveAndFlush(MovieGenre(MovieGenreId(horrorAndComedy2020.id, "PSYCHOLOGICAL_HORROR")))
         movieGenres.saveAndFlush(MovieGenre(MovieGenreId(horror2021.id, "HORROR")))
 
-        val page = PageRequest.of(0, 20, Sort.by("title"))
+        // Unsorted: findAllByFilter is a native query with its own embedded
+        // ORDER BY (lower(title) COLLATE "und-x-icu") - an explicit Sort here
+        // would make Spring Data try to append another ORDER BY onto the raw
+        // SQL text, which breaks the native query with a syntax error.
+        val page = PageRequest.of(0, 20)
 
         // genre-only: a movie assigned to two genres appears exactly once
         val byGenre = movies.findAllByFilter("HORROR", null, page)
@@ -249,8 +254,8 @@ class CatalogueRepositoryIntegrationTest {
         assertThat(empty.totalElements).isZero()
         assertThat(empty.content).isEmpty()
 
-        // paginated
-        val firstPage = movies.findAllByFilter("HORROR", null, PageRequest.of(0, 2, Sort.by("title")))
+        // paginated (unsorted - see note above)
+        val firstPage = movies.findAllByFilter("HORROR", null, PageRequest.of(0, 2))
         assertThat(firstPage.content).hasSize(2)
         assertThat(firstPage.totalElements).isEqualTo(3)
     }
@@ -285,5 +290,30 @@ class CatalogueRepositoryIntegrationTest {
         movie.originalLanguage = "xx"
         assertThatThrownBy { movies.saveAndFlush(movie) }
             .isInstanceOf(org.springframework.dao.DataIntegrityViolationException::class.java)
+    }
+
+    /**
+     * V2.5-01: confirms the GIN trigram indexes exist with the right operator
+     * class for the `%term%` substring search predicate. `enable_seqscan` is
+     * disabled so the planner is forced to reveal whether a usable index
+     * plan exists at all, rather than picking a seq scan because the test
+     * table is tiny — actual seq-scan-vs-index-scan cost tradeoffs at real
+     * data volumes are a load-test concern (plans/v2.5), not this test's.
+     */
+    @Test
+    fun `title and original_title trigram indexes serve the substring search predicate`() {
+        movies.saveAndFlush(newMovie("Trigram Probe Movie"))
+        val jdbc = org.springframework.jdbc.core.JdbcTemplate(dataSource)
+        jdbc.execute("SET enable_seqscan = off")
+
+        val titlePlan = jdbc.queryForList(
+            "EXPLAIN SELECT * FROM movie WHERE lower(title) LIKE lower('%robe%') ESCAPE '\\'",
+        ).joinToString("\n") { it.values.first().toString() }
+        assertThat(titlePlan).contains("ix_movie_title_trgm")
+
+        val originalTitlePlan = jdbc.queryForList(
+            "EXPLAIN SELECT * FROM movie WHERE lower(original_title) LIKE lower('%robe%') ESCAPE '\\'",
+        ).joinToString("\n") { it.values.first().toString() }
+        assertThat(originalTitlePlan).contains("ix_movie_original_title_trgm")
     }
 }

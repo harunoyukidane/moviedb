@@ -106,8 +106,8 @@ class PeopleApplicationServiceTest {
     @Test
     fun `searchPeople with a blank query lists all people (paged)`() {
         every { repository.count() } returns 2
-        every { repository.findAll(any<Pageable>()) } returns
-            org.springframework.data.domain.PageImpl(listOf(person(name = "Ada"), person(name = "Bob")))
+        every { repository.findAllOrderByName(any<Pageable>()) } returns
+            listOf(person(name = "Ada"), person(name = "Bob"))
         val result = service.searchPeople(SearchPeopleCommand(query = "   ", limit = 10, offset = 0))
         assertThat(result.total).isEqualTo(2)
         assertThat(result.people.map { it.name }).containsExactly("Ada", "Bob")
