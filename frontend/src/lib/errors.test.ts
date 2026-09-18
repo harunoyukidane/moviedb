@@ -9,6 +9,7 @@ describe('error boundary', () => {
     'PERSON_IN_USE',
     'PAYLOAD_TOO_LARGE',
     'UNSUPPORTED_MEDIA_TYPE',
+    'STORAGE_UNAVAILABLE',
     'DEPENDENCY_UNAVAILABLE',
     'INTERNAL_ERROR'
   ];
@@ -33,6 +34,11 @@ describe('error boundary', () => {
 
   it('UNSUPPORTED_MEDIA_TYPE lists allowed formats', () => {
     expect(messageForCode('UNSUPPORTED_MEDIA_TYPE')).toMatch(/JPEG|PNG|WebP/i);
+  });
+
+  it('STORAGE_UNAVAILABLE has its own message rather than falling through to the internal-error copy', () => {
+    expect(messageForCode('STORAGE_UNAVAILABLE')).not.toBe(messageForCode('INTERNAL_ERROR'));
+    expect(messageForCode('STORAGE_UNAVAILABLE')).toMatch(/temporarily unavailable/i);
   });
 
   it('unknown or missing codes fall back to the internal-error message', () => {

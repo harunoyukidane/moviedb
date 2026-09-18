@@ -1,8 +1,7 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
 import { createMovie, listGenres, listLanguages, type CreateMovieInput } from '$lib/server/operations';
-import { isValidationError } from '$lib/errors';
-import { codeForError, fieldErrorsForError, messageForError, requestContext } from '$lib/server/request';
+import { codeForError, fieldErrorsForError, messageForError, requestContext, statusForCode } from '$lib/server/request';
 import { isFieldError, validateOptionalDate, validateOptionalInt } from '$lib/server/validation';
 
 export const load: PageServerLoad = async ({ request }) => {
@@ -62,7 +61,7 @@ export const actions: Actions = {
     } catch (e) {
       const code = codeForError(e);
       // preserve the user's input so the form can re-render it
-      return fail(isValidationError(code) ? 400 : 503, {
+      return fail(statusForCode(code), {
         message: messageForError(e, code),
         fieldErrors: fieldErrorsForError(e),
         values

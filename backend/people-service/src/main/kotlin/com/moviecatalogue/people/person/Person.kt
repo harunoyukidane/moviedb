@@ -38,6 +38,9 @@ class Person(
     @Column(name = "place_of_birth")
     var placeOfBirth: String? = null,
 
+    @Column(name = "birth_country_code")
+    var birthCountryCode: String? = null,
+
     @Column(name = "profile_path")
     var profilePath: String? = null,
 

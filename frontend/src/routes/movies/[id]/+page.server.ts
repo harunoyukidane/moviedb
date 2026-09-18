@@ -1,12 +1,13 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail } from '@sveltejs/kit';
 import { addMovieComment, getMovie, listComments, type AddMovieCommentInput } from '$lib/server/operations';
-import { messageForCode, isValidationError } from '$lib/errors';
+import { messageForCode } from '$lib/errors';
 import {
   codeForError,
   fieldErrorsForError,
   messageForError,
   requestContext,
+  statusForCode,
   throwPageLoadError
 } from '$lib/server/request';
 
@@ -53,7 +54,7 @@ export const actions: Actions = {
       return { commentAdded: true };
     } catch (e) {
       const code = codeForError(e);
-      return fail(isValidationError(code) ? 400 : 503, {
+      return fail(statusForCode(code), {
         message: messageForError(e, code),
         fieldErrors: fieldErrorsForError(e),
         section: 'comment'

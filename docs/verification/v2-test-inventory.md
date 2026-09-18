@@ -553,44 +553,231 @@ catch for artwork) and translate the race to a clean not-found error.
 |---|---|---|
 | `full catalogue journey through the BFF UI` | E2E | Single critical-path journey: create person, create movie, add a cast credit via the accessible `CreditDialog`, upload artwork, search finds both the movie and the person, remove the credit via the icon control (no confirmation, per the v2 design decision), delete the movie (labeled confirmation) |
 
-## Known coverage gaps (validation & error handling)
+## Validation & error handling (V2.2)
 
-Added 2026-09-17 after a review of the whole validation/error path. These are
-**not** covered by anything above; the plan that closes them is
-[plans/v2.2/README.md](../plans/v2.2/README.md), which lists the specific tests
-to add. Recorded here so the counts below are not mistaken for completeness.
+Closes the gaps recorded below (kept as a record of what was missing before
+2026-09-17, from the review that produced
+[plans/v2.2/README.md](../plans/v2.2/README.md)): date extremity, malformed
+scalar coercion, Unicode/emoji/control-character handling in stored fields,
+malformed-id and BFF status-code mapping, field-level error rendering,
+character counting, concurrent-edit narrow masks, and comment-seed
+idempotency. V2.2-01 through V2.2-13 are all implemented and tested; only
+V2.2-10's frontend `CodeCombobox` generalization and V2.2-11's staleness
+banner needed new component surfaces, listed below with everything else.
 
-Boundary/extremity coverage that **does** exist: pagination limit and offset
-clamps, the 200-id batch cap, image size/empty/truncated/spoofed/unsupported,
-storage-key shapes and traversal, blank and over-limit comment author/text,
-out-of-range genre/year *filter* values, and blank/overlong names and titles at
-the unit level.
+### Character-class and length screening (`TextRules`, `MovieRules`, `PersonRules`)
 
-Invalid-character coverage that **does** exist: `%`, `_`, `\`, apostrophes and
-Unicode — but only as *search patterns* (`PersonSearchTest`,
-`SearchUseCasesTest`, `PeopleSearchIntegrationTest`), never as *stored field*
-values.
+`backend/catalogue-service/src/test/kotlin/com/moviecatalogue/catalogue/domain/RulesTest.kt`
 
-| Gap | Nothing in this inventory asserts… |
+| Test name | Category | What it verifies |
+|---|---|---|
+| `normalizeSynopsis allows blank, trims, screens and bounds at 5000` | Unit | |
+| `normalizeSynopsis allows newlines but rejects emoji` | Edge case | |
+| `comment text and author accept emoji, unlike catalogue metadata` | Edge case | the emoji/comment vs. metadata policy split |
+| `a zero-width joiner between two emoji survives the comment screen, but is rejected between letters` | Edge case | adjacency-scoped ZWJ rule |
+| `TextRulesTest`: `rejects NUL, control characters, bidi overrides, and zero-width characters` | Edge case | |
+| `TextRulesTest`: `allows newlines and tabs only when the policy permits them` | Unit | |
+| `TextRulesTest`: `NFC-normalizes so decomposed and precomposed forms are treated alike` | Edge case | |
+| `TextRulesTest`: `rejects emoji unless the policy allows it` | Edge case | |
+
+`backend/people-service/src/test/kotlin/com/moviecatalogue/people/domain/PersonRulesTest.kt`
+
+| Test name | Category | What it verifies |
+|---|---|---|
+| `normalizeBiography allows blank, trims, screens and bounds at 5000` | Unit | |
+| `normalizeBiography allows newlines but rejects emoji, unlike a comment` | Edge case | |
+| `normalizeName rejects emoji and control characters` | Edge case | |
+| `PersonTextRulesTest`: `rejects NUL, control characters, bidi overrides, and zero-width characters` | Edge case | people-service's independent copy of the same screen |
+
+### Malformed ids and IDs-as-NOT_FOUND (`Ids.kt`)
+
+`backend/catalogue-service/src/test/kotlin/com/moviecatalogue/catalogue/graphql/IdsTest.kt`
+
+| Test name | Category | What it verifies |
+|---|---|---|
+| `parseId parses a well-formed UUID` | Unit | |
+| `parseId reports a malformed id as NOT_FOUND, naming the kind and the offending value` | Edge case | |
+
+`backend/catalogue-service/src/test/kotlin/com/moviecatalogue/catalogue/graphql/CatalogueGraphQlIntegrationTest.kt` (Testcontainers, GraphQL)
+
+| Test name | Category | What it verifies |
+|---|---|---|
+| `a malformed movie, person, or credit id is NOT_FOUND, not INTERNAL_ERROR` | Edge case | end-to-end over all 18 GraphQL call sites via `parseId` |
+
+### Country reference data (V2.2-10)
+
+`backend/catalogue-service/src/test/kotlin/com/moviecatalogue/catalogue/graphql/CatalogueGraphQlIntegrationTest.kt`
+
+| Test name | Category | What it verifies |
+|---|---|---|
+| `countryCodes query returns only active by default` | Integration | |
+| `countryCodes query with activeOnly false includes inactive codes` | Edge case | |
+| `createPerson accepts a birthCountryCode and Person resolves birthCountry` | Integration | end-to-end through People gRPC |
+
+`backend/people-service/src/test/kotlin/com/moviecatalogue/people/application/PeopleApplicationServiceTest.kt`
+
+| Test name | Category | What it verifies |
+|---|---|---|
+| `createPerson accepts an active birth country code` | Unit | |
+| `createPerson rejects an unknown or inactive birth country code` | Edge case | |
+
+`backend/people-service/src/test/kotlin/com/moviecatalogue/people/grpc/PeopleGrpcContractTest.kt`
+
+| Test name | Category | What it verifies |
+|---|---|---|
+| `listCountries defaults to active only and maps every field` | Unit | |
+| `listCountries with activeOnly false includes inactive` | Edge case | |
+
+`frontend/src/lib/components/CodeCombobox.test.ts` (parametrized over language- and country-shaped data — 7 cases × 2 = 14 tests; generalized out of `LanguageSelect.test.ts`, which still passes unchanged against the `LanguageSelect` wrapper)
+
+| Test name (per data set) | Category |
 |---|---|
-| Date extremity | any release/birth/death date bound — there is no such test because there is no such validation |
-| Malformed date coercion | the error `code` returned for `releaseDate: "3/3/52452242"`; the `Date` scalar's failure path is never exercised end to end |
-| Unicode in stored fields | that a name/title with astral-plane characters round-trips through create and read |
-| Code-point vs UTF-16 length | the emoji boundary, where the domain rule and the `VARCHAR(n)` column count differently |
-| Control / NUL / bidi characters | any character-class rejection, in any field |
-| `synopsis` / `biography` bounds | that an oversized value is rejected — neither field has a bound at any layer |
-| Malformed UUID | that `movie(id: "abc")` is `NOT_FOUND` rather than `INTERNAL_ERROR` |
-| `STORAGE_UNAVAILABLE` | that the BFF has a message for a code both media advices actually emit |
-| BFF status mapping | that an outage during upload is not reported as HTTP 415 |
-| Field-level errors | that any field is ever marked `aria-invalid` — no component renders one |
-| Message specificity | that a validation failure tells the user *what* is wrong rather than showing the generic banner |
-| Emoji storage and policy | that an emoji or ZWJ sequence survives create → store → read at all; the database encoding is inherited from the image default and never asserted |
-| Character counting | that the server bound, the browser's `maxlength`, and any visible counter agree on one unit |
-| Concurrent edits | that two people editing *different* fields of one record both succeed — today they cannot, because every update sends a full field mask |
-| Conflict recovery | that a rejected update preserves what the user typed |
-| Comment seeding | that an importer rerun does not duplicate comments — comments have no idempotency key, so this is not currently expressible |
-| Credit plausibility | that a person born after a movie's release cannot be credited on it, on either the add-credit or the edit-release-date path |
-| Injection defenses / CSP | that the output escaping holds under a stored script payload, and that the BFF sends a Content-Security-Policy — it currently sends none. Tracked with its fix in [plans/v2.3/](../plans/v2.3/README.md), after v2.2 |
+| `prefills the display name for an initially selected code` | Unit |
+| `starts empty with no selection` | Unit |
+| `filters suggestions by name as the user types` | Unit |
+| `filters suggestions by code as well as name` | Unit |
+| `picking a suggestion sets the hidden code input and closes the list` | Unit |
+| `typing over a previous selection clears the hidden code until a new pick is made` | Unit |
+| `clears unmatched typed text on blur so no fake selection lingers` | Unit |
+
+`frontend/src/lib/components/CountrySelect.test.ts`
+
+| Test name | Category |
+|---|---|
+| `renders with the default label/name/id and prefills a selected country` | Unit |
+
+`frontend/src/routes/people/new/page.server.test.ts`, `frontend/src/routes/people/[id]/edit/page.server.test.ts`
+
+| Test name | Category |
+|---|---|
+| `passes birthCountryCode through to the mutation` (both routes) | Unit |
+
+### Concurrent-edit handling (V2.2-11)
+
+`frontend/src/routes/movies/[id]/edit/page.server.test.ts`
+
+| Test name | Category | What it verifies |
+|---|---|---|
+| `returns values on a backend failure so the form can re-render what the user typed (F16)` | Edge case | |
+| `maps a dependency outage to 503, not 409 (F12)` | Edge case | |
+| `maps a genuine conflict to 409` | Unit | |
+| `only changed fields are sent in the update mask (F21)` | Edge case | narrow field mask |
+| `a no-op submit (nothing changed) skips the mutation entirely` | Edge case | |
+
+`frontend/src/routes/people/[id]/edit/page.server.test.ts`
+
+| Test name | Category | What it verifies |
+|---|---|---|
+| `only changed fields are sent in the update mask (F21)` | Edge case | |
+| `a no-op submit (nothing changed) skips the mutation entirely` | Edge case | |
+| `returns values on a backend failure so the form can re-render what the user typed (F16/F22)` | Edge case | |
+
+`backend/catalogue-service/src/test/kotlin/com/moviecatalogue/catalogue/graphql/CatalogueGraphQlIntegrationTest.kt`
+
+| Test name | Category | What it verifies |
+|---|---|---|
+| `a conflict's message keeps version numbers out of the user-facing copy (F23)` | Edge case | |
+
+`frontend/src/lib/components/StalenessBanner.test.ts`
+
+| Test name | Category |
+|---|---|
+| `renders nothing when not visible` | Unit |
+| `appears when the version has moved` | Unit |
+| `is dismissible` | Unit |
+
+`frontend/src/routes/movies/[id]/edit/page.svelte.test.ts`
+
+| Test name | Category | What it verifies |
+|---|---|---|
+| `appears when the version has moved and is dismissible` | Edge case | full page wiring: window-focus/pre-submit check → banner |
+| `does not appear when the version is unchanged` | Unit | |
+
+### BFF error codes, statuses, and messages (V2.2-08)
+
+`frontend/src/lib/errors.test.ts`
+
+| Test name | Category |
+|---|---|
+| `STORAGE_UNAVAILABLE has its own message rather than falling through to the internal-error copy` | Edge case |
+
+`frontend/src/lib/components/SearchBox.test.ts`
+
+| Test name | Category |
+|---|---|
+| `clamps a long query to 100 characters client-side (F19) rather than sending it to the server` | Edge case |
+
+`frontend/src/lib/components/CreditDialog.test.ts`
+
+| Test name | Category |
+|---|---|
+| `shows an inline message when the person search request fails (F17)` | Edge case |
+
+`frontend/src/routes/movies/[id]/edit/page.server.test.ts`
+
+| Test name | Category | What it verifies |
+|---|---|---|
+| `the empty-file guard returns a specific message, not the generic banner (F13)` | Edge case | |
+| `an upload failure maps each code to its own status, not 415 for everything (F11)` | Edge case | |
+| `maps NOT_FOUND to 404, not 503 (F12)` | Edge case | delete action |
+
+`frontend/src/routes/movies/[id]/page.server.test.ts`
+
+| Test name | Category | What it verifies |
+|---|---|---|
+| `maps an unknown-movie failure to a 404, not 503 (F12)` | Edge case | renamed/corrected from a prior test that had encoded the wrong (pre-fix) behavior |
+| `maps a dependency outage to a 503` | Edge case | |
+
+### Client-side mirrors and character counters (V2.2-09, V2.2-12)
+
+`frontend/src/lib/components/CharCounter.test.ts`
+
+| Test name | Category |
+|---|---|
+| `counts in UTF-16 units so an emoji advances it by two` | Unit |
+| `shows a neutral count well under the limit` | Unit |
+| `applies a warning style within the last 10% of the limit` | Edge case |
+| `applies an at-limit style and announces it politely instead of stopping input silently` | Edge case |
+| `does not announce the limit when under it` | Unit |
+
+`frontend/src/lib/components/DateField.test.ts`
+
+| Test name | Category |
+|---|---|
+| `passes min and max through to the native input` | Unit |
+
+`frontend/src/routes/error.svelte.test.ts`
+
+| Test name | Category |
+|---|---|
+| `renders a 404 inside the app shell with the server message` | Edge case |
+| `renders a 503 with the dependency-unavailable message` | Edge case |
+| `links back to the movies list` | Unit |
+
+### Comment seeding and idempotency (V2.2-13)
+
+`backend/catalogue-service/src/test/kotlin/com/moviecatalogue/catalogue/application/ApplicationUseCasesTest.kt` — `CommentUseCasesTest`
+
+| Test name | Category | What it verifies |
+|---|---|---|
+| `addComment with a new seedKey inserts and stamps it (V2_2-13)` | Unit | |
+| `addComment with an existing seedKey upserts in place rather than inserting a duplicate` | Edge case | |
+
+`backend/catalogue-service/src/test/kotlin/com/moviecatalogue/catalogue/graphql/CatalogueGraphQlIntegrationTest.kt`
+
+| Test name | Category | What it verifies |
+|---|---|---|
+| `a seeded comment upserts by seedKey instead of duplicating on a second call` | Integration | |
+| `an emoji comment, including a ZWJ sequence, round-trips through addMovieComment and comments` | Integration | via GraphQL variables, not inline literals, so no manual escaping risk |
+
+`demo/importer/src/importer.test.ts`
+
+| Test name | Category | What it verifies |
+|---|---|---|
+| `seeds the fixture comments for each movie` | Unit | |
+| `a rerun produces identical comment counts and content` | Edge case | idempotency |
+| `a movie with enough seeded comments spans more than one comment page` | Unit | the one fixture id (694) seeded past the 10/page pager |
+| `a failed comment upsert does not fail the movie import` | Edge case | partial-failure isolation, matching the existing credit/photo handling |
 
 ## Summary counts
 
@@ -605,11 +792,13 @@ values.
 | People photos | 5 | 3 | 0 | 0 | 8 |
 | Concurrency / delete-race hardening | 2 | 5 | 0 | 0 | 7 |
 | Icons / accessibility | 5 | 1 | 0 | 0 | 6 |
+| Validation & error handling (V2.2) | 36 | 37 | 4 | 0 | 77 |
 | E2E | 0 | 0 | 0 | 1 | 1 |
-| **Total** | **64** | **104** | **39** | **1** | **208** |
+| **Total** | **100** | **141** | **43** | **1** | **285** |
 
 Counts are per test method/case as enumerated above; a few tests could
 reasonably sit in more than one category (e.g. a MinIO integration test that
 also asserts an error path) and are counted once, under the category that
-best matches the test's primary intent. They cover what exists today — see
-"Known coverage gaps" above for what does not.
+best matches the test's primary intent. The "Validation & error handling"
+row's parametrized `CodeCombobox` cases (14) are counted individually, one per
+data set, matching how the other rows count parametrized/table tests.

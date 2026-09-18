@@ -13,6 +13,7 @@ type Query {
   genres(activeOnly: Boolean = true): [GenreCode!]!
   creditRoles(category: CreditCategory, activeOnly: Boolean = true): [CreditRoleCode!]!
   languageCodes(activeOnly: Boolean = true): [LanguageCode!]!
+  countryCodes(activeOnly: Boolean = true): [CountryCode!]!
   comments(movieId: ID!, page: PageInput = { limit: 20, offset: 0 }): MovieCommentPage!
 }
 
@@ -58,11 +59,12 @@ type MovieCredit {
 }
 
 type PersonReference { id: ID!, name: String!, available: Boolean! }
-type Person { id: ID!, name: String!, biography: String!, birthDate: Date, deathDate: Date, placeOfBirth: String, version: Long!, photoUrl: String, credits: [PersonCredit!]! }
+type Person { id: ID!, name: String!, biography: String!, birthDate: Date, deathDate: Date, placeOfBirth: String, birthCountryCode: String, birthCountry: CountryCode, version: Long!, photoUrl: String, credits: [PersonCredit!]! }
 type PersonCredit { movieId: ID!, movieTitle: String!, category: CreditCategory!, role: CreditRoleCode!, characterName: String }
 type Artwork { id: ID!, url: String!, mediaType: String!, byteSize: Long! }
 type GenreCode { code: ID!, title: String!, description: String!, active: Boolean! }
 type LanguageCode { code: ID!, name: String!, active: Boolean! }
+type CountryCode { code: ID!, name: String!, active: Boolean! }
 type CreditRoleCode { code: ID!, title: String!, category: CreditCategory!, department: String, description: String!, active: Boolean! }
 type SearchResult { movies: [MovieSearchHit!]!, people: [PersonSearchHit!]! }
 type MovieSearchHit { id: ID!, title: String!, releaseDate: Date, matchedPersonNames: [String!]! }
@@ -78,8 +80,8 @@ input PageInput { limit: Int! = 20, offset: Int! = 0 }
 input MovieFilterInput { genreCode: ID, releaseYear: Int }
 input CreateMovieInput { title: String!, originalTitle: String, synopsis: String = "", releaseDate: Date, runtimeMinutes: Int, originalLanguage: String, genreCodes: [ID!]! = [], tmdbId: Long }
 input UpdateMovieInput { title: String, originalTitle: String, synopsis: String, releaseDate: Date, runtimeMinutes: Int, originalLanguage: String, genreCodes: [ID!] }
-input CreatePersonInput { name: String!, biography: String = "", birthDate: Date, deathDate: Date, placeOfBirth: String }
-input UpdatePersonInput { name: String, biography: String, birthDate: Date, deathDate: Date, placeOfBirth: String }
+input CreatePersonInput { name: String!, biography: String = "", birthDate: Date, deathDate: Date, placeOfBirth: String, birthCountryCode: String }
+input UpdatePersonInput { name: String, biography: String, birthDate: Date, deathDate: Date, placeOfBirth: String, birthCountryCode: String }
 input CreateCreditInput { personId: ID!, roleCode: ID!, characterName: String, billingOrder: Int, tmdbCreditId: String, sourceRoleName: String }
 input UpdateCreditInput { roleCode: ID, characterName: String, billingOrder: Int }
-input AddMovieCommentInput { authorDisplayName: String!, text: String! }
+input AddMovieCommentInput { authorDisplayName: String!, text: String!, seedKey: String }

@@ -45,6 +45,10 @@ services:
       POSTGRES_DB: ${CATALOGUE_DB_NAME:-catalogue}
       POSTGRES_USER: ${CATALOGUE_DB_USER:-catalogue}
       POSTGRES_PASSWORD: ${CATALOGUE_DB_PASSWORD:-catalogue}
+      # Pin the encoding emoji storage in comment fields relies on (V2.2-06),
+      # rather than inheriting whatever the image's initdb default happens to
+      # be. Only takes effect on first init of a fresh data volume.
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C.UTF-8"
     volumes:
       - catalogue-db-data:/var/lib/postgresql/data
     healthcheck:
@@ -60,6 +64,10 @@ services:
       POSTGRES_DB: ${PEOPLE_DB_NAME:-people}
       POSTGRES_USER: ${PEOPLE_DB_USER:-people}
       POSTGRES_PASSWORD: ${PEOPLE_DB_PASSWORD:-people}
+      # Pin the encoding emoji storage in comment fields relies on (V2.2-06),
+      # rather than inheriting whatever the image's initdb default happens to
+      # be. Only takes effect on first init of a fresh data volume.
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C.UTF-8"
     volumes:
       - people-db-data:/var/lib/postgresql/data
     healthcheck:

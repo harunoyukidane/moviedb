@@ -96,19 +96,35 @@ class CatalogueGraphQlIntegrationTest {
 
         override fun createPerson(command: CreatePersonData): PersonData {
             val id = UUID.randomUUID()
-            val data = PersonData(id, null, command.name, command.biography, command.birthDate, command.deathDate, command.placeOfBirth, null, 0)
+            val data = PersonData(
+                id, null, command.name, command.biography, command.birthDate, command.deathDate,
+                command.placeOfBirth, null, 0, command.birthCountryCode,
+            )
             store[id] = data
             return data
         }
 
         override fun updatePerson(command: UpdatePersonData): PersonData {
             val existing = store[command.id] ?: throw com.moviecatalogue.catalogue.domain.NotFoundException("person")
-            val updated = existing.copy(name = command.name ?: existing.name, version = existing.version + 1)
+            val updated = existing.copy(
+                name = command.name ?: existing.name,
+                birthCountryCode = if ("birth_country_code" in command.maskPaths) command.birthCountryCode else existing.birthCountryCode,
+                version = existing.version + 1,
+            )
             store[command.id] = updated
             return updated
         }
 
         override fun deletePerson(id: UUID) { store.remove(id) }
+
+        val countries = mutableListOf(
+            com.moviecatalogue.catalogue.people.CountryCodeData("US", "United States", true, 10),
+            com.moviecatalogue.catalogue.people.CountryCodeData("FR", "France", true, 20),
+            com.moviecatalogue.catalogue.people.CountryCodeData("ZZ", "Retired", false, 30),
+        )
+
+        override fun listCountries(activeOnly: Boolean): List<com.moviecatalogue.catalogue.people.CountryCodeData> =
+            if (activeOnly) countries.filter { it.active } else countries
     }
 
     @TestConfiguration
@@ -244,11 +260,32 @@ class CatalogueGraphQlIntegrationTest {
     }
 
     @Test
+    fun `a conflict's message keeps version numbers out of the user-facing copy (F23)`() {
+        val movieId = createMovie("Lockme2")
+        val messages = mutableListOf<String>()
+        tester.document(
+            """mutation { updateMovie(id: "$movieId", expectedVersion: 99, input: { title: "New" }) { id } }""",
+        ).execute().errors().satisfy { errors -> errors.forEach { messages.add(it.message.orEmpty()) } }
+        assertThat(messages).isNotEmpty().allSatisfy { assertThat(it).doesNotContainPattern("\\bexpected\\b.*\\d") }
+    }
+
+    @Test
     fun `movie not found returns NOT_FOUND on mutation and null on query`() {
         val ghost = UUID.randomUUID()
         tester.document("""query { movie(id: "$ghost") { id } }""")
             .execute().path("movie").valueIsNull()
         assertThat(errorCodeOf("""mutation { deleteMovie(id: "$ghost") { deletedId } }""")).isEqualTo("NOT_FOUND")
+    }
+
+    @Test
+    fun `a malformed movie, person, or credit id is NOT_FOUND, not INTERNAL_ERROR`() {
+        tester.document("""query { movie(id: "not-a-uuid") { id } }""")
+            .execute().path("movie").valueIsNull()
+        tester.document("""query { person(id: "not-a-uuid") { id } }""")
+            .execute().path("person").valueIsNull()
+        assertThat(errorCodeOf("""mutation { deleteMovie(id: "not-a-uuid") { deletedId } }""")).isEqualTo("NOT_FOUND")
+        assertThat(errorCodeOf("""mutation { deletePerson(id: "not-a-uuid") { deletedId } }""")).isEqualTo("NOT_FOUND")
+        assertThat(errorCodeOf("""mutation { removeMovieCredit(id: "not-a-uuid") { deletedId } }""")).isEqualTo("NOT_FOUND")
     }
 
     @Test
@@ -507,6 +544,35 @@ class CatalogueGraphQlIntegrationTest {
         ).isEqualTo("BAD_USER_INPUT")
     }
 
+    // --- Countries (V2.2-10) --------------------------------------------------
+
+    @Test
+    fun `countryCodes query returns only active by default`() {
+        val codes = tester.document("""query { countryCodes { code active } }""")
+            .execute().path("countryCodes[*].active").entityList(Boolean::class.java).get()
+        assertThat(codes).isNotEmpty().allMatch { it }
+    }
+
+    @Test
+    fun `countryCodes query with activeOnly false includes inactive codes`() {
+        val codes = tester.document("""query { countryCodes(activeOnly: false) { code } }""")
+            .execute().path("countryCodes[*].code").entityList(String::class.java).get()
+        assertThat(codes).contains("ZZ")
+    }
+
+    @Test
+    fun `createPerson accepts a birthCountryCode and Person resolves birthCountry`() {
+        val id = tester.document(
+            """mutation { createPerson(input: { name: "Jane", birthCountryCode: "US" }) { id } }""",
+        ).execute().path("createPerson.id").entity(String::class.java).get()
+
+        val result = tester.document(
+            """query { person(id: "$id") { birthCountryCode birthCountry { code name } } }""",
+        ).execute()
+        assertThat(result.path("person.birthCountryCode").entity(String::class.java).get()).isEqualTo("US")
+        assertThat(result.path("person.birthCountry.name").entity(String::class.java).get()).isEqualTo("United States")
+    }
+
     // --- Languages (v2.1) ----------------------------------------------------
 
     @Test
@@ -623,6 +689,36 @@ class CatalogueGraphQlIntegrationTest {
             .execute()
             .path("comments.total").entity(Long::class.java).isEqualTo(1L)
             .path("comments.items[0].authorDisplayName").entity(String::class.java).isEqualTo("Alice")
+    }
+
+    @Test
+    fun `a seeded comment upserts by seedKey instead of duplicating on a second call`() {
+        val movieId = createMovie("Seeded")
+        tester.document(
+            """mutation { addMovieComment(movieId: "$movieId", input: { authorDisplayName: "Riley", text: "First pass", seedKey: "seed:1:1" }) { id } }""",
+        ).execute()
+        tester.document(
+            """mutation { addMovieComment(movieId: "$movieId", input: { authorDisplayName: "Riley", text: "Updated pass", seedKey: "seed:1:1" }) { id } }""",
+        ).execute()
+
+        val result = tester.document("""query { comments(movieId: "$movieId") { total items { text } } }""")
+            .execute()
+        assertThat(result.path("comments.total").entity(Long::class.java).get()).isEqualTo(1L)
+        assertThat(result.path("comments.items[0].text").entity(String::class.java).get()).isEqualTo("Updated pass")
+    }
+
+    @Test
+    fun `an emoji comment, including a ZWJ sequence, round-trips through addMovieComment and comments`() {
+        val movieId = createMovie("EmojiComments")
+        // man ZWJ woman ZWJ girl ZWJ boy - proves emoji and adjacency-scoped ZWJ both survive (V2.2-06)
+        val family = "👨‍👩‍👧‍👦"
+        val text = "Family night! $family"
+        tester.document(
+            """mutation(${'$'}text: String!) { addMovieComment(movieId: "$movieId", input: { authorDisplayName: "Casey", text: ${'$'}text }) { id } }""",
+        ).variable("text", text).execute()
+
+        val result = tester.document("""query { comments(movieId: "$movieId") { items { text } } }""").execute()
+        assertThat(result.path("comments.items[0].text").entity(String::class.java).get()).isEqualTo(text)
     }
 
     @Test

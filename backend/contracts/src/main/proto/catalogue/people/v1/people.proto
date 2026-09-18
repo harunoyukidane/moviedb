@@ -17,6 +17,9 @@ service PeopleService {
   rpc CreatePerson(CreatePersonRequest) returns (PersonResponse);
   rpc UpdatePerson(UpdatePersonRequest) returns (PersonResponse);
   rpc DeletePerson(DeletePersonRequest) returns (google.protobuf.Empty);
+  // Controlled ISO 3166-1 alpha-2 country reference data (V2.2-10), owned by
+  // People because it constrains person.birth_country_code.
+  rpc ListCountries(ListCountriesRequest) returns (ListCountriesResponse);
 }
 
 message GetPersonRequest { string id = 1; }
@@ -33,6 +36,7 @@ message PersonResponse {
   optional string place_of_birth = 7;
   optional string profile_path = 8;
   int64 version = 9;
+  optional string birth_country_code = 10;
 }
 
 message GetPeopleResponse { repeated PersonResponse people = 1; }
@@ -48,6 +52,7 @@ message CreatePersonRequest {
   optional string death_date = 5;
   optional string place_of_birth = 6;
   optional string profile_path = 7;
+  optional string birth_country_code = 8;
 }
 
 message UpdatePersonRequest {
@@ -64,6 +69,17 @@ message PersonPatch {
   optional string death_date = 4;
   optional string place_of_birth = 5;
   optional string profile_path = 6;
+  optional string birth_country_code = 7;
 }
 
 message DeletePersonRequest { string id = 1; }
+
+// Controlled ISO 3166-1 alpha-2 country reference data (V2.2-10).
+message ListCountriesRequest { optional bool active_only = 1; }
+message ListCountriesResponse { repeated CountryCode countries = 1; }
+message CountryCode {
+  string code = 1;
+  string name = 2;
+  bool active = 3;
+  int32 display_order = 4;
+}

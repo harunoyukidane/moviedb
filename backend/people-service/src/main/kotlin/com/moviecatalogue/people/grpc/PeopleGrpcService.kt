@@ -19,11 +19,14 @@ import com.moviecatalogue.people.v1.DeletePersonRequest
 import com.moviecatalogue.people.v1.GetPeopleRequest
 import com.moviecatalogue.people.v1.GetPeopleResponse
 import com.moviecatalogue.people.v1.GetPersonRequest
+import com.moviecatalogue.people.v1.ListCountriesRequest
+import com.moviecatalogue.people.v1.ListCountriesResponse
 import com.moviecatalogue.people.v1.PeopleServiceGrpc
 import com.moviecatalogue.people.v1.PersonResponse
 import com.moviecatalogue.people.v1.SearchPeopleRequest
 import com.moviecatalogue.people.v1.SearchPeopleResponse
 import com.moviecatalogue.people.v1.UpdatePersonRequest
+import com.moviecatalogue.people.v1.CountryCode as CountryCodeProto
 import io.grpc.Status
 import io.grpc.StatusRuntimeException
 import io.grpc.stub.StreamObserver
@@ -86,6 +89,7 @@ class PeopleGrpcService(
                 deathDate = DateHelpers.parseOptional(if (request.hasDeathDate()) request.deathDate else null, "deathDate"),
                 placeOfBirth = if (request.hasPlaceOfBirth()) request.placeOfBirth else null,
                 profilePath = if (request.hasProfilePath()) request.profilePath else null,
+                birthCountryCode = if (request.hasBirthCountryCode()) request.birthCountryCode else null,
             )
             app.createPerson(command).toProto()
         }
@@ -107,8 +111,28 @@ class PeopleGrpcService(
                 deathDate = DateHelpers.parseOptional(if (patch.hasDeathDate()) patch.deathDate else null, "deathDate"),
                 placeOfBirth = if (patch.hasPlaceOfBirth()) patch.placeOfBirth else null,
                 profilePath = if (patch.hasProfilePath()) patch.profilePath else null,
+                birthCountryCode = if (patch.hasBirthCountryCode()) patch.birthCountryCode else null,
             )
             app.updatePerson(command).toProto()
+        }
+    }
+
+    override fun listCountries(request: ListCountriesRequest, responseObserver: StreamObserver<ListCountriesResponse>) {
+        handle(responseObserver) {
+            val activeOnly = if (request.hasActiveOnly()) request.activeOnly else true
+            val countries = app.listCountries(activeOnly)
+            ListCountriesResponse.newBuilder()
+                .addAllCountries(
+                    countries.map {
+                        CountryCodeProto.newBuilder()
+                            .setCode(it.code)
+                            .setName(it.name)
+                            .setActive(it.active)
+                            .setDisplayOrder(it.displayOrder)
+                            .build()
+                    },
+                )
+                .build()
         }
     }
 
@@ -181,5 +205,6 @@ private fun PersonView.toProto(): PersonResponse {
     DateHelpers.format(deathDate)?.let { b.deathDate = it }
     placeOfBirth?.let { b.placeOfBirth = it }
     profilePath?.let { b.profilePath = it }
+    birthCountryCode?.let { b.birthCountryCode = it }
     return b.build()
 }

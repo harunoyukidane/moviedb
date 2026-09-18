@@ -465,6 +465,36 @@ class CommentUseCasesTest {
     }
 
     @Test
+    fun `addComment with a new seedKey inserts and stamps it (V2_2-13)`() {
+        val movieId = UUID.randomUUID()
+        every { movies.existsById(movieId) } returns true
+        every { comments.findBySeedKey("seed:1:1") } returns null
+        val saved = slot<MovieComment>()
+        every { comments.saveAndFlush(capture(saved)) } answers { firstArg() }
+
+        useCases.addComment(movieId, "Riley", "Loved it.", seedKey = "seed:1:1")
+
+        assertThat(saved.captured.seedKey).isEqualTo("seed:1:1")
+    }
+
+    @Test
+    fun `addComment with an existing seedKey upserts in place rather than inserting a duplicate`() {
+        val movieId = UUID.randomUUID()
+        val existing = MovieComment(
+            id = UUID.randomUUID(), movieId = movieId, authorDisplayName = "Old", text = "Old text",
+            createdAt = java.time.OffsetDateTime.now(), seedKey = "seed:1:1",
+        )
+        every { movies.existsById(movieId) } returns true
+        every { comments.findBySeedKey("seed:1:1") } returns existing
+        every { comments.saveAndFlush(any()) } answers { firstArg() }
+
+        val view = useCases.addComment(movieId, "Riley", "Updated text.", seedKey = "seed:1:1")
+
+        assertThat(view.text).isEqualTo("Updated text.")
+        assertThat(existing.id).isEqualTo(view.id) // same row, not a new one
+    }
+
+    @Test
     fun `listComments rejects an unknown movie`() {
         val movieId = UUID.randomUUID()
         every { movies.existsById(movieId) } returns false

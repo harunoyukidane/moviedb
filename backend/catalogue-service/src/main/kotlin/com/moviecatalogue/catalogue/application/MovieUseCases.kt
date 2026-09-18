@@ -16,6 +16,7 @@ import com.moviecatalogue.catalogue.movie.MovieRepository
 import com.moviecatalogue.catalogue.people.PeopleClient
 import com.moviecatalogue.catalogue.reference.GenreCodeRepository
 import com.moviecatalogue.catalogue.reference.LanguageCodeRepository
+import org.slf4j.LoggerFactory
 import org.springframework.data.domain.Sort
 import org.springframework.orm.ObjectOptimisticLockingFailureException
 import org.springframework.stereotype.Service
@@ -34,6 +35,8 @@ class MovieUseCases(
     private val peopleClient: PeopleClient,
     private val clock: Clock,
 ) {
+
+    private val log = LoggerFactory.getLogger(javaClass)
 
     @Transactional(readOnly = true)
     fun getMovie(id: UUID): Movie =
@@ -70,6 +73,7 @@ class MovieUseCases(
         val originalTitle = MovieRules.normalizeOptionalText(command.originalTitle, MovieRules.TITLE_MAX, "originalTitle")
         val originalLanguage = MovieRules.normalizeOptionalText(command.originalLanguage, MovieRules.ORIGINAL_LANGUAGE_MAX, "originalLanguage")
         validateLanguageCode(originalLanguage)
+        val synopsis = MovieRules.normalizeSynopsis(command.synopsis)
         MovieRules.validateRuntime(command.runtimeMinutes)
         MovieRules.validateReleaseDate(command.releaseDate, clock)
         validateGenreCodes(command.genreCodes)
@@ -79,7 +83,7 @@ class MovieUseCases(
         if (existing != null) {
             existing.title = title
             existing.originalTitle = originalTitle
-            existing.synopsis = command.synopsis.trim()
+            existing.synopsis = synopsis
             existing.releaseDate = command.releaseDate
             existing.runtimeMinutes = command.runtimeMinutes
             existing.originalLanguage = originalLanguage
@@ -96,7 +100,7 @@ class MovieUseCases(
                 tmdbId = command.tmdbId,
                 title = title,
                 originalTitle = originalTitle,
-                synopsis = command.synopsis.trim(),
+                synopsis = synopsis,
                 releaseDate = command.releaseDate,
                 runtimeMinutes = command.runtimeMinutes,
                 originalLanguage = originalLanguage,
@@ -110,11 +114,17 @@ class MovieUseCases(
     fun updateMovie(command: UpdateMovieCommand): Movie {
         val movie = movies.findById(command.id).orElseThrow { NotFoundException("movie '${command.id}' not found") }
         if (movie.version != command.expectedVersion) {
-            throw ConflictException("movie was modified concurrently (expected ${command.expectedVersion}, is ${movie.version})")
+            // Version numbers stay in the log, never the user-facing message (F23):
+            // meaningless in a banner, useful for diagnosing a report.
+            log.info(
+                "movie {} version conflict: expected {}, is {}",
+                movie.id, command.expectedVersion, movie.version,
+            )
+            throw ConflictException("movie was modified concurrently")
         }
         if (command.maskTitle) movie.title = MovieRules.normalizeTitle(command.title)
         if (command.maskOriginalTitle) movie.originalTitle = MovieRules.normalizeOptionalText(command.originalTitle, MovieRules.TITLE_MAX, "originalTitle")
-        if (command.maskSynopsis) movie.synopsis = command.synopsis?.trim().orEmpty()
+        if (command.maskSynopsis) movie.synopsis = MovieRules.normalizeSynopsis(command.synopsis.orEmpty())
         if (command.maskReleaseDate) {
             MovieRules.validateReleaseDate(command.releaseDate, clock)
             if (command.releaseDate != null) validateCreditedPeopleAgainstReleaseDate(movie.id, command.releaseDate)

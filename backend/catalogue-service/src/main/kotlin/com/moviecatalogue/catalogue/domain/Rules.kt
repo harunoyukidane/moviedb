@@ -14,6 +14,7 @@ enum class CreditCategory { CAST, CREW }
 object MovieRules {
     const val TITLE_MAX = 300
     const val ORIGINAL_LANGUAGE_MAX = 10
+    const val SYNOPSIS_MAX = 5000
 
     // Pagination (§8.1 "limit clamped to 1-100").
     const val PAGE_LIMIT_MIN = 1
@@ -32,15 +33,33 @@ object MovieRules {
     fun normalizeTitle(raw: String?): String {
         val t = raw?.trim().orEmpty()
         if (t.isEmpty()) throw ValidationException("title must not be blank", field = "title")
-        if (t.length > TITLE_MAX) throw ValidationException("title must be at most $TITLE_MAX characters", field = "title")
-        return t
+        val screened = TextRules.screen(t, "title", allowNewlines = false, allowEmoji = false)
+        if (screened.length > TITLE_MAX) throw ValidationException("title must be at most $TITLE_MAX characters", field = "title")
+        return screened
     }
 
     fun normalizeOptionalText(raw: String?, max: Int, field: String): String? {
         val v = raw?.trim()
         if (v.isNullOrEmpty()) return null
-        if (v.length > max) throw ValidationException("$field must be at most $max characters", field = field)
-        return v
+        val screened = TextRules.screen(v, field, allowNewlines = false, allowEmoji = false)
+        if (screened.length > max) throw ValidationException("$field must be at most $max characters", field = field)
+        return screened
+    }
+
+    /**
+     * Synopsis is long-form (newlines allowed) but still catalogue metadata
+     * (emoji rejected), and — unlike title — required-but-blankable: an empty
+     * synopsis is allowed, just not an over-long or malformed one (V2.2-05).
+     */
+    fun normalizeSynopsis(raw: String): String {
+        val screened = TextRules.screen(raw.trim(), "synopsis", allowNewlines = true, allowEmoji = false)
+        if (screened.length > SYNOPSIS_MAX) {
+            throw ValidationException(
+                "synopsis must be at most $SYNOPSIS_MAX characters — you entered ${screened.length}.",
+                field = "synopsis",
+            )
+        }
+        return screened
     }
 
     fun validateRuntime(runtimeMinutes: Int?) {
@@ -140,19 +159,21 @@ object CreditRules {
     fun normalizeCharacterName(raw: String?): String? {
         val v = raw?.trim()
         if (v.isNullOrEmpty()) return null
-        if (v.length > CHARACTER_NAME_MAX) {
+        val screened = TextRules.screen(v, "characterName", allowNewlines = false, allowEmoji = false)
+        if (screened.length > CHARACTER_NAME_MAX) {
             throw ValidationException("characterName must be at most $CHARACTER_NAME_MAX characters", field = "characterName")
         }
-        return v
+        return screened
     }
 
     fun normalizeSourceRoleName(raw: String?): String? {
         val v = raw?.trim()
         if (v.isNullOrEmpty()) return null
-        if (v.length > SOURCE_ROLE_NAME_MAX) {
+        val screened = TextRules.screen(v, "sourceRoleName", allowNewlines = false, allowEmoji = false)
+        if (screened.length > SOURCE_ROLE_NAME_MAX) {
             throw ValidationException("sourceRoleName must be at most $SOURCE_ROLE_NAME_MAX characters", field = "sourceRoleName")
         }
-        return v
+        return screened
     }
 
     /**
@@ -182,19 +203,21 @@ object MovieCommentRules {
     fun normalizeAuthorDisplayName(raw: String?): String {
         val v = raw?.trim().orEmpty()
         if (v.isEmpty()) throw ValidationException("authorDisplayName must not be blank", field = "authorDisplayName")
-        if (v.length > AUTHOR_DISPLAY_NAME_MAX) {
+        val screened = TextRules.screen(v, "authorDisplayName", allowNewlines = false, allowEmoji = true)
+        if (screened.length > AUTHOR_DISPLAY_NAME_MAX) {
             throw ValidationException(
                 "authorDisplayName must be at most $AUTHOR_DISPLAY_NAME_MAX characters",
                 field = "authorDisplayName",
             )
         }
-        return v
+        return screened
     }
 
     fun normalizeText(raw: String?): String {
         val v = raw?.trim().orEmpty()
         if (v.isEmpty()) throw ValidationException("text must not be blank", field = "text")
-        if (v.length > TEXT_MAX) throw ValidationException("text must be at most $TEXT_MAX characters", field = "text")
-        return v
+        val screened = TextRules.screen(v, "text", allowNewlines = true, allowEmoji = true)
+        if (screened.length > TEXT_MAX) throw ValidationException("text must be at most $TEXT_MAX characters", field = "text")
+        return screened
     }
 }

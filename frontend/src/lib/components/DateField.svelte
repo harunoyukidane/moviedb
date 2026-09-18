@@ -4,6 +4,8 @@
   export let id: string;
   export let name: string;
   export let value: string | null | undefined = '';
+  export let min: string | undefined = undefined;
+  export let max: string | undefined = undefined;
 
   let inputEl: HTMLInputElement | null = null;
 
@@ -24,7 +26,7 @@
 </script>
 
 <div class="date-field">
-  <input {id} {name} type="date" value={value ?? ''} bind:this={inputEl} />
+  <input {id} {name} type="date" value={value ?? ''} {min} {max} bind:this={inputEl} />
   <IconButton icon="calendar" label="Open calendar" on:click={openPicker} />
 </div>
 

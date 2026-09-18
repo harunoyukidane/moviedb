@@ -14,6 +14,7 @@ object PersonRules {
     const val NAME_MAX = 300
     const val PLACE_OF_BIRTH_MAX = 300
     const val PROFILE_PATH_MAX = 500
+    const val BIOGRAPHY_MAX = 5000
 
     // Date semantics (V2.2-03). Unlike a movie, a person cannot be born or die in
     // the future - these bounds are not future-permissive.
@@ -33,18 +34,36 @@ object PersonRules {
     fun normalizeName(raw: String?): String {
         val name = raw?.trim().orEmpty()
         if (name.isEmpty()) throw ValidationException("name must not be blank", field = "name")
-        if (name.length > NAME_MAX) {
+        val screened = TextRules.screen(name, "name", allowNewlines = false, allowEmoji = false)
+        if (screened.length > NAME_MAX) {
             throw ValidationException("name must be at most $NAME_MAX characters", field = "name")
         }
-        return name
+        return screened
     }
 
     /** Optional free-text field with an upper bound; blank becomes null. */
     fun normalizeOptionalText(raw: String?, max: Int, field: String): String? {
         val v = raw?.trim()
         if (v.isNullOrEmpty()) return null
-        if (v.length > max) throw ValidationException("$field must be at most $max characters", field = field)
-        return v
+        val screened = TextRules.screen(v, field, allowNewlines = false, allowEmoji = false)
+        if (screened.length > max) throw ValidationException("$field must be at most $max characters", field = field)
+        return screened
+    }
+
+    /**
+     * Biography is long-form (newlines allowed) but still catalogue metadata
+     * (emoji rejected), and — unlike name — required-but-blankable: an empty
+     * biography is allowed, just not an over-long or malformed one (V2.2-05).
+     */
+    fun normalizeBiography(raw: String): String {
+        val screened = TextRules.screen(raw.trim(), "biography", allowNewlines = true, allowEmoji = false)
+        if (screened.length > BIOGRAPHY_MAX) {
+            throw ValidationException(
+                "biography must be at most $BIOGRAPHY_MAX characters — you entered ${screened.length}.",
+                field = "biography",
+            )
+        }
+        return screened
     }
 
     /**

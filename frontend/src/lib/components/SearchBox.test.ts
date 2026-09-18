@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/svelte';
+import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import SearchBox from './SearchBox.svelte';
@@ -75,5 +75,21 @@ describe('SearchBox', () => {
     await new Promise((r) => setTimeout(r, 20));
     expect(screen.queryByText('Old Result')).not.toBeInTheDocument();
     expect(screen.getByText('New Result')).toBeInTheDocument();
+  });
+
+  it('clamps a long query to 100 characters client-side (F19) rather than sending it to the server', async () => {
+    const searchFn = vi.fn(async (_q: string): Promise<Results> => ({ movies: [], people: [] }));
+    render(SearchBox, { props: { searchFn, debounceMs: 10 } });
+
+    const box = screen.getByRole('searchbox');
+    expect(box).toHaveAttribute('maxlength', '100');
+
+    // bypass the native maxlength enforcement to prove the clamp is real, not
+    // just cosmetic - set an over-long value directly and fire the input event.
+    await fireEvent.input(box, { target: { value: 'a'.repeat(150) } });
+    await new Promise((r) => setTimeout(r, 30));
+
+    expect(searchFn).toHaveBeenCalledTimes(1);
+    expect(searchFn.mock.calls[0]?.[0]).toHaveLength(100);
   });
 });

@@ -168,6 +168,43 @@ class PersonRulesTest {
         val manyDupes = List(PersonRules.MAX_BATCH_IDS + 50) { 7 }
         assertThat(PersonRules.dedupeAndCap(manyDupes)).containsExactly(7)
     }
+
+    @Test
+    fun `normalizeBiography allows blank, trims, screens and bounds at 5000`() {
+        assertThat(PersonRules.normalizeBiography("")).isEqualTo("")
+        assertThat(PersonRules.normalizeBiography("  A life.  ")).isEqualTo("A life.")
+        assertThat(PersonRules.normalizeBiography("a".repeat(PersonRules.BIOGRAPHY_MAX))).hasSize(PersonRules.BIOGRAPHY_MAX)
+        assertThatThrownBy { PersonRules.normalizeBiography("a".repeat(PersonRules.BIOGRAPHY_MAX + 1)) }
+            .isInstanceOf(ValidationException::class.java)
+    }
+
+    @Test
+    fun `normalizeBiography allows newlines but rejects emoji, unlike a comment`() {
+        assertThat(PersonRules.normalizeBiography("Line one.\nLine two.")).isEqualTo("Line one.\nLine two.")
+        assertThatThrownBy { PersonRules.normalizeBiography("Actor 😀") }
+            .isInstanceOf(ValidationException::class.java)
+    }
+
+    @Test
+    fun `normalizeName rejects emoji and control characters`() {
+        assertThatThrownBy { PersonRules.normalizeName("Jane 😀") }
+            .isInstanceOf(ValidationException::class.java)
+        assertThatThrownBy { PersonRules.normalizeName("Jane Doe") }
+            .isInstanceOf(ValidationException::class.java)
+    }
+}
+
+class PersonTextRulesTest {
+
+    @Test
+    fun `rejects NUL, control characters, bidi overrides, and zero-width characters`() {
+        assertThatThrownBy { TextRules.screen("a b", "field", allowNewlines = false, allowEmoji = false) }
+            .isInstanceOf(ValidationException::class.java)
+        assertThatThrownBy { TextRules.screen("a‮b", "field", allowNewlines = false, allowEmoji = false) }
+            .isInstanceOf(ValidationException::class.java)
+        assertThatThrownBy { TextRules.screen("a​b", "field", allowNewlines = false, allowEmoji = false) }
+            .isInstanceOf(ValidationException::class.java)
+    }
 }
 
 class DateHelpersTest {

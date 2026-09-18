@@ -1,6 +1,7 @@
 // Server-only typed GraphQL operations for the BFF.
 import { gql, type RequestContext } from './graphql';
 import type {
+  CountryCode,
   CreditRoleCode,
   DeleteResult,
   GenreCode,
@@ -27,7 +28,8 @@ const MOVIE_FIELDS = `
 `;
 
 const PERSON_FIELDS = `
-  id name biography birthDate deathDate placeOfBirth version
+  id name biography birthDate deathDate placeOfBirth birthCountryCode version
+  birthCountry { code name active }
   credits { movieId movieTitle category characterName
     role { code title category department description active } }
 `;
@@ -67,6 +69,15 @@ export function getMovie(id: string, ctx?: RequestContext) {
   ).then((r) => r.movie);
 }
 
+/** Version-only lookup for the staleness check (V2.2-11) - cheaper than a full getMovie. */
+export function getMovieVersion(id: string, ctx?: RequestContext) {
+  return gql<{ movie: { version: number } | null }>(
+    `query($id: ID!) { movie(id: $id) { version } }`,
+    { id },
+    ctx
+  ).then((r) => r.movie?.version ?? null);
+}
+
 export function listGenres(ctx?: RequestContext) {
   return gql<{ genres: GenreCode[] }>(`query { genres { code title description active } }`, {}, ctx).then(
     (r) => r.genres
@@ -87,6 +98,14 @@ export function listLanguages(ctx?: RequestContext) {
     {},
     ctx
   ).then((r) => r.languageCodes);
+}
+
+export function listCountries(ctx?: RequestContext) {
+  return gql<{ countryCodes: CountryCode[] }>(
+    `query { countryCodes { code name active } }`,
+    {},
+    ctx
+  ).then((r) => r.countryCodes);
 }
 
 export interface CreateMovieInput {
@@ -180,12 +199,22 @@ export function getPerson(id: string, ctx?: RequestContext) {
   ).then((r) => r.person);
 }
 
+/** Version-only lookup for the staleness check (V2.2-11) - cheaper than a full getPerson. */
+export function getPersonVersion(id: string, ctx?: RequestContext) {
+  return gql<{ person: { version: number } | null }>(
+    `query($id: ID!) { person(id: $id) { version } }`,
+    { id },
+    ctx
+  ).then((r) => r.person?.version ?? null);
+}
+
 export interface CreatePersonInput {
   name: string;
   biography?: string;
   birthDate?: string | null;
   deathDate?: string | null;
   placeOfBirth?: string | null;
+  birthCountryCode?: string | null;
 }
 
 export function createPerson(input: CreatePersonInput, ctx?: RequestContext) {

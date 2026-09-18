@@ -10,6 +10,9 @@ import com.moviecatalogue.people.domain.ValidationException
 import com.moviecatalogue.people.domain.VersionConflictException
 import com.moviecatalogue.people.person.Person
 import com.moviecatalogue.people.person.PersonRepository
+import com.moviecatalogue.people.reference.CountryCode
+import com.moviecatalogue.people.reference.CountryCodeRepository
+import org.slf4j.LoggerFactory
 import org.springframework.data.domain.PageRequest
 import org.springframework.orm.ObjectOptimisticLockingFailureException
 import org.springframework.stereotype.Service
@@ -26,13 +29,29 @@ import java.util.UUID
 @Service
 class PeopleApplicationService(
     private val repository: PersonRepository,
+    private val countryCodes: CountryCodeRepository,
     private val clock: Clock,
 ) {
 
+    private val log = LoggerFactory.getLogger(javaClass)
+
     /** Known field-mask paths for UpdatePerson; anything else is a precondition failure. */
     private val allowedMaskPaths = setOf(
-        "name", "biography", "birth_date", "death_date", "place_of_birth", "profile_path",
+        "name", "biography", "birth_date", "death_date", "place_of_birth", "profile_path", "birth_country_code",
     )
+
+    @Transactional(readOnly = true)
+    fun listCountries(activeOnly: Boolean): List<CountryCode> =
+        if (activeOnly) countryCodes.findAllByActiveTrueOrderByDisplayOrderAsc()
+        else countryCodes.findAllByOrderByDisplayOrderAsc()
+
+    /** A supplied code must exist and be active - the same shape as CreditRules.requireActiveCode in Catalogue. */
+    private fun validateBirthCountryCode(code: String?) {
+        if (code == null) return
+        val found = countryCodes.findById(code).orElse(null)
+        if (found == null) throw ValidationException("country code '$code' does not exist", "birthCountryCode")
+        if (!found.active) throw ValidationException("country code '$code' is inactive", "birthCountryCode")
+    }
 
     @Transactional(readOnly = true)
     fun getPerson(id: UUID): PersonView {
@@ -56,7 +75,7 @@ class PeopleApplicationService(
     fun searchPeople(command: SearchPeopleCommand): SearchPeopleResult {
         val limit = PersonRules.clampLimit(command.limit)
         val offset = PersonRules.clampOffset(command.offset)
-        val raw = command.query?.trim().orEmpty()
+        val raw = command.query.trim()
 
         // A blank query means "list all people" (paged), so the Catalogue's
         // `people` list query has a backing read. A non-blank query searches names.
@@ -97,6 +116,7 @@ class PeopleApplicationService(
         PersonRules.validateBirthDate(command.birthDate, clock)
         PersonRules.validateDeathDate(command.deathDate, clock)
         PersonRules.validateLifeDates(command.birthDate, command.deathDate)
+        validateBirthCountryCode(command.birthCountryCode)
 
         // tmdb_id idempotency: reject a create that would duplicate an existing provenance id.
         command.tmdbId?.let {
@@ -107,10 +127,11 @@ class PeopleApplicationService(
             id = UuidV7.generate(),
             tmdbId = command.tmdbId,
             name = name,
-            biography = command.biography.trim(),
+            biography = PersonRules.normalizeBiography(command.biography),
             birthDate = command.birthDate,
             deathDate = command.deathDate,
             placeOfBirth = placeOfBirth,
+            birthCountryCode = command.birthCountryCode,
             profilePath = profilePath,
         )
         return try {
@@ -133,13 +154,17 @@ class PeopleApplicationService(
 
         val person = repository.findById(command.id).orElseThrow { PersonNotFoundException() }
         if (person.version != command.expectedVersion) {
-            throw VersionConflictException(
-                "expected version ${command.expectedVersion} but current is ${person.version}",
+            // Version numbers stay in the log, never the user-facing message (F23):
+            // meaningless in a banner, useful for diagnosing a report.
+            log.info(
+                "person {} version conflict: expected {}, is {}",
+                person.id, command.expectedVersion, person.version,
             )
+            throw VersionConflictException()
         }
 
         if ("name" in command.maskPaths) person.name = PersonRules.normalizeName(command.name)
-        if ("biography" in command.maskPaths) person.biography = command.biography?.trim().orEmpty()
+        if ("biography" in command.maskPaths) person.biography = PersonRules.normalizeBiography(command.biography.orEmpty())
         if ("birth_date" in command.maskPaths) {
             PersonRules.validateBirthDate(command.birthDate, clock)
             person.birthDate = command.birthDate
@@ -152,6 +177,10 @@ class PeopleApplicationService(
             person.placeOfBirth = PersonRules.normalizeOptionalText(
                 command.placeOfBirth, PersonRules.PLACE_OF_BIRTH_MAX, "placeOfBirth",
             )
+        }
+        if ("birth_country_code" in command.maskPaths) {
+            validateBirthCountryCode(command.birthCountryCode)
+            person.birthCountryCode = command.birthCountryCode
         }
         if ("profile_path" in command.maskPaths) {
             person.profilePath = PersonRules.normalizeOptionalText(
@@ -198,4 +227,5 @@ private fun Person.toView(): PersonView = PersonView(
     placeOfBirth = placeOfBirth,
     profilePath = profilePath,
     version = version,
+    birthCountryCode = birthCountryCode,
 )

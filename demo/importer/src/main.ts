@@ -28,11 +28,13 @@ async function main(): Promise<number> {
 
   const correlationId = randomUUID();
   const people = new PeopleGrpcClient(config);
+  const catalogue = new CatalogueGraphqlClient(config, correlationId);
   const deps: Dependencies = {
     tmdb: new TmdbClient(config),
     people,
-    catalogue: new CatalogueGraphqlClient(config, correlationId),
-    artwork: new ArtworkHttpClient(config, correlationId)
+    catalogue,
+    artwork: new ArtworkHttpClient(config, correlationId),
+    comments: catalogue
   };
 
   console.log(`Importing ${ids.length} movies (concurrency ${config.concurrency}, correlation ${correlationId})…`);
@@ -42,12 +44,13 @@ async function main(): Promise<number> {
     for (const o of report.outcomes) {
       const tag = o.status.toUpperCase().padEnd(8);
       console.log(
-        `  ${tag} tmdb=${o.tmdbId} "${o.title ?? ''}" people=${o.peopleImported} photos=${o.photosImported} credits=${o.creditsImported} poster=${o.posterImported}` +
+        `  ${tag} tmdb=${o.tmdbId} "${o.title ?? ''}" people=${o.peopleImported} photos=${o.photosImported} credits=${o.creditsImported} comments=${o.commentsImported} poster=${o.posterImported}` +
           (o.error ? ` (${o.error})` : '')
       );
     }
     console.log(
-      `Done: ${report.imported} imported, ${report.skipped} skipped, ${report.failed} failed of ${report.total}.`
+      `Done: ${report.imported} imported, ${report.skipped} skipped, ${report.failed} failed of ${report.total} ` +
+        `(${report.commentsImported} comments seeded).`
     );
     // Non-zero if any required item failed (skipped 404s are acceptable, §12.3 step 9).
     return report.failed > 0 ? 1 : 0;

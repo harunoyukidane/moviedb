@@ -11,4 +11,7 @@ interface CommentRepository : JpaRepository<MovieComment, UUID> {
      * (ix_movie_comment_movie_created), id descending as a stable tie-breaker.
      */
     fun findAllByMovieIdOrderByCreatedAtDescIdDesc(movieId: UUID, pageable: Pageable): Page<MovieComment>
+
+    /** Importer idempotency lookup (V2.2-13): upsert by seed_key instead of duplicating on rerun. */
+    fun findBySeedKey(seedKey: String): MovieComment?
 }

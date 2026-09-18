@@ -44,6 +44,18 @@ export interface CataloguePort {
   upsertCredit(credit: CreditUpsert): Promise<string>;
 }
 
+export interface CommentUpsert {
+  movieId: string;
+  authorDisplayName: string;
+  text: string;
+  seedKey: string;
+}
+
+export interface CommentsPort {
+  /** Idempotent by seed_key: upserts rather than duplicating on a rerun. */
+  upsertComment(comment: CommentUpsert): Promise<string>;
+}
+
 export interface ArtworkPort {
   /** Upload/replace a movie poster through the artwork HTTP path. */
   uploadMoviePoster(movieId: string, bytes: Uint8Array, contentType: string): Promise<void>;

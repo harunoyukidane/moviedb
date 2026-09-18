@@ -8,6 +8,8 @@
 
   $: person = data.person;
   let photoError = false;
+
+  $: birthPlace = [person.placeOfBirth, person.birthCountry?.name].filter(Boolean).join(' — ');
 </script>
 
 <a class="page-back" href="/people">← All people</a>
@@ -33,7 +35,7 @@
     {/if}
 
     <dl class="detail-meta">
-      {#if person.birthDate}<dt>Born</dt><dd>{person.birthDate}{person.placeOfBirth ? ` · ${person.placeOfBirth}` : ''}</dd>{/if}
+      {#if person.birthDate}<dt>Born</dt><dd>{person.birthDate}{birthPlace ? ` · ${birthPlace}` : ''}</dd>{/if}
       {#if person.deathDate}<dt>Died</dt><dd>{person.deathDate}</dd>{/if}
     </dl>
 

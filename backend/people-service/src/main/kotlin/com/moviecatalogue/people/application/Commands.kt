@@ -17,6 +17,7 @@ data class CreatePersonCommand(
     val deathDate: LocalDate?,
     val placeOfBirth: String?,
     val profilePath: String?,
+    val birthCountryCode: String? = null,
 )
 
 /**
@@ -34,6 +35,7 @@ data class UpdatePersonCommand(
     val deathDate: LocalDate?,
     val placeOfBirth: String?,
     val profilePath: String?,
+    val birthCountryCode: String? = null,
 )
 
 data class SearchPeopleCommand(
@@ -58,4 +60,5 @@ data class PersonView(
     val placeOfBirth: String?,
     val profilePath: String?,
     val version: Long,
+    val birthCountryCode: String? = null,
 )

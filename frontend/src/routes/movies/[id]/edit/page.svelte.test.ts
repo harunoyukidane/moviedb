@@ -144,3 +144,40 @@ describe('movie edit form: saving keeps every field, not just the genre selectio
     expect(screen.getByRole('checkbox', { name: 'Psychological Horror' })).toBeChecked();
   });
 });
+
+describe('staleness banner (V2.2-11)', () => {
+  it('appears when the version has moved and is dismissible', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify({ version: 99 }), { status: 200 }))
+    );
+    render(Page, {
+      props: { data: { movie: makeMovie({ version: 0 }), genres: genreCodes, roles, languages }, form: null }
+    });
+
+    await user.click(screen.getByRole('button', { name: /save changes/i }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent(/changed by someone else/i);
+    await user.click(screen.getByRole('button', { name: 'Dismiss' }));
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+
+    vi.unstubAllGlobals();
+  });
+
+  it('does not appear when the version is unchanged', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify({ version: 0 }), { status: 200 }))
+    );
+    render(Page, {
+      props: { data: { movie: makeMovie({ version: 0 }), genres: genreCodes, roles, languages }, form: null }
+    });
+
+    await user.click(screen.getByRole('button', { name: /save changes/i }));
+
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    vi.unstubAllGlobals();
+  });
+});

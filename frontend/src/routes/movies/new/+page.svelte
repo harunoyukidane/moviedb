@@ -3,9 +3,11 @@
   import { enhance } from '$app/forms';
   import StateBanner from '$lib/components/StateBanner.svelte';
   import FieldError from '$lib/components/FieldError.svelte';
+  import CharCounter from '$lib/components/CharCounter.svelte';
   import GenreMultiSelect from '$lib/components/GenreMultiSelect.svelte';
   import LanguageSelect from '$lib/components/LanguageSelect.svelte';
   import DateField from '$lib/components/DateField.svelte';
+  import { RELEASE_DATE_MIN, releaseDateMax } from '$lib/dateBounds';
   import { tick } from 'svelte';
 
   export let data: PageData;
@@ -24,6 +26,15 @@
   }
   $: v = (form?.values ?? {}) as FormValues;
   $: fieldErrors = (form?.fieldErrors ?? {}) as Record<string, string>;
+
+  const TITLE_MAX = 300;
+  const SYNOPSIS_MAX = 5000;
+  // Tracks length only, not the field's value (the field itself stays
+  // uncontrolled via `value={v.title}` etc.) - kept in sync by `on:input`,
+  // and reset to the server-confirmed value whenever `v` changes.
+  $: titleLength = (v.title ?? '').length;
+  $: originalTitleLength = (v.originalTitle ?? '').length;
+  $: synopsisLength = (v.synopsis ?? '').length;
 
   async function focusFirstInvalid() {
     await tick();
@@ -61,10 +72,13 @@
         id="title"
         name="title"
         required
+        maxlength={TITLE_MAX}
         value={v.title ?? ''}
+        on:input={(e) => (titleLength = e.currentTarget.value.length)}
         aria-invalid={!!fieldErrors.title}
         aria-describedby="title-error"
       />
+      <CharCounter count={titleLength} max={TITLE_MAX} />
       <FieldError id="title-error" message={fieldErrors.title} />
     </div>
     <div class="field">
@@ -72,10 +86,13 @@
       <input
         id="originalTitle"
         name="originalTitle"
+        maxlength={TITLE_MAX}
         value={v.originalTitle ?? ''}
+        on:input={(e) => (originalTitleLength = e.currentTarget.value.length)}
         aria-invalid={!!fieldErrors.originalTitle}
         aria-describedby="originalTitle-error"
       />
+      <CharCounter count={originalTitleLength} max={TITLE_MAX} />
       <FieldError id="originalTitle-error" message={fieldErrors.originalTitle} />
     </div>
     <div class="field">
@@ -84,15 +101,24 @@
         id="synopsis"
         name="synopsis"
         rows="4"
+        maxlength={SYNOPSIS_MAX}
+        on:input={(e) => (synopsisLength = e.currentTarget.value.length)}
         aria-invalid={!!fieldErrors.synopsis}
         aria-describedby="synopsis-error">{v.synopsis ?? ''}</textarea
       >
+      <CharCounter count={synopsisLength} max={SYNOPSIS_MAX} />
       <FieldError id="synopsis-error" message={fieldErrors.synopsis} />
     </div>
     <div class="form-grid-2">
       <div class="field">
         <label for="releaseDate">Release date</label>
-        <DateField id="releaseDate" name="releaseDate" value={v.releaseDate} />
+        <DateField
+          id="releaseDate"
+          name="releaseDate"
+          value={v.releaseDate}
+          min={RELEASE_DATE_MIN}
+          max={releaseDateMax()}
+        />
         <FieldError id="releaseDate-error" message={fieldErrors.releaseDate} />
       </div>
       <div class="field">

@@ -31,20 +31,20 @@ open and unaffected by this file) and [plans/v2.1/README.md](../v2.1/README.md)
 
 | Item | Area | Status |
 |---|---|---|
-| [V2.2-01](#v22-01-carry-the-specific-validation-message-to-the-user) | BFF + UI: stop discarding backend validation messages | ☐ not started |
-| [V2.2-02](#v22-02-render-real-field-level-errors) | UI: real field-level errors, so "highlighted" is true | ☐ not started |
-| [V2.2-03](#v22-03-date-semantics-for-movies-and-people) | Domain: release/birth/death date semantics | ☐ not started |
-| [V2.2-04](#v22-04-malformed-dates-and-numbers-are-bad_user_input-not-internal_error) | Boundary: malformed scalars → `BAD_USER_INPUT` | ☐ not started |
-| [V2.2-05](#v22-05-length-bounds-on-every-text-field-counted-consistently) | Domain: bound `synopsis`/`biography`, declare the counting unit | ☐ not started |
-| [V2.2-06](#v22-06-character-class-screening-on-text-fields) | Domain: control/NUL/bidi screening | ☐ not started |
-| [V2.2-07](#v22-07-malformed-ids-are-not-found-not-internal_error) | Boundary: malformed UUID → `NOT_FOUND` | ☐ not started |
-| [V2.2-08](#v22-08-fix-the-wrong-error-codes-and-http-statuses) | BFF: wrong codes/statuses on media, update, delete paths | ☐ not started |
-| [V2.2-09](#v22-09-client-side-mirrors-of-the-server-rules) | UI: `maxlength`/`min`/`max` mirrors, app error page | ☐ not started |
-| [V2.2-10](#v22-10-controlled-country-reference-for-place-of-birth) | Domain + UI: controlled country vocabulary for place of birth | ☐ not started |
-| [V2.2-11](#v22-11-concurrent-edit-handling) | BFF: narrow update masks, preserve input, staleness banner | ☐ not started |
-| [V2.2-12](#v22-12-character-counters-on-every-bounded-field) | UI: live character counters on every bounded field | ☐ not started |
-| [V2.2-13](#v22-13-seed-comments-in-the-importer) | Importer: seeded comments + a comment idempotency key | ☐ not started |
-| [V2.2-14](#v22-14-test-inventory-gaps) | Tests: extremity, invalid-character + emoji coverage | ☐ not started |
+| [V2.2-01](#v22-01-carry-the-specific-validation-message-to-the-user) | BFF + UI: stop discarding backend validation messages | ✅ done |
+| [V2.2-02](#v22-02-render-real-field-level-errors) | UI: real field-level errors, so "highlighted" is true | ✅ done |
+| [V2.2-03](#v22-03-date-semantics-for-movies-and-people) | Domain: release/birth/death date semantics | ✅ done |
+| [V2.2-04](#v22-04-malformed-dates-and-numbers-are-bad_user_input-not-internal_error) | Boundary: malformed scalars → `BAD_USER_INPUT` | ✅ done |
+| [V2.2-05](#v22-05-length-bounds-on-every-text-field-counted-consistently) | Domain: bound `synopsis`/`biography`, declare the counting unit | ✅ done |
+| [V2.2-06](#v22-06-character-class-screening-on-text-fields) | Domain: control/NUL/bidi screening | ✅ done |
+| [V2.2-07](#v22-07-malformed-ids-are-not-found-not-internal_error) | Boundary: malformed UUID → `NOT_FOUND` | ✅ done |
+| [V2.2-08](#v22-08-fix-the-wrong-error-codes-and-http-statuses) | BFF: wrong codes/statuses on media, update, delete paths | ✅ done |
+| [V2.2-09](#v22-09-client-side-mirrors-of-the-server-rules) | UI: `maxlength`/`min`/`max` mirrors, app error page | ✅ done |
+| [V2.2-10](#v22-10-controlled-country-reference-for-place-of-birth) | Domain + UI: controlled country vocabulary for place of birth | ✅ done |
+| [V2.2-11](#v22-11-concurrent-edit-handling) | BFF: narrow update masks, preserve input, staleness banner | ✅ done |
+| [V2.2-12](#v22-12-character-counters-on-every-bounded-field) | UI: live character counters on every bounded field | ✅ done |
+| [V2.2-13](#v22-13-seed-comments-in-the-importer) | Importer: seeded comments + a comment idempotency key | ✅ done |
+| [V2.2-14](#v22-14-test-inventory-gaps) | Tests: extremity, invalid-character + emoji coverage | ✅ done |
 
 ---
 

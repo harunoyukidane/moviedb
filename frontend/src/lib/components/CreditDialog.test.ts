@@ -71,4 +71,23 @@ describe('CreditDialog', () => {
     expect(screen.queryByLabelText('Character name *')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add credit' })).toBeEnabled();
   });
+
+  it('shows an inline message when the person search request fails (F17)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new Error('network down');
+      })
+    );
+    const user = userEvent.setup();
+    render(CreditDialog, { props: { open: true, roles } });
+    await tick();
+
+    await user.type(screen.getByLabelText('Person'), 'Jane');
+    await new Promise((r) => setTimeout(r, 260));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/couldn't search people/i);
+    // the spinner clears rather than sticking around forever
+    expect(screen.queryByText('Searching…')).not.toBeInTheDocument();
+  });
 });

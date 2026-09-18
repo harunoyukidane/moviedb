@@ -9,6 +9,7 @@ export type ErrorCode =
   | 'PERSON_IN_USE'
   | 'PAYLOAD_TOO_LARGE'
   | 'UNSUPPORTED_MEDIA_TYPE'
+  | 'STORAGE_UNAVAILABLE'
   | 'DEPENDENCY_UNAVAILABLE'
   | 'INTERNAL_ERROR';
 
@@ -16,11 +17,13 @@ const MESSAGES: Record<ErrorCode, string> = {
   BAD_USER_INPUT: 'Please correct the highlighted field and try again.',
   NOT_FOUND: "We couldn't find what you were looking for.",
   CONFLICT:
-    'This was changed by someone else since you loaded it. Reload to get the latest version, then reapply your changes.',
+    'Someone else changed this while you were editing. What you entered is still here — reload to see their version.',
   PERSON_IN_USE:
     'This person is still credited on one or more movies. Remove those credits first, then delete the person.',
   PAYLOAD_TOO_LARGE: 'That image is too large. Please choose a file up to 5 MB.',
   UNSUPPORTED_MEDIA_TYPE: 'That file is not a supported image. Please upload a JPEG, PNG, or WebP.',
+  STORAGE_UNAVAILABLE:
+    'Image storage is temporarily unavailable. Please try again in a moment.',
   DEPENDENCY_UNAVAILABLE:
     'A required service is temporarily unavailable. Please try again in a moment.',
   INTERNAL_ERROR: 'Something went wrong on our end. Please try again.'

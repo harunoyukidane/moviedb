@@ -13,7 +13,6 @@ import org.springframework.graphql.data.method.annotation.Argument
 import org.springframework.graphql.data.method.annotation.MutationMapping
 import org.springframework.stereotype.Controller
 import java.time.LocalDate
-import java.util.UUID
 
 /**
  * All GraphQL mutations. Update mutations use the raw argument map to decide
@@ -57,7 +56,7 @@ class MutationController(
         val present = (env.getArgument<Map<String, Any?>>("input") ?: emptyMap()).keys
         return movieUseCases.updateMovie(
             UpdateMovieCommand(
-                id = UUID.fromString(id),
+                id = parseId(id, "movie"),
                 expectedVersion = expectedVersion,
                 maskTitle = "title" in present, title = input.title,
                 maskOriginalTitle = "originalTitle" in present, originalTitle = input.originalTitle,
@@ -72,7 +71,7 @@ class MutationController(
 
     @MutationMapping
     fun deleteMovie(@Argument id: String): DeleteResultGql =
-        DeleteResultGql(movieUseCases.deleteMovie(UUID.fromString(id)).toString())
+        DeleteResultGql(movieUseCases.deleteMovie(parseId(id, "movie")).toString())
 
     // --- Person (orchestrated over gRPC) ---------------------------------
 
@@ -84,6 +83,7 @@ class MutationController(
             birthDate = input.birthDate,
             deathDate = input.deathDate,
             placeOfBirth = input.placeOfBirth,
+            birthCountryCode = input.birthCountryCode,
         ).toGql()
 
     @MutationMapping
@@ -101,10 +101,11 @@ class MutationController(
             if ("birthDate" in present) add("birth_date")
             if ("deathDate" in present) add("death_date")
             if ("placeOfBirth" in present) add("place_of_birth")
+            if ("birthCountryCode" in present) add("birth_country_code")
         }
         return personUseCases.updatePerson(
             UpdatePersonData(
-                id = UUID.fromString(id),
+                id = parseId(id, "person"),
                 expectedVersion = expectedVersion,
                 maskPaths = maskPaths,
                 name = input.name,
@@ -112,13 +113,14 @@ class MutationController(
                 birthDate = input.birthDate,
                 deathDate = input.deathDate,
                 placeOfBirth = input.placeOfBirth,
+                birthCountryCode = input.birthCountryCode,
             ),
         ).toGql()
     }
 
     @MutationMapping
     fun deletePerson(@Argument id: String): DeleteResultGql =
-        DeleteResultGql(personUseCases.deletePerson(UUID.fromString(id)).toString())
+        DeleteResultGql(personUseCases.deletePerson(parseId(id, "person")).toString())
 
     // --- Credits ---------------------------------------------------------
 
@@ -126,8 +128,8 @@ class MutationController(
     fun addMovieCredit(@Argument movieId: String, @Argument input: CreateCreditInput): MovieCreditGql =
         creditUseCases.addCredit(
             AddCreditCommand(
-                movieId = UUID.fromString(movieId),
-                personId = UUID.fromString(input.personId),
+                movieId = parseId(movieId, "movie"),
+                personId = parseId(input.personId, "person"),
                 roleCode = input.roleCode,
                 characterName = input.characterName,
                 billingOrder = input.billingOrder,
@@ -146,7 +148,7 @@ class MutationController(
         val present = (env.getArgument<Map<String, Any?>>("input") ?: emptyMap()).keys
         return creditUseCases.updateCredit(
             UpdateCreditCommand(
-                id = UUID.fromString(id),
+                id = parseId(id, "credit"),
                 maskRole = "roleCode" in present, roleCode = input.roleCode,
                 maskCharacter = "characterName" in present, characterName = input.characterName,
                 maskBilling = "billingOrder" in present, billingOrder = input.billingOrder,
@@ -156,11 +158,11 @@ class MutationController(
 
     @MutationMapping
     fun removeMovieCredit(@Argument id: String): DeleteResultGql =
-        DeleteResultGql(creditUseCases.removeCredit(UUID.fromString(id)).toString())
+        DeleteResultGql(creditUseCases.removeCredit(parseId(id, "credit")).toString())
 
     // --- Comments ----------------------------------------------------------
 
     @MutationMapping
     fun addMovieComment(@Argument movieId: String, @Argument input: AddMovieCommentInput): MovieCommentGql =
-        commentUseCases.addComment(UUID.fromString(movieId), input.authorDisplayName, input.text).toGql()
+        commentUseCases.addComment(parseId(movieId, "movie"), input.authorDisplayName, input.text, input.seedKey).toGql()
 }

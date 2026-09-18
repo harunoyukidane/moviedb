@@ -9,6 +9,7 @@ import com.moviecatalogue.people.v1.CreatePersonRequest
 import com.moviecatalogue.people.v1.DeletePersonRequest
 import com.moviecatalogue.people.v1.GetPeopleRequest
 import com.moviecatalogue.people.v1.GetPersonRequest
+import com.moviecatalogue.people.v1.ListCountriesRequest
 import com.moviecatalogue.people.v1.PeopleServiceGrpc
 import com.moviecatalogue.people.v1.PersonPatch
 import com.moviecatalogue.people.v1.PersonResponse
@@ -94,6 +95,7 @@ class PeopleGrpcClient(
         command.birthDate?.let { b.birthDate = it.format(iso) }
         command.deathDate?.let { b.deathDate = it.format(iso) }
         command.placeOfBirth?.let { b.placeOfBirth = it }
+        command.birthCountryCode?.let { b.birthCountryCode = it }
         write().createPerson(b.build()).toData()
     }
 
@@ -104,6 +106,7 @@ class PeopleGrpcClient(
         command.birthDate?.let { patch.birthDate = it.format(iso) }
         command.deathDate?.let { patch.deathDate = it.format(iso) }
         command.placeOfBirth?.let { patch.placeOfBirth = it }
+        command.birthCountryCode?.let { patch.birthCountryCode = it }
         val request = UpdatePersonRequest.newBuilder()
             .setId(command.id.toString())
             .setExpectedVersion(command.expectedVersion)
@@ -115,6 +118,13 @@ class PeopleGrpcClient(
 
     override fun deletePerson(id: UUID) {
         call { write().deletePerson(DeletePersonRequest.newBuilder().setId(id.toString()).build()) }
+    }
+
+    override fun listCountries(activeOnly: Boolean): List<CountryCodeData> = call {
+        val request = ListCountriesRequest.newBuilder().setActiveOnly(activeOnly).build()
+        read().listCountries(request).countriesList.map {
+            CountryCodeData(code = it.code, name = it.name, active = it.active, displayOrder = it.displayOrder)
+        }
     }
 
     /** Executes a gRPC call, translating StatusRuntimeException into domain exceptions. */
@@ -158,5 +168,6 @@ class PeopleGrpcClient(
         placeOfBirth = if (hasPlaceOfBirth()) placeOfBirth else null,
         profilePath = if (hasProfilePath()) profilePath else null,
         version = version,
+        birthCountryCode = if (hasBirthCountryCode()) birthCountryCode else null,
     )
 }

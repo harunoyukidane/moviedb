@@ -16,6 +16,12 @@ export interface LanguageCode {
   active: boolean;
 }
 
+export interface CountryCode {
+  code: string;
+  name: string;
+  active: boolean;
+}
+
 export interface CreditRoleCode {
   code: string;
   title: string;
@@ -86,6 +92,8 @@ export interface Person {
   birthDate?: string | null;
   deathDate?: string | null;
   placeOfBirth?: string | null;
+  birthCountryCode?: string | null;
+  birthCountry?: CountryCode | null;
   version: number;
   /** Same-origin proxy path (`/api/people/{id}/photo`), or null when the person has no uploaded photo. */
   photoUrl?: string | null;

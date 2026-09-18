@@ -9,6 +9,11 @@
   export let searchFn: (q: string, signal: AbortSignal) => Promise<Results> = defaultFetch;
   export let debounceMs = 300;
 
+  // Mirrors the server's query bound (SearchUseCases.QUERY_MAX_LEN) so a long
+  // paste is clamped client-side instead of round-tripping to a BAD_USER_INPUT
+  // the search box has no field to highlight (F19).
+  const QUERY_MAX_LEN = 100;
+
   let query = '';
   let results: Results | null = null;
   let loading = false;
@@ -26,7 +31,7 @@
 
   function onInput() {
     clearTimeout(debounceTimer);
-    const q = query.trim();
+    const q = query.trim().slice(0, QUERY_MAX_LEN);
     if (q.length === 0) {
       results = null;
       loading = false;
@@ -72,6 +77,7 @@
     bind:value={query}
     on:input={onInput}
     autocomplete="off"
+    maxlength={QUERY_MAX_LEN}
   />
 
   {#if loading}

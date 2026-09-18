@@ -9,7 +9,6 @@ import org.springframework.graphql.data.method.annotation.Argument
 import org.springframework.graphql.data.method.annotation.QueryMapping
 import org.springframework.graphql.data.method.annotation.SchemaMapping
 import org.springframework.stereotype.Controller
-import java.util.UUID
 
 @Controller
 class PersonQueryController(
@@ -18,7 +17,7 @@ class PersonQueryController(
 
     @QueryMapping
     fun person(@Argument id: String): PersonGql? =
-        runCatching { personUseCases.getPerson(UUID.fromString(id)).toGql() }
+        runCatching { personUseCases.getPerson(parseId(id, "person")).toGql() }
             .getOrElse { if (it is NotFoundException) null else throw it }
 
     @QueryMapping
@@ -35,7 +34,24 @@ class PersonQueryController(
 
     @SchemaMapping(typeName = "Person", field = "credits")
     fun credits(person: PersonGql): List<PersonCreditGql> =
-        personUseCases.creditsForPerson(UUID.fromString(person.id)).map { it.toGql() }
+        personUseCases.creditsForPerson(parseId(person.id, "person")).map { it.toGql() }
+
+    @QueryMapping
+    fun countryCodes(@Argument activeOnly: Boolean?): List<CountryCodeGql> =
+        personUseCases.listCountries(activeOnly ?: true).map { it.toGql() }
+
+    /**
+     * Resolved alongside the raw `birthCountryCode`, matching what `Movie.language`
+     * does for `originalLanguage` - the frontend gets the display name without a
+     * second round trip. Unlike Movie.language (a local Catalogue DB lookup), this
+     * one call cost is a People gRPC round trip; acceptable because the frontend
+     * only ever requests it on the single-person detail/edit view, never in a list.
+     */
+    @SchemaMapping(typeName = "Person", field = "birthCountry")
+    fun birthCountry(person: PersonGql): CountryCodeGql? {
+        val code = person.birthCountryCode ?: return null
+        return personUseCases.listCountries(activeOnly = false).find { it.code == code }?.toGql()
+    }
 }
 
 @Controller
@@ -73,7 +89,7 @@ class CommentQueryController(
     @QueryMapping
     fun comments(@Argument movieId: String, @Argument page: PageInput?): MovieCommentPageGql {
         val p = page ?: PageInput()
-        val result = commentUseCases.listComments(UUID.fromString(movieId), p.limit, p.offset)
+        val result = commentUseCases.listComments(parseId(movieId, "movie"), p.limit, p.offset)
         return MovieCommentPageGql(
             items = result.items.map { it.toGql() },
             total = result.total,

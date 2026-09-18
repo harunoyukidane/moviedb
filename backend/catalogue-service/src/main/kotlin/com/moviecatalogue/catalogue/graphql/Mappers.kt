@@ -7,6 +7,7 @@ import com.moviecatalogue.catalogue.application.PersonCreditView
 import com.moviecatalogue.catalogue.artwork.ArtworkAsset
 import com.moviecatalogue.catalogue.credit.MovieCredit
 import com.moviecatalogue.catalogue.movie.Movie
+import com.moviecatalogue.catalogue.people.CountryCodeData
 import com.moviecatalogue.catalogue.people.PersonData
 import com.moviecatalogue.catalogue.reference.CreditRoleCode
 import com.moviecatalogue.catalogue.reference.GenreCode
@@ -68,6 +69,7 @@ fun PersonData.toGql() = PersonGql(
     birthDate = birthDate,
     deathDate = deathDate,
     placeOfBirth = placeOfBirth,
+    birthCountryCode = birthCountryCode,
     version = version,
     photoUrl = if (profilePath != null) "/api/people/$id/photo" else null,
 )
@@ -83,6 +85,8 @@ fun PersonCreditView.toGql() = PersonCreditGql(
 fun GenreCode.toGql() = GenreCodeGql(code = code, title = title, description = description, active = active)
 
 fun LanguageCode.toGql() = LanguageCodeGql(code = code, name = name, active = active)
+
+fun CountryCodeData.toGql() = CountryCodeGql(code = code, name = name, active = active)
 
 fun CreditRoleCode.toGql() = CreditRoleCodeGql(
     code = code, title = title, category = category, department = department, description = description, active = active,

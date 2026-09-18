@@ -1,6 +1,9 @@
 <script lang="ts">
   import { createEventDispatcher, tick } from 'svelte';
   import type { CreditRoleCode } from '$lib/server/types';
+  import CharCounter from './CharCounter.svelte';
+
+  const CHARACTER_NAME_MAX = 300;
 
   export let open = false;
   export let roles: CreditRoleCode[] = [];
@@ -21,6 +24,7 @@
   let suggestions: { id: string; name: string }[] = [];
   let searching = false;
   let noMatch = false;
+  let searchError = false;
 
   $: selectedRole = roles.find((r) => r.code === roleCode) ?? null;
   $: isCast = selectedRole?.category === 'CAST';
@@ -43,6 +47,7 @@
     billingOrder = '';
     suggestions = [];
     noMatch = false;
+    searchError = false;
   }
 
   function close() {
@@ -59,15 +64,21 @@
     if (!q) {
       suggestions = [];
       noMatch = false;
+      searchError = false;
       return;
     }
     debounce = setTimeout(async () => {
       searching = true;
+      searchError = false;
       try {
         const res = await fetch(`/api/people-search?q=${encodeURIComponent(q)}`);
         const data = (await res.json()) as { items: { id: string; name: string }[] };
         suggestions = data.items;
         noMatch = suggestions.length === 0;
+      } catch {
+        suggestions = [];
+        noMatch = false;
+        searchError = true;
       } finally {
         searching = false;
       }
@@ -139,6 +150,9 @@
               then search again. We won't create a duplicate for you.
             </p>
           {/if}
+          {#if searchError}
+            <p class="hint" role="alert">Couldn't search people just now. Try again in a moment.</p>
+          {/if}
           <input type="hidden" name="personId" value={selectedPersonId} />
         </div>
 
@@ -155,7 +169,14 @@
         {#if isCast}
           <div class="field">
             <label for="characterName">Character name *</label>
-            <input id="characterName" name="characterName" bind:value={characterName} required />
+            <input
+              id="characterName"
+              name="characterName"
+              maxlength={CHARACTER_NAME_MAX}
+              bind:value={characterName}
+              required
+            />
+            <CharCounter value={characterName} max={CHARACTER_NAME_MAX} />
           </div>
         {/if}
 

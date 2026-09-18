@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { importMovie, runImport, mapGenres, selectCredits, type Dependencies } from './importer.js';
-import type { ArtworkPort, CataloguePort, PeoplePort, MovieUpsert, CreditUpsert, PersonUpsert } from './ports.js';
+import { commentsFor } from './comments.js';
+import type {
+  ArtworkPort,
+  CataloguePort,
+  CommentsPort,
+  CommentUpsert,
+  PeoplePort,
+  MovieUpsert,
+  CreditUpsert,
+  PersonUpsert
+} from './ports.js';
 import { InvalidTokenError, NotFoundError, TransientError } from './errors.js';
 import type { TmdbMovie } from './tmdb.js';
 
@@ -35,6 +45,21 @@ class FakeCatalogue implements CataloguePort {
     const id = `credit-${c.tmdbCreditId}`;
     this.credits.set(c.tmdbCreditId, id);
     return id;
+  }
+}
+
+class FakeComments implements CommentsPort {
+  bySeedKey = new Map<string, CommentUpsert>();
+  calls = 0;
+  async upsertComment(c: CommentUpsert): Promise<string> {
+    this.calls++;
+    const existing = this.bySeedKey.get(c.seedKey);
+    if (existing) {
+      this.bySeedKey.set(c.seedKey, c); // upsert-in-place, matching the real backend
+      return `comment-${c.seedKey}`;
+    }
+    this.bySeedKey.set(c.seedKey, c);
+    return `comment-${c.seedKey}`;
   }
 }
 
@@ -99,8 +124,14 @@ function sampleMovie(id: number): TmdbMovie {
   };
 }
 
-function deps(tmdb: FakeTmdb, people = new FakePeople(), catalogue = new FakeCatalogue(), artwork = new FakeArtwork()): Dependencies & { people: FakePeople; catalogue: FakeCatalogue; artwork: FakeArtwork } {
-  return { tmdb: tmdb as any, people, catalogue, artwork } as any;
+function deps(
+  tmdb: FakeTmdb,
+  people = new FakePeople(),
+  catalogue = new FakeCatalogue(),
+  artwork = new FakeArtwork(),
+  comments = new FakeComments()
+): Dependencies & { people: FakePeople; catalogue: FakeCatalogue; artwork: FakeArtwork; comments: FakeComments } {
+  return { tmdb: tmdb as any, people, catalogue, artwork, comments } as any;
 }
 
 describe('mapping helpers', () => {
@@ -214,6 +245,57 @@ describe('importMovie', () => {
     const outcome = await importMovie(9, deps(tmdb));
     expect(outcome.status).toBe('imported');
     expect(outcome.creditsImported).toBe(0);
+  });
+});
+
+describe('seed comments (V2.2-13)', () => {
+  it('seeds the fixture comments for each movie', async () => {
+    const d = deps(new FakeTmdb(async (id) => sampleMovie(id)));
+    const outcome = await importMovie(42, d);
+    const expected = commentsFor(42);
+    expect(outcome.commentsImported).toBe(expected.length);
+    expect(d.comments.bySeedKey.size).toBe(expected.length);
+    for (const c of expected) {
+      expect(d.comments.bySeedKey.get(c.seedKey)).toMatchObject({
+        authorDisplayName: c.authorDisplayName,
+        text: c.text
+      });
+    }
+  });
+
+  it('a rerun produces identical comment counts and content', async () => {
+    const comments = new FakeComments();
+    const d1 = deps(new FakeTmdb(async (id) => sampleMovie(id)), new FakePeople(), new FakeCatalogue(), new FakeArtwork(), comments);
+    await importMovie(42, d1);
+    const afterFirst = new Map(comments.bySeedKey);
+
+    await importMovie(42, d1);
+    expect(comments.bySeedKey.size).toBe(afterFirst.size);
+    for (const [key, value] of afterFirst) {
+      expect(comments.bySeedKey.get(key)).toEqual(value);
+    }
+  });
+
+  it('a movie with enough seeded comments spans more than one comment page', async () => {
+    // 694 is the one fixture id deliberately seeded with more than a 10-per-page pager.
+    expect(commentsFor(694).length).toBeGreaterThan(10);
+  });
+
+  it('a failed comment upsert does not fail the movie import', async () => {
+    class FailingComments implements CommentsPort {
+      async upsertComment(): Promise<string> {
+        throw new Error('comment upsert failed');
+      }
+    }
+    const outcome = await importMovie(42, {
+      tmdb: new FakeTmdb(async (id) => sampleMovie(id)) as any,
+      people: new FakePeople(),
+      catalogue: new FakeCatalogue(),
+      artwork: new FakeArtwork(),
+      comments: new FailingComments()
+    });
+    expect(outcome.status).toBe('imported');
+    expect(outcome.commentsImported).toBe(0);
   });
 });
 

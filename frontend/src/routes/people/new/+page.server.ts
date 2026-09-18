@@ -1,9 +1,13 @@
-import type { Actions } from './$types';
+import type { PageServerLoad, Actions } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
-import { createPerson, type CreatePersonInput } from '$lib/server/operations';
-import { isValidationError } from '$lib/errors';
-import { codeForError, fieldErrorsForError, messageForError, requestContext } from '$lib/server/request';
+import { createPerson, listCountries, type CreatePersonInput } from '$lib/server/operations';
+import { codeForError, fieldErrorsForError, messageForError, requestContext, statusForCode } from '$lib/server/request';
 import { isFieldError, validateOptionalDate } from '$lib/server/validation';
+
+export const load: PageServerLoad = async ({ request }) => {
+  const countries = await listCountries(requestContext(request)).catch(() => []);
+  return { countries };
+};
 
 export const actions: Actions = {
   default: async ({ request }) => {
@@ -13,7 +17,8 @@ export const actions: Actions = {
       biography: String(form.get('biography') ?? ''),
       birthDate: String(form.get('birthDate') ?? ''),
       deathDate: String(form.get('deathDate') ?? ''),
-      placeOfBirth: String(form.get('placeOfBirth') ?? '')
+      placeOfBirth: String(form.get('placeOfBirth') ?? ''),
+      birthCountryCode: String(form.get('birthCountryCode') ?? '')
     };
 
     const birthDate = validateOptionalDate(values.birthDate, 'birthDate');
@@ -38,7 +43,8 @@ export const actions: Actions = {
       biography: values.biography,
       birthDate: birthDate.value,
       deathDate: deathDate.value,
-      placeOfBirth: values.placeOfBirth || null
+      placeOfBirth: values.placeOfBirth || null,
+      birthCountryCode: values.birthCountryCode || null
     };
     let id: string;
     try {
@@ -46,7 +52,7 @@ export const actions: Actions = {
       id = created.id;
     } catch (e) {
       const code = codeForError(e);
-      return fail(isValidationError(code) ? 400 : 503, {
+      return fail(statusForCode(code), {
         message: messageForError(e, code),
         fieldErrors: fieldErrorsForError(e),
         values

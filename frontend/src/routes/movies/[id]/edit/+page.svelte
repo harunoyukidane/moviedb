@@ -3,15 +3,18 @@
   import { enhance } from '$app/forms';
   import StateBanner from '$lib/components/StateBanner.svelte';
   import FieldError from '$lib/components/FieldError.svelte';
+  import CharCounter from '$lib/components/CharCounter.svelte';
   import GenreMultiSelect from '$lib/components/GenreMultiSelect.svelte';
   import LanguageSelect from '$lib/components/LanguageSelect.svelte';
   import DateField from '$lib/components/DateField.svelte';
+  import { RELEASE_DATE_MIN, releaseDateMax } from '$lib/dateBounds';
   import ArtworkUpload from '$lib/components/ArtworkUpload.svelte';
   import CreditDialog from '$lib/components/CreditDialog.svelte';
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
   import IconButton from '$lib/components/IconButton.svelte';
+  import StalenessBanner from '$lib/components/StalenessBanner.svelte';
   import type { MovieCredit } from '$lib/server/types';
-  import { tick } from 'svelte';
+  import { onMount, tick } from 'svelte';
 
   export let data: PageData;
   export let form: ActionData;
@@ -22,7 +25,56 @@
   let confirmDeleteOpen = false;
   let addCreditButton: HTMLButtonElement;
   let detailsForm: HTMLFormElement;
+  let stale = false;
+
+  async function checkStale() {
+    try {
+      const res = await fetch(`/api/movies/${movie.id}/version`);
+      if (!res.ok) return;
+      const data = (await res.json()) as { version: number | null };
+      if (data.version !== null && data.version !== movie.version) stale = true;
+    } catch {
+      // A failed check is silently skipped - never blocks or warns falsely.
+    }
+  }
+
+  onMount(() => {
+    window.addEventListener('focus', checkStale);
+    return () => window.removeEventListener('focus', checkStale);
+  });
   $: fieldErrors = (form?.section === 'details' ? (form?.fieldErrors ?? {}) : {}) as Record<string, string>;
+
+  // On a failed update, re-render what the user typed (F16/F22) rather than
+  // silently falling back to the last-saved value — matters most on a
+  // non-JS/no-enhance submit, where the DOM inputs don't otherwise survive.
+  interface DetailsValues {
+    title?: string;
+    originalTitle?: string;
+    synopsis?: string;
+    releaseDate?: string;
+    runtimeMinutes?: string;
+    originalLanguage?: string;
+    genreCodes?: string[];
+  }
+  $: submittedValues = (form?.section === 'details' ? form?.values : undefined) as DetailsValues | undefined;
+  $: v = {
+    title: submittedValues?.title ?? movie.title,
+    originalTitle: submittedValues?.originalTitle ?? movie.originalTitle ?? '',
+    synopsis: submittedValues?.synopsis ?? movie.synopsis,
+    releaseDate: submittedValues?.releaseDate ?? movie.releaseDate ?? '',
+    runtimeMinutes: submittedValues?.runtimeMinutes ?? String(movie.runtimeMinutes ?? ''),
+    originalLanguage: submittedValues?.originalLanguage ?? movie.originalLanguage ?? '',
+    genreCodes: submittedValues?.genreCodes ?? selectedGenres
+  };
+
+  const TITLE_MAX = 300;
+  const SYNOPSIS_MAX = 5000;
+  // Tracks length only, not the field's value (the field itself stays
+  // uncontrolled via `value={v.title}` etc.) - kept in sync by `on:input`,
+  // and reset to the server-confirmed value whenever `v` changes.
+  $: titleLength = v.title.length;
+  $: originalTitleLength = v.originalTitle.length;
+  $: synopsisLength = v.synopsis.length;
 
   async function focusFirstInvalid() {
     await tick();
@@ -58,11 +110,13 @@
   {#if form?.message && form?.section === 'details'}
     <StateBanner variant="error">{form.message}</StateBanner>
   {/if}
+  <StalenessBanner bind:visible={stale} />
   <form
     method="POST"
     action="?/update"
     bind:this={detailsForm}
-    use:enhance={() => {
+    use:enhance={async () => {
+      await checkStale();
       savingDetails = true;
       return async ({ update }) => {
         // Fields here are populated from server data (`value={movie.title}`, etc.),
@@ -75,16 +129,30 @@
     }}
   >
     <input type="hidden" name="expectedVersion" value={movie.version} />
+    <!-- Last-known-good values (V2.2-11): the action diffs submitted fields
+         against these to send a narrow mask, so two edits touching different
+         fields don't collide (F21). Always the loaded record, never `v` -
+         a prior failed submit's re-rendered values must not become the base. -->
+    <input type="hidden" name="base.title" value={movie.title} />
+    <input type="hidden" name="base.originalTitle" value={movie.originalTitle ?? ''} />
+    <input type="hidden" name="base.synopsis" value={movie.synopsis} />
+    <input type="hidden" name="base.releaseDate" value={movie.releaseDate ?? ''} />
+    <input type="hidden" name="base.runtimeMinutes" value={movie.runtimeMinutes ?? ''} />
+    <input type="hidden" name="base.originalLanguage" value={movie.originalLanguage ?? ''} />
+    {#each movie.genres as g (g.code)}<input type="hidden" name="base.genreCodes" value={g.code} />{/each}
     <div class="field">
       <label for="title">Title *</label>
       <input
         id="title"
         name="title"
         required
-        value={movie.title}
+        maxlength={TITLE_MAX}
+        value={v.title}
+        on:input={(e) => (titleLength = e.currentTarget.value.length)}
         aria-invalid={!!fieldErrors.title}
         aria-describedby="title-error"
       />
+      <CharCounter count={titleLength} max={TITLE_MAX} />
       <FieldError id="title-error" message={fieldErrors.title} />
     </div>
     <div class="field">
@@ -92,10 +160,13 @@
       <input
         id="originalTitle"
         name="originalTitle"
-        value={movie.originalTitle ?? ''}
+        maxlength={TITLE_MAX}
+        value={v.originalTitle}
+        on:input={(e) => (originalTitleLength = e.currentTarget.value.length)}
         aria-invalid={!!fieldErrors.originalTitle}
         aria-describedby="originalTitle-error"
       />
+      <CharCounter count={originalTitleLength} max={TITLE_MAX} />
       <FieldError id="originalTitle-error" message={fieldErrors.originalTitle} />
     </div>
     <div class="field">
@@ -104,15 +175,24 @@
         id="synopsis"
         name="synopsis"
         rows="4"
+        maxlength={SYNOPSIS_MAX}
+        on:input={(e) => (synopsisLength = e.currentTarget.value.length)}
         aria-invalid={!!fieldErrors.synopsis}
-        aria-describedby="synopsis-error">{movie.synopsis}</textarea
+        aria-describedby="synopsis-error">{v.synopsis}</textarea
       >
+      <CharCounter count={synopsisLength} max={SYNOPSIS_MAX} />
       <FieldError id="synopsis-error" message={fieldErrors.synopsis} />
     </div>
     <div class="form-grid-2">
       <div class="field">
         <label for="releaseDate">Release date</label>
-        <DateField id="releaseDate" name="releaseDate" value={movie.releaseDate} />
+        <DateField
+          id="releaseDate"
+          name="releaseDate"
+          value={v.releaseDate}
+          min={RELEASE_DATE_MIN}
+          max={releaseDateMax()}
+        />
         <FieldError id="releaseDate-error" message={fieldErrors.releaseDate} />
       </div>
       <div class="field">
@@ -122,7 +202,7 @@
           name="runtimeMinutes"
           type="number"
           min="1"
-          value={movie.runtimeMinutes ?? ''}
+          value={v.runtimeMinutes}
           aria-invalid={!!fieldErrors.runtimeMinutes}
           aria-describedby="runtimeMinutes-error"
         />
@@ -130,10 +210,10 @@
       </div>
     </div>
     <div class="field">
-      <LanguageSelect languages={data.languages} selected={movie.originalLanguage ?? null} />
+      <LanguageSelect languages={data.languages} selected={v.originalLanguage || null} />
       <FieldError id="originalLanguage-error" message={fieldErrors.originalLanguage} />
     </div>
-    <GenreMultiSelect genres={data.genres} selected={selectedGenres} />
+    <GenreMultiSelect genres={data.genres} selected={v.genreCodes} />
     <FieldError id="genreCodes-error" message={fieldErrors.genreCodes} />
     <button type="submit" class="primary" disabled={savingDetails}>
       {savingDetails ? 'Saving…' : 'Save changes'}

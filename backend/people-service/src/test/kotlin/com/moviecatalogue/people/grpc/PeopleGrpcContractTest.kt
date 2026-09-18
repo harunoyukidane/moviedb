@@ -264,6 +264,32 @@ class PeopleGrpcContractTest {
         }).isEqualTo(Status.Code.NOT_FOUND)
     }
 
+    // --- ListCountries (V2.2-10) --------------------------------------------
+
+    @Test
+    fun `listCountries defaults to active only and maps every field`() {
+        every { app.listCountries(true) } returns listOf(
+            com.moviecatalogue.people.reference.CountryCode(code = "US", name = "United States", active = true, displayOrder = 10),
+        )
+        val resp = stub.listCountries(com.moviecatalogue.people.v1.ListCountriesRequest.newBuilder().build())
+        assertThat(resp.countriesList).hasSize(1)
+        assertThat(resp.countriesList[0].code).isEqualTo("US")
+        assertThat(resp.countriesList[0].name).isEqualTo("United States")
+        assertThat(resp.countriesList[0].active).isTrue()
+        assertThat(resp.countriesList[0].displayOrder).isEqualTo(10)
+    }
+
+    @Test
+    fun `listCountries with activeOnly false includes inactive`() {
+        every { app.listCountries(false) } returns listOf(
+            com.moviecatalogue.people.reference.CountryCode(code = "ZZ", name = "Retired", active = false, displayOrder = 30),
+        )
+        val resp = stub.listCountries(
+            com.moviecatalogue.people.v1.ListCountriesRequest.newBuilder().setActiveOnly(false).build(),
+        )
+        assertThat(resp.countriesList.single().active).isFalse()
+    }
+
     // small mutable holder to capture a command from the mock answer
     private class Holder { lateinit var value: UpdatePersonCommand }
     private fun slotCapture() = Holder()

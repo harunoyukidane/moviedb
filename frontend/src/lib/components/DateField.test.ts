@@ -12,6 +12,15 @@ describe('DateField', () => {
     expect(input.value).toBe('1999-03-31');
   });
 
+  it('passes min and max through to the native input', () => {
+    render(DateField, {
+      props: { id: 'releaseDate', name: 'releaseDate', min: '1888-10-14', max: '2036-01-01' }
+    });
+    const input = document.getElementById('releaseDate') as HTMLInputElement;
+    expect(input).toHaveAttribute('min', '1888-10-14');
+    expect(input).toHaveAttribute('max', '2036-01-01');
+  });
+
   it('renders an empty value when none is given', () => {
     render(DateField, { props: { id: 'birthDate', name: 'birthDate' } });
     const input = document.getElementById('birthDate') as HTMLInputElement;

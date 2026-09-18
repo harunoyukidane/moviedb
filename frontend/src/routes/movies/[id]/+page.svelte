@@ -6,6 +6,7 @@
   import IconLink from '$lib/components/IconLink.svelte';
   import StateBanner from '$lib/components/StateBanner.svelte';
   import FieldError from '$lib/components/FieldError.svelte';
+  import CharCounter from '$lib/components/CharCounter.svelte';
   import { tick } from 'svelte';
 
   export let data: PageData;
@@ -16,6 +17,10 @@
   let tab: 'cast' | 'creators' = 'cast';
   let submittingComment = false;
   let commentForm: HTMLFormElement;
+  let commentAuthor = '';
+  let commentText = '';
+  const AUTHOR_MAX = 50;
+  const TEXT_MAX = 2000;
   $: commentFieldErrors = (form?.section === 'comment' ? (form?.fieldErrors ?? {}) : {}) as Record<string, string>;
 
   async function focusFirstInvalidComment() {
@@ -109,7 +114,11 @@
       return async ({ update }) => {
         await update();
         submittingComment = false;
-        if (form?.commentAdded) commentForm?.reset();
+        if (form?.commentAdded) {
+          commentForm?.reset();
+          commentAuthor = '';
+          commentText = '';
+        }
         await focusFirstInvalidComment();
       };
     }}
@@ -119,11 +128,13 @@
       <input
         id="authorDisplayName"
         name="authorDisplayName"
-        maxlength="50"
+        maxlength={AUTHOR_MAX}
         required
+        bind:value={commentAuthor}
         aria-invalid={!!commentFieldErrors.authorDisplayName}
         aria-describedby="authorDisplayName-error"
       />
+      <CharCounter value={commentAuthor} max={AUTHOR_MAX} />
       <FieldError id="authorDisplayName-error" message={commentFieldErrors.authorDisplayName} />
     </div>
     <div class="field">
@@ -132,11 +143,13 @@
         id="text"
         name="text"
         rows="3"
-        maxlength="2000"
+        maxlength={TEXT_MAX}
         required
+        bind:value={commentText}
         aria-invalid={!!commentFieldErrors.text}
         aria-describedby="text-error"
       ></textarea>
+      <CharCounter value={commentText} max={TEXT_MAX} />
       <FieldError id="text-error" message={commentFieldErrors.text} />
     </div>
     <button type="submit" class="primary" disabled={submittingComment}>

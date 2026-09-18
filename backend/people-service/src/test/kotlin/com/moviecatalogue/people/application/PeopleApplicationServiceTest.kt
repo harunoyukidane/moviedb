@@ -7,6 +7,7 @@ import com.moviecatalogue.people.domain.ValidationException
 import com.moviecatalogue.people.domain.VersionConflictException
 import com.moviecatalogue.people.person.Person
 import com.moviecatalogue.people.person.PersonRepository
+import com.moviecatalogue.people.reference.CountryCodeRepository
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -24,8 +25,9 @@ import java.util.UUID
 class PeopleApplicationServiceTest {
 
     private val repository = mockk<PersonRepository>(relaxed = false)
+    private val countryCodes = mockk<CountryCodeRepository>(relaxed = true)
     private val clock: Clock = Clock.fixed(LocalDate.of(2026, 1, 1).atStartOfDay(ZoneOffset.UTC).toInstant(), ZoneOffset.UTC)
-    private val service = PeopleApplicationService(repository, clock)
+    private val service = PeopleApplicationService(repository, countryCodes, clock)
 
     private fun person(
         id: UUID = UUID.randomUUID(),
@@ -170,6 +172,48 @@ class PeopleApplicationServiceTest {
         }.isInstanceOf(ValidationException::class.java)
     }
 
+    @Test
+    fun `createPerson accepts an active birth country code`() {
+        val saved = slot<Person>()
+        every { repository.existsByTmdbId(any()) } returns false
+        every { repository.saveAndFlush(capture(saved)) } answers { saved.captured }
+        every { countryCodes.findById("US") } returns
+            Optional.of(com.moviecatalogue.people.reference.CountryCode(code = "US", name = "United States", active = true))
+
+        service.createPerson(
+            CreatePersonCommand(
+                tmdbId = null, name = "Jane", biography = "", birthDate = null, deathDate = null,
+                placeOfBirth = "Hollywood", profilePath = null, birthCountryCode = "US",
+            ),
+        )
+        assertThat(saved.captured.birthCountryCode).isEqualTo("US")
+    }
+
+    @Test
+    fun `createPerson rejects an unknown or inactive birth country code`() {
+        every { repository.existsByTmdbId(any()) } returns false
+        every { countryCodes.findById("ZZ") } returns Optional.empty()
+        assertThatThrownBy {
+            service.createPerson(
+                CreatePersonCommand(
+                    tmdbId = null, name = "Jane", biography = "", birthDate = null, deathDate = null,
+                    placeOfBirth = null, profilePath = null, birthCountryCode = "ZZ",
+                ),
+            )
+        }.isInstanceOf(ValidationException::class.java)
+
+        every { countryCodes.findById("XX") } returns
+            Optional.of(com.moviecatalogue.people.reference.CountryCode(code = "XX", name = "Retired", active = false))
+        assertThatThrownBy {
+            service.createPerson(
+                CreatePersonCommand(
+                    tmdbId = null, name = "Jane", biography = "", birthDate = null, deathDate = null,
+                    placeOfBirth = null, profilePath = null, birthCountryCode = "XX",
+                ),
+            )
+        }.isInstanceOf(ValidationException::class.java)
+    }
+
     // --- updatePerson ------------------------------------------------------
 
     @Test
@@ -204,6 +248,7 @@ class PeopleApplicationServiceTest {
                 ),
             )
         }.isInstanceOf(VersionConflictException::class.java)
+            .hasMessage("person was modified concurrently") // F23: no version numbers in the user-facing message
     }
 
     @Test

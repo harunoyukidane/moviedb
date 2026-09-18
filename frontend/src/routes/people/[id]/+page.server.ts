@@ -3,7 +3,7 @@ import { error, fail } from '@sveltejs/kit';
 import { getPerson } from '$lib/server/operations';
 import { deletePersonPhoto } from '$lib/server/media';
 import { messageForCode } from '$lib/errors';
-import { codeForError, requestContext, throwPageLoadError } from '$lib/server/request';
+import { codeForError, requestContext, statusForCode, throwPageLoadError } from '$lib/server/request';
 
 export const load: PageServerLoad = async ({ params, request }) => {
   try {
@@ -23,7 +23,7 @@ export const actions: Actions = {
       return { photoDeleted: true };
     } catch (e) {
       const code = codeForError(e);
-      return fail(503, { message: messageForCode(code) });
+      return fail(statusForCode(code), { message: messageForCode(code) });
     }
   }
 };

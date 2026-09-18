@@ -12,12 +12,13 @@ import {
   type CreateCreditInput
 } from '$lib/server/operations';
 import { uploadMovieArtwork, deleteMovieArtwork } from '$lib/server/media';
-import { messageForCode, isValidationError } from '$lib/errors';
+import { messageForCode } from '$lib/errors';
 import {
   codeForError,
   fieldErrorsForError,
   messageForError,
   requestContext,
+  statusForCode,
   throwPageLoadError
 } from '$lib/server/request';
 import { isFieldError, validateOptionalDate, validateOptionalInt, validateVersion } from '$lib/server/validation';
@@ -43,45 +44,96 @@ export const actions: Actions = {
     const context = requestContext(request);
     const form = await request.formData();
 
+    const values = {
+      title: String(form.get('title') ?? '').trim(),
+      originalTitle: String(form.get('originalTitle') ?? ''),
+      synopsis: String(form.get('synopsis') ?? ''),
+      releaseDate: String(form.get('releaseDate') ?? ''),
+      runtimeMinutes: String(form.get('runtimeMinutes') ?? ''),
+      originalLanguage: String(form.get('originalLanguage') ?? ''),
+      genreCodes: form.getAll('genreCodes').map(String)
+    };
+
+    // Last-known-good values the form was loaded with (V2.2-11): only fields
+    // that actually differ go into the update mask, so two edits touching
+    // different fields don't collide on the row version (F21).
+    const base = {
+      title: String(form.get('base.title') ?? ''),
+      originalTitle: String(form.get('base.originalTitle') ?? ''),
+      synopsis: String(form.get('base.synopsis') ?? ''),
+      releaseDate: String(form.get('base.releaseDate') ?? ''),
+      runtimeMinutes: String(form.get('base.runtimeMinutes') ?? ''),
+      originalLanguage: String(form.get('base.originalLanguage') ?? ''),
+      genreCodes: form.getAll('base.genreCodes').map(String)
+    };
+    const sameSet = (a: string[], b: string[]) =>
+      a.length === b.length && [...a].sort().every((v, i) => v === [...b].sort()[i]);
+    const changed = {
+      title: values.title !== base.title,
+      originalTitle: values.originalTitle !== base.originalTitle,
+      synopsis: values.synopsis !== base.synopsis,
+      releaseDate: values.releaseDate !== base.releaseDate,
+      runtimeMinutes: values.runtimeMinutes !== base.runtimeMinutes,
+      originalLanguage: values.originalLanguage !== base.originalLanguage,
+      genreCodes: !sameSet(values.genreCodes, base.genreCodes)
+    };
+
     const expectedVersion = validateVersion(String(form.get('expectedVersion') ?? ''));
     if (isFieldError(expectedVersion)) {
-      return fail(400, { message: expectedVersion.error.message, fieldErrors: undefined, section: 'details' });
-    }
-    const releaseDate = validateOptionalDate(String(form.get('releaseDate') ?? ''), 'releaseDate');
-    if (isFieldError(releaseDate)) {
       return fail(400, {
-        message: releaseDate.error.message,
-        fieldErrors: { [releaseDate.error.field]: releaseDate.error.message },
-        section: 'details'
-      });
-    }
-    const runtimeMinutes = validateOptionalInt(String(form.get('runtimeMinutes') ?? ''), 'runtimeMinutes');
-    if (isFieldError(runtimeMinutes)) {
-      return fail(400, {
-        message: runtimeMinutes.error.message,
-        fieldErrors: { [runtimeMinutes.error.field]: runtimeMinutes.error.message },
-        section: 'details'
+        message: expectedVersion.error.message,
+        fieldErrors: undefined,
+        section: 'details',
+        values
       });
     }
 
-    const input: Record<string, unknown> = {
-      title: String(form.get('title') ?? '').trim(),
-      originalTitle: (String(form.get('originalTitle') ?? '') || null),
-      synopsis: String(form.get('synopsis') ?? ''),
-      releaseDate: releaseDate.value,
-      runtimeMinutes: runtimeMinutes.value,
-      originalLanguage: String(form.get('originalLanguage') ?? '') || null,
-      genreCodes: form.getAll('genreCodes').map(String)
-    };
+    const input: Record<string, unknown> = {};
+    if (changed.title) input.title = values.title;
+    if (changed.originalTitle) input.originalTitle = values.originalTitle || null;
+    if (changed.synopsis) input.synopsis = values.synopsis;
+    if (changed.releaseDate) {
+      const releaseDate = validateOptionalDate(values.releaseDate, 'releaseDate');
+      if (isFieldError(releaseDate)) {
+        return fail(400, {
+          message: releaseDate.error.message,
+          fieldErrors: { [releaseDate.error.field]: releaseDate.error.message },
+          section: 'details',
+          values
+        });
+      }
+      input.releaseDate = releaseDate.value;
+    }
+    if (changed.runtimeMinutes) {
+      const runtimeMinutes = validateOptionalInt(values.runtimeMinutes, 'runtimeMinutes');
+      if (isFieldError(runtimeMinutes)) {
+        return fail(400, {
+          message: runtimeMinutes.error.message,
+          fieldErrors: { [runtimeMinutes.error.field]: runtimeMinutes.error.message },
+          section: 'details',
+          values
+        });
+      }
+      input.runtimeMinutes = runtimeMinutes.value;
+    }
+    if (changed.originalLanguage) input.originalLanguage = values.originalLanguage || null;
+    if (changed.genreCodes) input.genreCodes = values.genreCodes;
+
+    if (Object.keys(input).length === 0) {
+      // Nothing actually changed - no mutation, no spurious conflict.
+      return { updated: true };
+    }
+
     try {
       await updateMovie(params.id, expectedVersion.value, input, context);
       return { updated: true };
     } catch (e) {
       const code = codeForError(e);
-      return fail(isValidationError(code) ? 400 : 409, {
+      return fail(statusForCode(code), {
         message: messageForError(e, code),
         fieldErrors: fieldErrorsForError(e),
-        section: 'details'
+        section: 'details',
+        values
       });
     }
   },
@@ -91,14 +143,14 @@ export const actions: Actions = {
     const form = await request.formData();
     const file = form.get('file');
     if (!(file instanceof File) || file.size === 0) {
-      return fail(400, { message: messageForCode('BAD_USER_INPUT'), section: 'artwork' });
+      return fail(400, { message: 'Choose an image file first.', section: 'artwork' });
     }
     try {
       await uploadMovieArtwork(params.id, file, correlationId);
       return { artworkUploaded: true };
     } catch (e) {
       const code = codeForError(e);
-      return fail(code === 'PAYLOAD_TOO_LARGE' ? 413 : 415, { message: messageForCode(code), section: 'artwork' });
+      return fail(statusForCode(code), { message: messageForCode(code), section: 'artwork' });
     }
   },
 
@@ -109,7 +161,7 @@ export const actions: Actions = {
       return { artworkDeleted: true };
     } catch (e) {
       const code = codeForError(e);
-      return fail(503, { message: messageForCode(code), section: 'artwork' });
+      return fail(statusForCode(code), { message: messageForCode(code), section: 'artwork' });
     }
   },
 
@@ -127,7 +179,7 @@ export const actions: Actions = {
       return { creditAdded: true };
     } catch (e) {
       const code = codeForError(e);
-      return fail(isValidationError(code) ? 400 : 409, {
+      return fail(statusForCode(code), {
         message: messageForError(e, code),
         fieldErrors: fieldErrorsForError(e),
         section: 'credit'
@@ -144,7 +196,7 @@ export const actions: Actions = {
       return { creditRemoved: true };
     } catch (e) {
       const code = codeForError(e);
-      return fail(503, { message: messageForCode(code), section: 'credit' });
+      return fail(statusForCode(code), { message: messageForCode(code), section: 'credit' });
     }
   },
 
@@ -154,7 +206,7 @@ export const actions: Actions = {
       await deleteMovie(params.id, context);
     } catch (e) {
       const code = codeForError(e);
-      return fail(code === 'NOT_FOUND' ? 404 : 503, { message: messageForCode(code), section: 'danger' });
+      return fail(statusForCode(code), { message: messageForCode(code), section: 'danger' });
     }
     throw redirect(303, '/movies');
   }

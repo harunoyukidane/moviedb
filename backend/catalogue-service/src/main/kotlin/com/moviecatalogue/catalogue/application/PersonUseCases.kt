@@ -4,6 +4,7 @@ import com.moviecatalogue.catalogue.credit.CreditRepository
 import com.moviecatalogue.catalogue.domain.PersonInUseException
 import com.moviecatalogue.catalogue.domain.MovieRules
 import com.moviecatalogue.catalogue.movie.MovieRepository
+import com.moviecatalogue.catalogue.people.CountryCodeData
 import com.moviecatalogue.catalogue.people.CreatePersonData
 import com.moviecatalogue.catalogue.people.PeopleClient
 import com.moviecatalogue.catalogue.people.PersonData
@@ -39,11 +40,15 @@ class PersonUseCases(
         birthDate: LocalDate?,
         deathDate: LocalDate?,
         placeOfBirth: String?,
+        birthCountryCode: String? = null,
     ): PersonData = peopleClient.createPerson(
-        CreatePersonData(name, biography, birthDate, deathDate, placeOfBirth),
+        CreatePersonData(name, biography, birthDate, deathDate, placeOfBirth, birthCountryCode),
     )
 
     fun updatePerson(command: UpdatePersonData): PersonData = peopleClient.updatePerson(command)
+
+    /** Controlled ISO 3166-1 alpha-2 country reference data (V2.2-10), owned by People. */
+    fun listCountries(activeOnly: Boolean): List<CountryCodeData> = peopleClient.listCountries(activeOnly)
 
     /**
      * Safe delete: if the person is still referenced by any local credit, reject

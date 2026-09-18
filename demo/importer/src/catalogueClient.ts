@@ -1,14 +1,15 @@
 import { GraphQLClient } from 'graphql-request';
 import type { ImporterConfig } from './config.js';
-import type { CataloguePort, CreditUpsert, MovieUpsert } from './ports.js';
+import type { CataloguePort, CommentsPort, CommentUpsert, CreditUpsert, MovieUpsert } from './ports.js';
 
 /**
  * Catalogue GraphQL adapter (§12.3 steps 6–7). Movie upsert uses createMovie with
  * the optional `tmdbId` (server upserts by tmdb_id); credit upsert uses
  * addMovieCredit with the optional `tmdbCreditId` (server upserts by tmdb credit
- * id). Both are therefore idempotent across reruns.
+ * id). Comment upsert uses addMovieComment with `seedKey` (V2.2-13). All three
+ * are therefore idempotent across reruns.
  */
-export class CatalogueGraphqlClient implements CataloguePort {
+export class CatalogueGraphqlClient implements CataloguePort, CommentsPort {
   private readonly client: GraphQLClient;
 
   constructor(config: ImporterConfig, correlationId: string) {
@@ -54,5 +55,22 @@ export class CatalogueGraphqlClient implements CataloguePort {
       }
     );
     return data.addMovieCredit.id;
+  }
+
+  async upsertComment(comment: CommentUpsert): Promise<string> {
+    const data = await this.client.request<{ addMovieComment: { id: string } }>(
+      `mutation($movieId: ID!, $input: AddMovieCommentInput!) {
+        addMovieComment(movieId: $movieId, input: $input) { id }
+      }`,
+      {
+        movieId: comment.movieId,
+        input: {
+          authorDisplayName: comment.authorDisplayName,
+          text: comment.text,
+          seedKey: comment.seedKey
+        }
+      }
+    );
+    return data.addMovieComment.id;
   }
 }

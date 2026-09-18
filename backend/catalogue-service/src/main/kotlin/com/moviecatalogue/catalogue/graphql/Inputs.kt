@@ -42,6 +42,7 @@ data class CreatePersonInput(
     val birthDate: LocalDate? = null,
     val deathDate: LocalDate? = null,
     val placeOfBirth: String? = null,
+    val birthCountryCode: String? = null,
 )
 
 data class UpdatePersonInput(
@@ -50,6 +51,7 @@ data class UpdatePersonInput(
     val birthDate: LocalDate? = null,
     val deathDate: LocalDate? = null,
     val placeOfBirth: String? = null,
+    val birthCountryCode: String? = null,
 )
 
 data class CreateCreditInput(
@@ -70,4 +72,5 @@ data class UpdateCreditInput(
 data class AddMovieCommentInput(
     val authorDisplayName: String,
     val text: String,
+    val seedKey: String? = null,
 )

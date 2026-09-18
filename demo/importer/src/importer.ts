@@ -1,6 +1,7 @@
 import { CONSIDERED_CREW_JOBS, CREW_JOB_MAP, GENRE_MAP, MAX_CAST } from './mappings.js';
+import { commentsFor } from './comments.js';
 import { InvalidTokenError, NotFoundError } from './errors.js';
-import type { ArtworkPort, CataloguePort, PeoplePort } from './ports.js';
+import type { ArtworkPort, CataloguePort, CommentsPort, PeoplePort } from './ports.js';
 import type { TmdbClient, TmdbMovie } from './tmdb.js';
 
 export interface MovieOutcome {
@@ -12,6 +13,7 @@ export interface MovieOutcome {
   creditsImported: number;
   peopleImported: number;
   photosImported: number;
+  commentsImported: number;
   error?: string;
 }
 
@@ -20,6 +22,7 @@ export interface ImportReport {
   imported: number;
   skipped: number;
   failed: number;
+  commentsImported: number;
   outcomes: MovieOutcome[];
 }
 
@@ -28,6 +31,7 @@ export interface Dependencies {
   people: PeoplePort;
   catalogue: CataloguePort;
   artwork: ArtworkPort;
+  comments: CommentsPort;
 }
 
 /**
@@ -42,7 +46,8 @@ export async function importMovie(tmdbId: number, deps: Dependencies): Promise<M
     posterImported: false,
     creditsImported: 0,
     peopleImported: 0,
-    photosImported: 0
+    photosImported: 0,
+    commentsImported: 0
   };
   try {
     const movie = await deps.tmdb.getMovie(tmdbId);
@@ -111,6 +116,24 @@ export async function importMovie(tmdbId: number, deps: Dependencies): Promise<M
       } catch (e) {
         // Partial credits: one bad credit does not fail the whole movie (§13).
         // Record and continue with the rest.
+      }
+    }
+
+    // Seed comments (V2.2-13, best-effort): upserted by seedKey, so a rerun
+    // updates content in place rather than duplicating the seeded set. A
+    // single bad comment does not fail the whole movie, matching the partial
+    // credits handling above.
+    for (const c of commentsFor(movie.id)) {
+      try {
+        await deps.comments.upsertComment({
+          movieId,
+          authorDisplayName: c.authorDisplayName,
+          text: c.text,
+          seedKey: c.seedKey
+        });
+        outcome.commentsImported++;
+      } catch {
+        // leave this one comment unseeded; not fatal
       }
     }
 
@@ -214,5 +237,6 @@ export async function runImport(ids: number[], deps: Dependencies, concurrency: 
   const imported = outcomes.filter((o) => o.status === 'imported').length;
   const skipped = outcomes.filter((o) => o.status === 'skipped').length;
   const failed = outcomes.filter((o) => o.status === 'failed').length;
-  return { total: ids.length, imported, skipped, failed, outcomes };
+  const commentsImported = outcomes.reduce((sum, o) => sum + o.commentsImported, 0);
+  return { total: ids.length, imported, skipped, failed, commentsImported, outcomes };
 }

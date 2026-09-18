@@ -100,9 +100,18 @@ describe('/movies/[id] addComment action', () => {
     expect(result.data.section).toBe('comment');
   });
 
-  it('maps an unknown-movie failure to a 503 with a friendly message', async () => {
+  it('maps an unknown-movie failure to a 404, not 503 (F12)', async () => {
     const { GraphQlRequestError } = await import('$lib/server/graphql');
     addMovieCommentMock.mockRejectedValue(new GraphQlRequestError('NOT_FOUND', 'gone', 'corr-2'));
+
+    const result = (await actions.addComment(makeActionEvent({ authorDisplayName: 'Alice', text: 'Hi' }))) as any;
+    expect(result.status).toBe(404);
+    expect(result.data.section).toBe('comment');
+  });
+
+  it('maps a dependency outage to a 503', async () => {
+    const { GraphQlRequestError } = await import('$lib/server/graphql');
+    addMovieCommentMock.mockRejectedValue(new GraphQlRequestError('DEPENDENCY_UNAVAILABLE', 'down', 'corr-3'));
 
     const result = (await actions.addComment(makeActionEvent({ authorDisplayName: 'Alice', text: 'Hi' }))) as any;
     expect(result.status).toBe(503);

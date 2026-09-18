@@ -26,7 +26,7 @@ class MovieController(
 
     @QueryMapping
     fun movie(@Argument id: String): MovieGql? =
-        runCatching { movieUseCases.getMovie(UUID.fromString(id)).toGql() }
+        runCatching { movieUseCases.getMovie(parseId(id, "movie")).toGql() }
             .getOrElse { if (it is com.moviecatalogue.catalogue.domain.NotFoundException) null else throw it }
 
     @QueryMapping
@@ -41,16 +41,16 @@ class MovieController(
 
     @SchemaMapping(typeName = "Movie", field = "genres")
     fun genres(movie: MovieGql): List<GenreCodeGql> =
-        movieReads.genres(UUID.fromString(movie.id)).map { it.toGql() }
+        movieReads.genres(parseId(movie.id, "movie")).map { it.toGql() }
 
     @SchemaMapping(typeName = "Movie", field = "cast")
     fun cast(movie: MovieGql): List<MovieCreditGql> =
-        movieReads.credits(UUID.fromString(movie.id), CreditCategory.CAST)
+        movieReads.credits(parseId(movie.id, "movie"), CreditCategory.CAST)
             .map { it.toGql() }
 
     @SchemaMapping(typeName = "Movie", field = "creators")
     fun creators(movie: MovieGql): List<MovieCreditGql> =
-        movieReads.credits(UUID.fromString(movie.id), CreditCategory.CREW)
+        movieReads.credits(parseId(movie.id, "movie"), CreditCategory.CREW)
             .map { it.toGql() }
 
     @SchemaMapping(typeName = "Movie", field = "language")
@@ -59,7 +59,7 @@ class MovieController(
 
     @SchemaMapping(typeName = "Movie", field = "artwork")
     fun artwork(movie: MovieGql): ArtworkGql? {
-        val asset = movieReads.artwork(UUID.fromString(movie.id)) ?: return null
+        val asset = movieReads.artwork(parseId(movie.id, "movie")) ?: return null
         // phase 4 serves bytes at /api/artwork/{id}; expose the stable URL now.
         return asset.toGql(url = "/api/artwork/${asset.id}")
     }
@@ -81,7 +81,7 @@ class MovieController(
         env: graphql.schema.DataFetchingEnvironment,
     ): CompletableFuture<PersonReferenceGql> {
         val loader: DataLoader<UUID, PersonRef> = env.getDataLoader(PersonReferenceDataLoader.NAME)!!
-        return loader.load(UUID.fromString(credit.personId)).thenApply { ref ->
+        return loader.load(parseId(credit.personId, "person")).thenApply { ref ->
             PersonReferenceGql(ref.id.toString(), ref.name, ref.available)
         }
     }

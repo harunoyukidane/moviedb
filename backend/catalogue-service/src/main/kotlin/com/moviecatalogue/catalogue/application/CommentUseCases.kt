@@ -34,11 +34,26 @@ class CommentUseCases(
         )
     }
 
+    /**
+     * [seedKey] is the importer's idempotency key (V2.2-13), never set by the
+     * UI. When present, upserts by it - exactly as `MovieUseCases.createMovie`
+     * upserts by `tmdbId` - so a re-seed updates the existing row in place
+     * rather than duplicating it. Absent (the only case the UI ever produces),
+     * behavior is unchanged: always insert.
+     */
     @Transactional
-    fun addComment(movieId: UUID, authorDisplayName: String?, text: String?): CommentView {
+    fun addComment(movieId: UUID, authorDisplayName: String?, text: String?, seedKey: String? = null): CommentView {
         if (!movies.existsById(movieId)) throw NotFoundException("movie '$movieId' not found")
         val author = MovieCommentRules.normalizeAuthorDisplayName(authorDisplayName)
         val body = MovieCommentRules.normalizeText(text)
+
+        val existing = seedKey?.let { comments.findBySeedKey(it) }
+        if (existing != null) {
+            existing.authorDisplayName = author
+            existing.text = body
+            return comments.saveAndFlush(existing).toView()
+        }
+
         val saved = comments.saveAndFlush(
             MovieComment(
                 id = UuidV7.generate(),
@@ -46,6 +61,7 @@ class CommentUseCases(
                 authorDisplayName = author,
                 text = body,
                 createdAt = OffsetDateTime.now(),
+                seedKey = seedKey,
             ),
         )
         return saved.toView()

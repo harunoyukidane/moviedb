@@ -11,6 +11,33 @@ export function codeForError(cause: unknown): string {
 }
 
 /**
+ * The one HTTP status map every form action shares (V2.2-08), so an outage
+ * during upload isn't reported as 415 (F11) and a not-found delete isn't
+ * reported as 503 (F12) - every action asks this single source of truth
+ * instead of hand-rolling its own ternary.
+ */
+export function statusForCode(code: string): number {
+  switch (code) {
+    case 'BAD_USER_INPUT':
+      return 400;
+    case 'NOT_FOUND':
+      return 404;
+    case 'CONFLICT':
+    case 'PERSON_IN_USE':
+      return 409;
+    case 'PAYLOAD_TOO_LARGE':
+      return 413;
+    case 'UNSUPPORTED_MEDIA_TYPE':
+      return 415;
+    case 'STORAGE_UNAVAILABLE':
+    case 'DEPENDENCY_UNAVAILABLE':
+      return 503;
+    default:
+      return 500;
+  }
+}
+
+/**
  * The specific message to show the user for [cause] — the backend's own
  * curated validation message when present, falling back to the generic copy
  * for [code].

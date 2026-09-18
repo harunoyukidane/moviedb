@@ -79,6 +79,22 @@ class MovieRulesTest {
         assertThatThrownBy { MovieRules.validateReleaseDate(LocalDate.of(2011, 1, 2), futureClock) }
             .isInstanceOf(ValidationException::class.java)
     }
+
+    @Test
+    fun `normalizeSynopsis allows blank, trims, screens and bounds at 5000`() {
+        assertThat(MovieRules.normalizeSynopsis("")).isEqualTo("")
+        assertThat(MovieRules.normalizeSynopsis("  A story.  ")).isEqualTo("A story.")
+        assertThat(MovieRules.normalizeSynopsis("a".repeat(MovieRules.SYNOPSIS_MAX))).hasSize(MovieRules.SYNOPSIS_MAX)
+        assertThatThrownBy { MovieRules.normalizeSynopsis("a".repeat(MovieRules.SYNOPSIS_MAX + 1)) }
+            .isInstanceOf(ValidationException::class.java)
+    }
+
+    @Test
+    fun `normalizeSynopsis allows newlines but rejects emoji`() {
+        assertThat(MovieRules.normalizeSynopsis("Line one.\nLine two.")).isEqualTo("Line one.\nLine two.")
+        assertThatThrownBy { MovieRules.normalizeSynopsis("Great movie 😀") }
+            .isInstanceOf(ValidationException::class.java)
+    }
 }
 
 class CreditRulesTest {
@@ -195,5 +211,58 @@ class MovieCommentRulesTest {
         assertThatThrownBy {
             MovieCommentRules.normalizeText("a".repeat(MovieCommentRules.TEXT_MAX + 1))
         }.isInstanceOf(ValidationException::class.java)
+    }
+
+    @Test
+    fun `comment text and author accept emoji, unlike catalogue metadata`() {
+        assertThat(MovieCommentRules.normalizeText("Loved it 😀")).isEqualTo("Loved it 😀")
+        assertThat(MovieCommentRules.normalizeAuthorDisplayName("Al😀ice")).isEqualTo("Al😀ice")
+        assertThatThrownBy { MovieRules.normalizeTitle("Title 😀") }
+            .isInstanceOf(ValidationException::class.java)
+    }
+
+    @Test
+    fun `a zero-width joiner between two emoji survives the comment screen, but is rejected between letters`() {
+        val family = "👨‍👩‍👧" // man ZWJ woman ZWJ girl
+        assertThat(MovieCommentRules.normalizeText(family)).isEqualTo(family)
+        assertThatThrownBy { MovieCommentRules.normalizeText("a‍b") }
+            .isInstanceOf(ValidationException::class.java)
+    }
+}
+
+class TextRulesTest {
+
+    @Test
+    fun `rejects NUL, control characters, bidi overrides, and zero-width characters`() {
+        assertThatThrownBy { TextRules.screen("a b", "field", allowNewlines = false, allowEmoji = false) }
+            .isInstanceOf(ValidationException::class.java)
+        assertThatThrownBy { TextRules.screen("ab", "field", allowNewlines = false, allowEmoji = false) }
+            .isInstanceOf(ValidationException::class.java)
+        assertThatThrownBy { TextRules.screen("a‮b", "field", allowNewlines = false, allowEmoji = false) }
+            .isInstanceOf(ValidationException::class.java)
+        assertThatThrownBy { TextRules.screen("a​b", "field", allowNewlines = false, allowEmoji = false) }
+            .isInstanceOf(ValidationException::class.java)
+    }
+
+    @Test
+    fun `allows newlines and tabs only when the policy permits them`() {
+        assertThat(TextRules.screen("a\nb\tc", "field", allowNewlines = true, allowEmoji = false)).isEqualTo("a\nb\tc")
+        assertThatThrownBy { TextRules.screen("a\nb", "field", allowNewlines = false, allowEmoji = false) }
+            .isInstanceOf(ValidationException::class.java)
+    }
+
+    @Test
+    fun `NFC-normalizes so decomposed and precomposed forms are treated alike`() {
+        val decomposed = "é" // e + combining acute accent
+        val precomposed = "é" // é
+        assertThat(TextRules.screen(decomposed, "field", allowNewlines = false, allowEmoji = false)).isEqualTo(precomposed)
+    }
+
+    @Test
+    fun `rejects emoji unless the policy allows it`() {
+        assertThatThrownBy { TextRules.screen("hi 😀", "field", allowNewlines = false, allowEmoji = false) }
+            .isInstanceOf(ValidationException::class.java)
+        assertThat(TextRules.screen("hi 😀", "field", allowNewlines = false, allowEmoji = true))
+            .isEqualTo("hi 😀")
     }
 }

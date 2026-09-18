@@ -28,6 +28,9 @@ interface PeopleClient {
 
     /** Physical delete on the People side (safe-delete guard is enforced by the caller). */
     fun deletePerson(id: UUID)
+
+    /** Controlled ISO 3166-1 alpha-2 country reference data (V2.2-10), owned by People. */
+    fun listCountries(activeOnly: Boolean): List<CountryCodeData>
 }
 
 data class PersonData(
@@ -40,6 +43,15 @@ data class PersonData(
     val placeOfBirth: String?,
     val profilePath: String?,
     val version: Long,
+    val birthCountryCode: String? = null,
+)
+
+/** Controlled ISO 3166-1 alpha-2 country code, mirroring reference.LanguageCode's shape. */
+data class CountryCodeData(
+    val code: String,
+    val name: String,
+    val active: Boolean,
+    val displayOrder: Int,
 )
 
 /** Lightweight person search hit (§9 SearchPeople). */
@@ -62,6 +74,7 @@ data class CreatePersonData(
     val birthDate: LocalDate?,
     val deathDate: LocalDate?,
     val placeOfBirth: String?,
+    val birthCountryCode: String? = null,
 )
 
 data class UpdatePersonData(
@@ -73,4 +86,5 @@ data class UpdatePersonData(
     val birthDate: LocalDate?,
     val deathDate: LocalDate?,
     val placeOfBirth: String?,
+    val birthCountryCode: String? = null,
 )

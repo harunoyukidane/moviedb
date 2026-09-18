@@ -3,7 +3,8 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 const createPersonMock = vi.fn();
 
 vi.mock('$lib/server/operations', () => ({
-  createPerson: (...args: unknown[]) => createPersonMock(...args)
+  createPerson: (...args: unknown[]) => createPersonMock(...args),
+  listCountries: vi.fn().mockResolvedValue([])
 }));
 
 import { actions } from './+page.server';
@@ -45,6 +46,17 @@ describe('/people/new default action', () => {
     ).rejects.toMatchObject({ status: 303 });
     expect(createPersonMock).toHaveBeenCalledWith(
       expect.objectContaining({ birthDate: '1980-01-01' }),
+      expect.anything()
+    );
+  });
+
+  it('passes birthCountryCode through to the mutation', async () => {
+    createPersonMock.mockResolvedValue({ id: 'p1' });
+    await expect(
+      actions.default(makeActionEvent({ name: 'Jane Doe', birthCountryCode: 'US' }))
+    ).rejects.toMatchObject({ status: 303 });
+    expect(createPersonMock).toHaveBeenCalledWith(
+      expect.objectContaining({ birthCountryCode: 'US' }),
       expect.anything()
     );
   });
