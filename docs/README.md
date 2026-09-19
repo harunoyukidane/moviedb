@@ -24,6 +24,9 @@ last_verified: 2026-09-19
 | Search / pagination scaling for large datasets | [plans/v2.5/README.md](plans/v2.5/README.md) — done (trigram index benchmarked; offset pushdown shipped for people search) |
 | Accessibility, or anything touching the combobox/suggestion components | [plans/v2.6/README.md](plans/v2.6/README.md) — done; V2.6-01's keyboard-access regression is fixed |
 | Media/artwork upload, WebP variants, orphan sweeping | [plans/v2.6/README.md](plans/v2.6/README.md) — done, plus [architecture/interfaces.md](architecture/interfaces.md) for the serving contract |
+| Unified search, pagination bounds, or anything reading `offset` | [plans/v2.7/README.md](plans/v2.7/README.md) — open; V2.7-01 is a live 500 + heap-amplification path |
+| Validation copy / error messages shown to users | [plans/v2.7/README.md](plans/v2.7/README.md) (V2.7-04) + [plans/v2.2/README.md](plans/v2.2/README.md) for the validation path itself |
+| CI, test coverage gaps | [plans/v2.7/README.md](plans/v2.7/README.md) (V2.7-05) + `.github/workflows/ci.yml` |
 
 ## Rules
 
@@ -51,5 +54,6 @@ docs/
 ├── plans/v2.3/                  injection hardening (done)
 ├── plans/v2.5/                  search/pagination scaling (done — trigram index benchmarked, offset pushdown shipped)
 ├── plans/v2.6/                  a11y regression + media-path hardening (done; from the 2026-09-19 review)
+├── plans/v2.7/                  search offset bounds + v2.6 follow-ups (open; from the 2026-09-19 second review)
 └── archive/                     superseded content, historical reference only
 ```
