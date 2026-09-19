@@ -3,7 +3,7 @@
 ```yaml
 status: current
 canonical_for: data-ownership-and-invariants
-last_verified: 2026-09-15
+last_verified: 2026-09-19
 ```
 
 DDL below is illustrative of intent and invariants — the Flyway migrations under
@@ -116,8 +116,26 @@ user-created data works without TMDB.
   composite index `(movie_id, created_at DESC, id DESC)` supports stable
   reverse-chronological pages; UUIDv7 `id` breaks timestamp ties.
 - At the assumed scale (under 100k movies, 500k people), normalized columns and
-  B-tree indexes are sufficient. If substring search becomes material, enable
-  `pg_trgm` and add GIN trigram indexes after measuring (ADR-9).
+  B-tree indexes are sufficient for everything except substring search. That
+  case was measured and **`pg_trgm` GIN indexes have shipped** (V2.5-01):
+  `ix_movie_title_trgm` / `ix_movie_original_title_trgm` (catalogue `V9`) and
+  `ix_person_name_trgm` (people `V5`). The functional B-tree `_lower` indexes
+  are kept alongside them — they still serve exact/prefix lookups (import
+  dedup, alphabet-jump counts); the trigram indexes are additive, not a
+  replacement. See [plans/v2.5/benchmark/results.md](../plans/v2.5/benchmark/results.md).
+- Listing and alphabet-jump ordering uses `lower(col) COLLATE "und-x-icu"` with
+  matching ICU-collated indexes (catalogue `V8__movie_title_icu_index.sql`,
+  people `V4__person_name_icu_index.sql`), so accented titles/names interleave
+  with their base letter instead of sorting after every ASCII value under the
+  database's default libc collation. The queries that depend on this are native
+  SQL because JPQL's `collate()` only accepts a bare-identifier collation name.
+- Artwork and person-photo rows carry nullable `webp_storage_key`,
+  `webp_byte_size`, and `webp_sha256` columns (catalogue `V10`, people `V6`)
+  for the best-effort WebP variant. Nullable by design: the variant is only
+  present when transcoding succeeded at upload time, and the serving path falls
+  back to the primary asset when it is absent. Both columns sets are storage
+  keys, not URLs — the same server-generated key discipline as the primary
+  asset. Orphan sweeping must treat **both** key columns as referenced.
 - Do not enforce unique person names: different people can share a name.
   Deduplication for imported records uses `tmdb_id`; manually created people may
   need human review.

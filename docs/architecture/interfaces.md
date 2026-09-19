@@ -3,7 +3,7 @@
 ```yaml
 status: current
 canonical_for: api-semantics
-last_verified: 2026-09-15
+last_verified: 2026-09-19
 ```
 
 This file explains *semantics and contracts that aren't obvious from reading the
@@ -110,9 +110,10 @@ Catalogue DB also finds movies with credits for the returned person IDs. Results
 are deduplicated and ranked: exact prefix title/name, substring title/name, then
 related credit match. The frontend debounces input (~300ms) and cancels stale
 requests; the server validates min/max query length and paginates results. `%`
-and `_` are escaped so user input is literal. Escaped case-insensitive matching is
-sufficient at the assumed scale (ADR-9); trigram indexing is the next step if
-measured latency requires it.
+and `_` are escaped so user input is literal. Escaped case-insensitive matching
+remains the approach (ADR-9, no dedicated search engine), but the substring
+`%term%` queries are now backed by `pg_trgm` GIN indexes rather than a scan —
+see [V2.5-01](../plans/v2.5/README.md) for the benchmark that justified them.
 
 ## Media/MinIO upload path
 
@@ -130,6 +131,32 @@ measured latency requires it.
    the previous object only after commit; retry orphan cleanup later if needed.
 8. Serve with correct `Content-Type`, `Content-Length`, caching/ETag, and
    `X-Content-Type-Options: nosniff`.
+
+### Serving and WebP content negotiation (v2.5)
+
+Uploads are stored in their validated primary format (JPEG/PNG/WebP). At upload
+time the service additionally attempts a **best-effort WebP variant** via the
+`cwebp` CLI; if the binary is missing or the encode fails, the asset simply has
+no variant and is always served in its primary format. The variant is tracked by
+nullable `webp_storage_key` / `webp_byte_size` / `webp_sha256` columns.
+
+`GET /api/artwork/{id}` (and the person-photo equivalent) then negotiates:
+
+- Serve the WebP variant when one exists **and** the request's `Accept` names
+  `image/webp`; otherwise serve the primary asset. Absent or `*/*` `Accept`
+  headers get the primary format.
+- **`Vary: Accept` is set on every response, including the 304.** Without it a
+  shared cache can hand one client's negotiated format to a client that asked
+  for a different one.
+- The `ETag` is the SHA-256 **of the bytes actually served**, so the primary and
+  WebP representations carry different ETags and conditional requests stay
+  correct across the negotiation.
+- Caching is `public, max-age=31536000, immutable` — the storage key and its
+  content never change for a given artwork id.
+
+The BFF media proxy forwards the browser's `Accept` upstream and passes `Vary`
+back through; without that forwarding the negotiation would never trigger behind
+the BFF.
 
 `ArtworkStore` (`put`, `open`, `delete`, `exists`, `listKeys`) is implemented by
 `MinioArtworkStore` (deployed, ADR-14) and `LocalArtworkStore` (test adapter

@@ -162,12 +162,21 @@ merge/rank step. This is why the plan considered two options:
    `PageRequest.of(0, offset + limit)` + `.drop(offset).take(limit)`. Passed
    **unsorted** — both `findAllOrderByName` and `searchByNamePattern` are
    native queries with their own ICU-collated `ORDER BY` baked in (V2.4); a
-   sorted `Pageable` would append a second, conflicting `ORDER BY` — exactly
-   the bug the "Alphabet pagenation" commit's own
-   `movie filter combines genre and year...` test currently hits against
-   `MovieRepository.findAllByFilter` (`ERROR: syntax error at or near
-   "order"`, still failing as of 2026-09-19, unrelated to this change and
-   not fixed here since it's someone else's in-progress work).
+   sorted `Pageable` would append a second, conflicting `ORDER BY` onto the raw
+   SQL text and break the native query with `ERROR: syntax error at or near
+   "order"`. `MovieRepository.findAllByFilter` avoids this the same way, and
+   its callers and tests all pass an unsorted `Pageable` deliberately.
+
+   > **Correction (2026-09-19).** An earlier revision of this section recorded
+   > the `movie filter combines genre and year...` test as *currently failing*
+   > against `findAllByFilter` with that error, and left it alone as someone
+   > else's in-progress work. That was wrong: a full
+   > `./gradlew test '-PdockerApiVersion=1.44'` run on 2026-09-19 passes, and
+   > the test itself passes an unsorted `PageRequest.of(0, 20)` — so the
+   > described failure mode was not reachable. Nothing was broken and nothing
+   > needed fixing. Recorded here rather than deleted because "a known-failing
+   > test was shipped past" is exactly the kind of claim that should not
+   > silently disappear from a plan.
 3. Tests: ported `OffsetPageRequestTest` to people-service, and added two
    integration tests (`PeopleSearchIntegrationTest`) asserting a
    **non-page-aligned** offset (7, with limit 3) returns the exact correct

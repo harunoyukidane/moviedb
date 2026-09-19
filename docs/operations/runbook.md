@@ -3,7 +3,7 @@
 ```yaml
 status: current
 canonical_for: operations
-last_verified: 2026-09-15
+last_verified: 2026-09-19
 ```
 
 Setup/commands live in the root [README.md](../../README.md) — this file covers
@@ -94,6 +94,26 @@ Even with authentication out of scope:
 
 If authorization enters scope, add it coherently at the public boundary and
 define mutation permissions — don't bolt on a fake login screen.
+
+## Edge proxy
+
+- A Caddy container (`proxy`, config in [`proxy/Caddyfile`](../../proxy/Caddyfile))
+  is the **only published port** — `${FRONTEND_PORT:-4173}` maps to it, not to
+  the BFF. Anything that previously curled `localhost:4173` expecting to reach
+  Node directly now goes through Caddy. See ADR-15.
+- It applies `zstd`/`gzip` to every response, including the SSR'd HTML document.
+  Brotli would need a custom `xcaddy` build and is deliberately not used.
+- The BFF trusts `X-Forwarded-For`/`X-Forwarded-Proto` from it
+  (`ADDRESS_HEADER`/`PROTOCOL_HEADER`). **This is only safe while the proxy is
+  the sole published entry point** — if `frontend` is ever republished to the
+  host, remove those two env vars with it, or client IP/protocol become
+  spoofable.
+- The proxy currently has **no healthcheck**; it starts after `frontend` reports
+  healthy, so a proxy that is up but not yet listening is a narrow startup race.
+  If `setup` ever reports success against an unreachable UI, check this first.
+- Frontend dev outside Docker (`npm run preview`) bypasses the proxy entirely and
+  therefore serves uncompressed documents. Lighthouse runs must go through the
+  Compose stack to reflect production.
 
 ## MinIO topology
 

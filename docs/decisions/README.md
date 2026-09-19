@@ -25,6 +25,7 @@ document's section numbers.
 12. [Person profile images — stored locally, seeded from TMDB](0012-person-image-hybrid.md) — **amended by ADR-14**
 13. [Credit last-write-wins](0013-credit-last-write-wins.md)
 14. [Use MinIO object storage for deployed artwork](0014-minio-object-storage.md) — accepted and **implemented**; amends ADR-4 and ADR-12
+15. [Put an edge reverse proxy in front of the BFF for response compression](0015-edge-reverse-proxy-compression.md) — accepted and **implemented**; the BFF is no longer published to the host directly (ADR-11 is otherwise unchanged)
 
 Accepted ADRs include implementation evidence as their phases land. ADR-4 and
 ADR-12 are kept as-written for their history rather than rewritten; each now

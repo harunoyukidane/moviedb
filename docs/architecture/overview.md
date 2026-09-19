@@ -3,7 +3,7 @@
 ```yaml
 status: current
 canonical_for: system-boundaries
-last_verified: 2026-09-15
+last_verified: 2026-09-19
 ```
 
 Current v1 architecture with the approved v2 evolution. Quality priorities and
@@ -23,7 +23,8 @@ MovieDB uses a SvelteKit backend-for-frontend (BFF), two Kotlin/Spring Boot serv
 
 ```mermaid
 flowchart LR
-    Browser["Browser"] -->|"HTML, forms, same-origin API"| BFF["SvelteKit BFF"]
+    Browser["Browser"] -->|"HTML, forms, same-origin API"| Proxy["Edge proxy — Caddy (v2.6)"]
+    Proxy -->|"zstd/gzip, X-Forwarded-*"| BFF["SvelteKit BFF"]
     BFF -->|"GraphQL"| Catalogue["Catalogue Service"]
     BFF -->|"HTTP media proxy"| Catalogue
     BFF -->|"HTTP photo proxy"| People["People Service"]
@@ -40,7 +41,22 @@ MinIO replaces the v1 mounted filesystem volumes in v2. It does not change brows
 
 ### Browser
 
-The browser renders Svelte pages and sends navigation, form, search, and media requests to the SvelteKit origin. It never receives internal service addresses or credentials. This creates one trusted web boundary, avoids browser-to-service CORS, and keeps GraphQL and gRPC internal.
+The browser renders Svelte pages and sends navigation, form, search, and media requests to the SvelteKit origin, reaching it through the edge proxy below. It never receives internal service addresses or credentials. This creates one trusted web boundary, avoids browser-to-service CORS, and keeps GraphQL and gRPC internal.
+
+### Edge proxy
+
+A Caddy reverse proxy is the only published entry point (ADR-15). It applies
+`zstd`/`gzip` to every response — including the SSR'd HTML document, which
+`adapter-node` streams out uncompressed — and forwards to the BFF on the
+internal network. It holds no routing, auth, or rewriting logic; it compresses
+and forwards.
+
+Because the BFF is no longer reachable from the host, it trusts the proxy's
+`X-Forwarded-For`/`X-Forwarded-Proto` for client IP and protocol. That trust is
+only sound while the proxy remains the sole published entry point. The
+browser-visible origin is unchanged, so the CSP and CSRF origin checks are
+unaffected. TLS/HTTP-2 termination is not configured; the proxy is where it
+would go.
 
 ### SvelteKit BFF
 

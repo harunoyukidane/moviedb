@@ -103,7 +103,12 @@ Two independently deployable services, each owning its own PostgreSQL database:
 
 ```
                  ┌───────────────────────────┐
-  Browser ─────► │ SvelteKit BFF (frontend/)  │   (server-side only GraphQL)
+  Browser ─────► │ Caddy edge proxy (proxy/)  │   (zstd/gzip; only published port)
+                 └────────────┬──────────────┘
+                              │ HTTP (internal network)
+                              ▼
+                 ┌───────────────────────────┐
+                 │ SvelteKit BFF (frontend/)  │   (server-side only GraphQL)
                  └────────────┬──────────────┘
                               │ GraphQL (HTTP)          │ artwork bytes (HTTP)
                               ▼                         ▼
@@ -127,6 +132,10 @@ Two independently deployable services, each owning its own PostgreSQL database:
 - **Frontend** (SvelteKit / TypeScript) is a **server-side BFF**: the browser calls
   SvelteKit server routes, which call GraphQL server-side. The browser never calls
   GraphQL directly; there is no browser-to-backend CORS.
+- **Edge proxy** (Caddy, ADR-15) is the only published entry point. It compresses
+  every response — including the SSR'd HTML document, which `adapter-node` streams
+  out uncompressed — and forwards to the BFF over the internal network. The BFF
+  container is no longer published to the host; `localhost:4173` is the proxy.
 - **Importer** (`demo/importer/`, TypeScript) seeds demo data through the
   application's own interfaces (People gRPC, Catalogue GraphQL, artwork HTTP) —
   never by direct DB writes.
@@ -147,12 +156,13 @@ backend/               Gradle multi-project (Kotlin)
   catalogue-service/   GraphQL API, credits, artwork, search
   people-service/      internal gRPC people service
 frontend/              SvelteKit BFF + UI (TypeScript)
+proxy/                 Caddy edge reverse proxy (compression; published entry point)
 demo/importer/         TMDB importer (TypeScript)
 demo/loadtest/         concurrency/stress load test (TypeScript)
 demo/tmdb-movie-ids.txt  committed manifest of stable TMDB movie ids
 scripts/               setup.sh, reset-demo.sh
 docs/                  Docs — start at docs/README.md for what to load
-docs/decisions/        Architecture Decision Records (ADR-1..14)
+docs/decisions/        Architecture Decision Records (ADR-1..15)
 compose.yaml           full topology (+ seed profile for the importer, loadtest profile for the stress test)
 ```
 

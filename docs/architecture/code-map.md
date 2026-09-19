@@ -3,7 +3,7 @@
 ```yaml
 status: current
 canonical_for: file-placement
-last_verified: 2026-09-15
+last_verified: 2026-09-19
 ```
 
 v1 structure and v2 placement guide. Layer *purpose* and dependency direction are
@@ -39,6 +39,7 @@ MovieDB/
 │   ├── src/routes/             URL-aligned SvelteKit routes
 │   ├── src/resources/          Source SVG icons
 │   └── e2e/                    Playwright journeys
+├── proxy/                      Caddy edge reverse proxy config (ADR-15)
 ├── demo/importer/              One-shot, idempotent TMDB importer
 ├── scripts/                    Setup, reset, certificate, and seed scripts
 ├── docs/                       Architecture, specification, ADRs, and plans
@@ -115,6 +116,7 @@ media/
 ├── ImageContentValidator.kt Shared content validation
 ├── LocalArtworkStore.kt     Local/test adapter
 ├── MinioArtworkStore.kt     V2 deployed adapter
+├── WebpEncoder.kt           Best-effort `cwebp` transcoder for serving variants
 └── Exceptions.kt            Storage/validation failures
 ```
 
