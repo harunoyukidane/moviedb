@@ -14,6 +14,7 @@ import com.moviecatalogue.catalogue.movie.MovieGenreId
 import com.moviecatalogue.catalogue.movie.MovieGenreRepository
 import com.moviecatalogue.catalogue.movie.MovieRepository
 import com.moviecatalogue.catalogue.people.PeopleClient
+import com.moviecatalogue.catalogue.people.PersonData
 import com.moviecatalogue.catalogue.reference.GenreCodeRepository
 import com.moviecatalogue.catalogue.reference.LanguageCodeRepository
 import org.slf4j.LoggerFactory
@@ -212,28 +213,49 @@ class MovieUseCases(
     }
 
     /**
-     * V2.2-03b: moving a movie's release date must not put it before a
-     * credited person's birth. One batched People fetch (no N+1); a People
-     * outage refuses the save with DEPENDENCY_UNAVAILABLE rather than saving
-     * unchecked, matching how CreditUseCases.addCredit already behaves.
+     * V2.2-03b/V2.8-03: moving a movie's release date must not put it before a
+     * credited person's birth, nor implausibly long after one's death. One
+     * batched People fetch (no N+1); a People outage refuses the save with
+     * DEPENDENCY_UNAVAILABLE rather than saving unchecked, matching how
+     * CreditUseCases.addCredit already behaves.
      */
     private fun validateCreditedPeopleAgainstReleaseDate(movieId: UUID, releaseDate: LocalDate) {
         val personIds = credits.findAllByMovieId(movieId).map { it.personId }.distinct()
         if (personIds.isEmpty()) return
         val people = peopleClient.getPeople(personIds)
-        val violators = personIds.mapNotNull { id ->
+
+        val unborn = personIds.mapNotNull { id ->
             people[id]?.takeIf { CreditRules.isBornAfterRelease(it.birthDate, releaseDate) }
         }
-        if (violators.isEmpty()) return
+        if (unborn.isNotEmpty()) {
+            throw ValidationException(
+                "Can't save: ${describePeople(unborn)} ${wasWere(unborn)} born after this movie's new " +
+                    "release date of $releaseDate. Check the dates and try again.",
+                field = "releaseDate",
+            )
+        }
+
+        val longDead = personIds.mapNotNull { id ->
+            people[id]?.takeIf { CreditRules.isDeathTooLongBeforeRelease(it.deathDate, releaseDate) }
+        }
+        if (longDead.isNotEmpty()) {
+            throw ValidationException(
+                "Can't save: ${describePeople(longDead)} died more than " +
+                    "${CreditRules.POSTHUMOUS_CREDIT_GRACE_YEARS} years before this movie's new release date of " +
+                    "$releaseDate. Check the dates and try again.",
+                field = "releaseDate",
+            )
+        }
+    }
+
+    /** "Jane Doe" / "Jane Doe, John Roe and 2 others", for the messages above. */
+    private fun describePeople(violators: List<PersonData>): String {
         val named = violators.take(3).joinToString(", ") { it.name }
         val summary = if (violators.size > 3) " and ${violators.size - 3} others" else ""
-        val verb = if (violators.size == 1) "was" else "were"
-        throw ValidationException(
-            "Can't save: $named$summary $verb born after this movie's new release date of $releaseDate. " +
-                "Check the dates and try again.",
-            field = "releaseDate",
-        )
+        return "$named$summary"
     }
+
+    private fun wasWere(violators: List<PersonData>): String = if (violators.size == 1) "was" else "were"
 }
 
 fun Movie.toView(): MovieView = MovieView(

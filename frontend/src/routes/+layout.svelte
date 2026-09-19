@@ -2,14 +2,13 @@
   import '../app.css';
   import { page } from '$app/stores';
   import { afterNavigate } from '$app/navigation';
-  import { previousPageUrl } from '$lib/stores/navigation';
+  import { recordNavigation } from '$lib/stores/navigation';
 
-  // Tracks the page navigated away from, so BackLink can return the user to
-  // where they actually came from (a filtered list, a movie/person page)
-  // rather than a fixed "all movies"/"all people" destination (V2.8-06).
-  afterNavigate(({ from }) => {
-    if (from?.url) previousPageUrl.set(from.url.pathname + from.url.search);
-  });
+  // Feeds the in-app back stack, so BackLink returns the user to where they
+  // actually came from (a filtered list, the movie/person page they clicked a
+  // credit from) rather than a fixed "all movies"/"all people" destination,
+  // and so repeated backs walk outwards instead of ping-ponging (V2.8-06).
+  afterNavigate(({ from, to }) => recordNavigation(from?.url, to?.url));
 </script>
 
 <svelte:head>

@@ -2,6 +2,11 @@ import { render, screen, waitFor } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
+// What the form action returns, surfaced to the enhance callback as
+// `result.data`. Mutable so a test can drive two consecutive successful saves
+// without the `form` prop ever changing (V2.8-02).
+const actionData = { value: {} as Record<string, unknown> };
+
 const mockUpdate = vi.fn(async (form: HTMLFormElement, opts?: { reset?: boolean; invalidateAll?: boolean }) => {
   if (opts?.reset !== false) {
     HTMLFormElement.prototype.reset.call(form);
@@ -34,7 +39,7 @@ vi.mock('$app/forms', () => ({
         })) ?? null;
       if (cancelled || !callback) return;
 
-      const result = { type: 'success' as const, status: 200, data: {} };
+      const result = { type: 'success' as const, status: 200, data: actionData.value };
       const update = (opts?: { reset?: boolean; invalidateAll?: boolean }) => mockUpdate(form, opts);
       await callback({
         action: new URL(form.getAttribute('action') ?? '', window.location.href),
@@ -129,5 +134,30 @@ describe('person edit form: save confirmation is easy to miss on a long form (V2
     });
     await waitFor(() => expect(screen.getByRole('status')).toHaveFocus());
     expect(screen.getByText('Changes saved.')).toBeInTheDocument();
+  });
+
+  it('re-announces on a second consecutive save, when the form prop is already `updated` and never changes', async () => {
+    const user = userEvent.setup();
+    actionData.value = { updated: true };
+    try {
+      render(Page, {
+        props: {
+          data: { person: makePerson(), countries, photoUrl: '/api/people/person-1/photo' },
+          // Already true from a first save. Nothing about `form` differs across
+          // the second one, so only the action result can drive the repeat.
+          form: { updated: true }
+        }
+      });
+      await waitFor(() => expect(screen.getByRole('status')).toHaveFocus());
+
+      // Focus moves away, as it does when the user carries on editing.
+      await user.click(screen.getByLabelText('Name *'));
+      expect(screen.getByRole('status')).not.toHaveFocus();
+
+      await user.click(screen.getByRole('button', { name: /save changes/i }));
+      await waitFor(() => expect(screen.getByRole('status')).toHaveFocus());
+    } finally {
+      actionData.value = {};
+    }
   });
 });

@@ -128,6 +128,41 @@ class CreditUseCasesTest {
     }
 
     @Test
+    fun `addCredit rejects a person who died long before the movie's release (V2_8-03)`() {
+        // The same conflict V2.8-03 blocks on the person-edit path, reached from
+        // the other direction: set the death date first, then add the credit.
+        val movieId = UUID.randomUUID()
+        val personId = UUID.randomUUID()
+        every { movies.findById(movieId) } returns
+            java.util.Optional.of(movie(movieId, releaseDate = java.time.LocalDate.of(2003, 5, 15)))
+        every { roleCodes.findById("ACTOR") } returns java.util.Optional.of(role("ACTOR", CreditCategory.CAST))
+        every { peopleClient.getPerson(personId) } returns
+            PersonData(personId, null, "Jane Doe", "", null, java.time.LocalDate.of(1953, 1, 1), null, null, 0)
+
+        assertThatThrownBy { useCases.addCredit(AddCreditCommand(movieId, personId, "ACTOR", "Hero", 0)) }
+            .isInstanceOf(ValidationException::class.java)
+            .hasMessageContaining("Jane Doe")
+            .hasMessageContaining("1953-01-01")
+            .hasMessageContaining("2003-05-15")
+        verify(exactly = 0) { credits.saveAndFlush(any()) }
+    }
+
+    @Test
+    fun `addCredit allows a posthumous credit inside the grace window`() {
+        val movieId = UUID.randomUUID()
+        val personId = UUID.randomUUID()
+        every { movies.findById(movieId) } returns
+            java.util.Optional.of(movie(movieId, releaseDate = java.time.LocalDate.of(1980, 5, 20)))
+        every { roleCodes.findById("ACTOR") } returns java.util.Optional.of(role("ACTOR", CreditCategory.CAST))
+        every { peopleClient.getPerson(personId) } returns
+            PersonData(personId, null, "Leigh Brackett", "", null, java.time.LocalDate.of(1978, 3, 18), null, null, 0)
+        every { credits.saveAndFlush(any()) } answers { firstArg() }
+
+        useCases.addCredit(AddCreditCommand(movieId, personId, "ACTOR", "Hero", 0))
+        verify(exactly = 1) { credits.saveAndFlush(any()) }
+    }
+
+    @Test
     fun `addCredit does not write when People is unavailable`() {
         val movieId = UUID.randomUUID()
         val personId = UUID.randomUUID()
@@ -495,6 +530,33 @@ class MovieUseCasesTest {
     }
 
     @Test
+    fun `updateMovie rejects a release date long after a credited person's death (V2_8-03)`() {
+        // Third way into the same conflict: leave the person and the credit
+        // alone and move the movie instead.
+        val id = UUID.randomUUID()
+        val personId = UUID.randomUUID()
+        val movie = com.moviecatalogue.catalogue.movie.Movie(id = id, title = "Title")
+        every { movies.findById(id) } returns java.util.Optional.of(movie)
+        every { credits.findAllByMovieId(id) } returns listOf(
+            com.moviecatalogue.catalogue.credit.MovieCredit(
+                UUID.randomUUID(), id, personId, "ACTOR", CreditCategory.CAST, characterName = "X",
+            ),
+        )
+        every { peopleClient.getPeople(listOf(personId)) } returns mapOf(
+            personId to PersonData(
+                personId, null, "Jane Doe", "", null, java.time.LocalDate.of(1953, 1, 1), null, null, 0,
+            ),
+        )
+
+        assertThatThrownBy {
+            useCases.updateMovie(updateCommand(id, 0, java.time.LocalDate.of(2003, 5, 15)))
+        }.isInstanceOf(ValidationException::class.java)
+            .hasMessageContaining("Jane Doe")
+            .hasMessageContaining("died more than")
+        verify(exactly = 0) { movies.saveAndFlush(any<com.moviecatalogue.catalogue.movie.Movie>()) }
+    }
+
+    @Test
     fun `updateMovie allows a release date compatible with all credited people`() {
         val id = UUID.randomUUID()
         val personId = UUID.randomUUID()
@@ -506,12 +568,14 @@ class MovieUseCasesTest {
             ),
         )
         every { peopleClient.getPeople(listOf(personId)) } returns mapOf(
-            personId to PersonData(personId, null, "Jane Doe", "", java.time.LocalDate.of(1980, 1, 1), null, null, null, 0),
+            personId to PersonData(
+                personId, null, "Leigh Brackett", "", null, java.time.LocalDate.of(1978, 3, 18), null, null, 0,
+            ),
         )
         every { movies.saveAndFlush(any<com.moviecatalogue.catalogue.movie.Movie>()) } answers { firstArg() }
 
-        val saved = useCases.updateMovie(updateCommand(id, 0, java.time.LocalDate.of(2020, 1, 1)))
-        assertThat(saved.releaseDate).isEqualTo(java.time.LocalDate.of(2020, 1, 1))
+        val saved = useCases.updateMovie(updateCommand(id, 0, java.time.LocalDate.of(1980, 5, 20)))
+        assertThat(saved.releaseDate).isEqualTo(java.time.LocalDate.of(1980, 5, 20))
     }
 }
 

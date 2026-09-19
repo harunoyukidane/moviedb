@@ -51,11 +51,15 @@ export function messageForError(cause: unknown, code: string): string {
 /**
  * A single-entry field-error map keyed to the GraphQL field the backend named,
  * for wiring `aria-invalid`/`aria-describedby` on the offending form control.
- * Undefined when the error isn't attributable to one field. The backend only
- * ever attaches a field to a BAD_USER_INPUT error, so the message is always
- * safe to run through the same plain-language rewrite `messageForValidation`
- * applies to the banner copy - this is what keeps the inline, per-field
- * message from showing the raw backend string underneath the field.
+ * Undefined when the error isn't attributable to one field.
+ *
+ * Keyed off the presence of a field rather than off the code, because
+ * BAD_USER_INPUT is no longer the only code that carries one:
+ * PERSON_DATE_CONFLICTS_CREDIT names birthDate or deathDate (V2.8-03). Any
+ * field-attributed backend message is curated prose, so it is always safe to
+ * run through the same plain-language rewrite `messageForValidation` applies
+ * to the banner copy - this is what keeps the inline, per-field message from
+ * showing the raw backend string underneath the field.
  */
 export function fieldErrorsForError(cause: unknown): Record<string, string> | undefined {
   if (cause instanceof GraphQlRequestError && cause.field) {

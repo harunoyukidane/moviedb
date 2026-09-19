@@ -94,12 +94,26 @@
   <div class="form-grid-2">
     <div class="field">
       <label for="birthDate">Birth date</label>
-      <DateField id="birthDate" name="birthDate" value={v.birthDate} min={BIRTH_DATE_MIN} max={birthDateMax()} />
+      <DateField
+        id="birthDate"
+        name="birthDate"
+        value={v.birthDate}
+        min={BIRTH_DATE_MIN}
+        max={birthDateMax()}
+        invalid={!!fieldErrors.birthDate}
+      />
       <FieldError id="birthDate-error" message={fieldErrors.birthDate} />
     </div>
     <div class="field">
       <label for="deathDate">Death date</label>
-      <DateField id="deathDate" name="deathDate" value={v.deathDate} min={DEATH_DATE_MIN} max={deathDateMax()} />
+      <DateField
+        id="deathDate"
+        name="deathDate"
+        value={v.deathDate}
+        min={DEATH_DATE_MIN}
+        max={deathDateMax()}
+        invalid={!!fieldErrors.deathDate}
+      />
       <FieldError id="deathDate-error" message={fieldErrors.deathDate} />
     </div>
   </div>

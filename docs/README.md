@@ -27,8 +27,9 @@ last_verified: 2026-09-19
 | Unified search, pagination bounds, or anything reading `offset` | [plans/v2.7/README.md](plans/v2.7/README.md) — done; V2.7-01's offset bound is in place |
 | Validation copy / error messages shown to users | [plans/v2.7/README.md](plans/v2.7/README.md) (V2.7-04) + [plans/v2.2/README.md](plans/v2.2/README.md) for the validation path itself |
 | CI, test coverage gaps | [plans/v2.7/README.md](plans/v2.7/README.md) (V2.7-05) + `.github/workflows/ci.yml` |
-| Long/unbroken user text breaking a layout, or save-confirmation feedback | [plans/v2.8/README.md](plans/v2.8/README.md) — open (V2.8-01, V2.8-02) |
-| Person birth/death dates vs. the movies they're credited on | [plans/v2.8/README.md](plans/v2.8/README.md) (V2.8-03) — open; note the check belongs in Catalogue, never People (ADR-1) |
+| Long/unbroken user text breaking a layout, or save-confirmation feedback | [plans/v2.8/README.md](plans/v2.8/README.md) — done (V2.8-01, V2.8-02); the real layout assertion is the Playwright test in `frontend/e2e/journey.spec.ts`, not the CSS tripwire in `app.css.test.ts` |
+| Person birth/death dates vs. the movies they're credited on | [plans/v2.8/README.md](plans/v2.8/README.md) (V2.8-03) — done; the check belongs in Catalogue, never People (ADR-1), and all three write paths enforce it (person edit, add credit, movie release date) |
+| "Back" navigation, or anything reading the previous page | [plans/v2.8/README.md](plans/v2.8/README.md) (V2.8-06) — done; it is a stack that pops, in `$lib/stores/navigation.ts` — a single "previous page" slot ping-pongs |
 
 ## Rules
 
@@ -57,6 +58,6 @@ docs/
 ├── plans/v2.5/                  search/pagination scaling (done — trigram index benchmarked, offset pushdown shipped)
 ├── plans/v2.6/                  a11y regression + media-path hardening (done; from the 2026-09-19 review)
 ├── plans/v2.7/                  search offset bounds + v2.6 follow-ups (done; from the 2026-09-19 second review)
-├── plans/v2.8/                  long-word layout, save feedback, person-date/credit conflicts (open)
+├── plans/v2.8/                  long-word layout, save feedback, person-date/credit conflicts, back navigation (done)
 └── archive/                     superseded content, historical reference only
 ```

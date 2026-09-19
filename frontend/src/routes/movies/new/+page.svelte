@@ -118,6 +118,7 @@
         <label for="releaseDate">Release date</label>
         <DateField
           id="releaseDate"
+          invalid={!!fieldErrors.releaseDate}
           name="releaseDate"
           value={v.releaseDate}
           min={RELEASE_DATE_MIN}

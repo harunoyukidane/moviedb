@@ -56,8 +56,14 @@ class PersonUseCases(
      * of those dates is actually part of this update, so the common edit
      * path (no date change) pays no extra query. Bypassable via People's gRPC
      * directly, same known limitation as the safe-delete check (ADR-6).
+     *
+     * Deliberately not `@Transactional`: person edits are frequent, and
+     * wrapping this would pin a Catalogue DB connection for the whole People
+     * gRPC round trip. The two reads below need no atomicity with each other
+     * or with the RPC - a credit racing in alongside this check is the same
+     * check-then-act window ADR-6 already describes, and one a shared
+     * transaction here would not close either.
      */
-    @Transactional
     fun updatePerson(command: UpdatePersonData): PersonData {
         if ("birth_date" in command.maskPaths || "death_date" in command.maskPaths) {
             val creditedMovies = creditedMovieDates(command.id)
@@ -68,6 +74,10 @@ class PersonUseCases(
         return peopleClient.updatePerson(command)
     }
 
+    // No `@Transactional` here either: it is called from `updatePerson` on
+    // `this`, so Spring's proxy is bypassed and the annotation would be inert -
+    // worse than absent, because it would read as a guarantee. Each repository
+    // call runs in its own short read transaction, which is all this needs.
     private fun creditedMovieDates(personId: UUID): List<CreditRules.CreditedMovieDate> {
         val personCredits = credits.findAllByPersonId(personId)
         if (personCredits.isEmpty()) return emptyList()
