@@ -36,14 +36,16 @@ class WebpEncoder(
 
     /** Returns WebP-encoded bytes, or null if `cwebp` is unavailable or the conversion fails. */
     fun encode(sourceBytes: ByteArray): ByteArray? {
-        permits.acquire()
+        var acquired = false
         try {
+            permits.acquire()
+            acquired = true
             return encodeWithinLimit(sourceBytes)
         } catch (e: InterruptedException) {
             Thread.currentThread().interrupt()
             return null
         } finally {
-            permits.release()
+            if (acquired) permits.release()
         }
     }
 
