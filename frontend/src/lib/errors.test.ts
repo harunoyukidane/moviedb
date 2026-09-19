@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { isErrorCode, isValidationError, messageForCode, messageForValidation, type ErrorCode } from './errors';
+import {
+  humanizeValidationMessage,
+  isErrorCode,
+  isValidationError,
+  messageForCode,
+  messageForValidation,
+  type ErrorCode
+} from './errors';
 
 describe('error boundary', () => {
   const codes: ErrorCode[] = [
@@ -54,9 +61,9 @@ describe('error boundary', () => {
     expect(isValidationError('CONFLICT')).toBe(false);
   });
 
-  it('messageForValidation prefers the server message for BAD_USER_INPUT', () => {
+  it('messageForValidation prefers the server message for BAD_USER_INPUT, rewritten for display', () => {
     expect(messageForValidation('BAD_USER_INPUT', 'title must be at most 300 characters')).toBe(
-      'title must be at most 300 characters'
+      'Title can be up to 300 characters.'
     );
   });
 
@@ -67,5 +74,73 @@ describe('error boundary', () => {
 
   it('messageForValidation ignores the server message for non-validation codes', () => {
     expect(messageForValidation('CONFLICT', 'some internal detail')).toBe(messageForCode('CONFLICT'));
+  });
+});
+
+describe('humanizeValidationMessage', () => {
+  it('rewrites a blank-field message with the field label, not the raw key', () => {
+    expect(humanizeValidationMessage('authorDisplayName must not be blank')).toBe('Your name is required.');
+    expect(humanizeValidationMessage('name must not be blank')).toBe('Name is required.');
+    expect(humanizeValidationMessage('text must not be blank')).toBe('Comment is required.');
+  });
+
+  it('rewrites a max-length message using the field label and, when present, the entered count', () => {
+    expect(humanizeValidationMessage('title must be at most 300 characters')).toBe(
+      'Title can be up to 300 characters.'
+    );
+    expect(humanizeValidationMessage('synopsis must be at most 5000 characters — you entered 5120.')).toBe(
+      'Synopsis can be up to 5000 characters — you entered 5120.'
+    );
+  });
+
+  it('collapses every unstorable-character shape into one plain-language message, without the technical detail', () => {
+    const expected =
+      "Comment contains a character that can't be saved — this can happen when text is pasted from another app. Delete the affected part and retype it.";
+    expect(humanizeValidationMessage("text contains a null character, which can't be stored.")).toBe(expected);
+    expect(humanizeValidationMessage("text contains an invisible character, which isn't allowed.")).toBe(expected);
+    expect(
+      humanizeValidationMessage("text contains a text-direction override character, which isn't allowed.")
+    ).toBe(expected);
+    expect(humanizeValidationMessage('text contains a control character at position 12.')).toBe(expected);
+  });
+
+  it('rewrites the emoji rule using the field label', () => {
+    expect(humanizeValidationMessage("characterName can't contain emoji.")).toBe(
+      "Character name can't contain emoji."
+    );
+  });
+
+  it('rewrites negative-number rules in plain language', () => {
+    expect(humanizeValidationMessage('runtimeMinutes must be positive')).toBe('Runtime must be greater than zero.');
+    expect(humanizeValidationMessage('billingOrder must be zero or positive')).toBe(
+      "Billing order can't be negative."
+    );
+  });
+
+  it('rewrites cast/crew character-name rules without naming the raw field', () => {
+    expect(humanizeValidationMessage('cast credits require a characterName')).toBe(
+      'Cast credits need a character name.'
+    );
+    expect(humanizeValidationMessage('crew credits must not have a characterName')).toBe(
+      "Crew credits can't have a character name."
+    );
+  });
+
+  it('rewrites a stale reference-code error without echoing the raw code value', () => {
+    expect(humanizeValidationMessage("genre code 'xyz' does not exist")).toBe(
+      'That genre is no longer available. Please choose another.'
+    );
+    expect(humanizeValidationMessage("role code 'director' is inactive")).toBe(
+      'That role is no longer active. Please choose another.'
+    );
+  });
+
+  it('leaves an already-natural backend sentence alone', () => {
+    const message = 'Release date 1850-01-01 is before the first film was made (14 October 1888).';
+    expect(humanizeValidationMessage(message)).toBe(message);
+  });
+
+  it('capitalizes and punctuates an unrecognized message rather than passing it through verbatim', () => {
+    expect(humanizeValidationMessage('something unexpected happened')).toBe('Something unexpected happened.');
   });
 });

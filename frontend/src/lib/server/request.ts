@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { messageForCode, messageForValidation } from '$lib/errors';
+import { humanizeValidationMessage, messageForCode, messageForValidation } from '$lib/errors';
 import { GraphQlRequestError, type RequestContext } from './graphql';
 
 export function requestContext(request: Request): RequestContext {
@@ -50,11 +50,15 @@ export function messageForError(cause: unknown, code: string): string {
 /**
  * A single-entry field-error map keyed to the GraphQL field the backend named,
  * for wiring `aria-invalid`/`aria-describedby` on the offending form control.
- * Undefined when the error isn't attributable to one field.
+ * Undefined when the error isn't attributable to one field. The backend only
+ * ever attaches a field to a BAD_USER_INPUT error, so the message is always
+ * safe to run through the same plain-language rewrite `messageForValidation`
+ * applies to the banner copy - this is what keeps the inline, per-field
+ * message from showing the raw backend string underneath the field.
  */
 export function fieldErrorsForError(cause: unknown): Record<string, string> | undefined {
   if (cause instanceof GraphQlRequestError && cause.field) {
-    return { [cause.field]: cause.message };
+    return { [cause.field]: humanizeValidationMessage(cause.message) };
   }
   return undefined;
 }
