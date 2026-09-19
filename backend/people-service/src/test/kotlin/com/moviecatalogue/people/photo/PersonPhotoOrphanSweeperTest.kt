@@ -2,25 +2,35 @@ package com.moviecatalogue.people.photo
 
 import com.moviecatalogue.media.ArtworkStorageException
 import com.moviecatalogue.media.ArtworkStore
+import com.moviecatalogue.media.StoredKey
 import com.moviecatalogue.people.person.PersonRepository
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.mockk.every
 import io.mockk.mockk
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import java.time.Clock
+import java.time.Duration
+import java.time.Instant
+import java.time.ZoneOffset
 
 class PersonPhotoOrphanSweeperTest {
 
     private val people = mockk<PersonRepository>()
     private val store = mockk<ArtworkStore>()
     private val meterRegistry = SimpleMeterRegistry()
-    private val sweeper = PersonPhotoOrphanSweeper(people, store, meterRegistry)
+    private val now = Instant.parse("2026-01-01T00:00:00Z")
+    private val clock = Clock.fixed(now, ZoneOffset.UTC)
+    private val sweeper = PersonPhotoOrphanSweeper(people, store, meterRegistry, Duration.ofMinutes(15), clock)
+
+    private fun old(key: String) = StoredKey(key, now.minus(Duration.ofMinutes(20)))
+    private fun fresh(key: String) = StoredKey(key, now.minus(Duration.ofSeconds(5)))
 
     @Test
     fun `a failed listing skips this run cleanly instead of propagating`() {
         every { people.findAllProfilePaths() } returns emptyList()
         every { people.findAllProfilePathsWebp() } returns emptyList()
-        every { store.listKeys() } throws ArtworkStorageException()
+        every { store.listKeysWithAge() } throws ArtworkStorageException()
 
         val removed = sweeper.sweepOnce()
 
@@ -32,7 +42,7 @@ class PersonPhotoOrphanSweeperTest {
     fun `one key failing to delete does not abort the rest of the sweep`() {
         every { people.findAllProfilePaths() } returns emptyList()
         every { people.findAllProfilePathsWebp() } returns emptyList()
-        every { store.listKeys() } returns listOf("a.png", "b.png", "c.png")
+        every { store.listKeysWithAge() } returns listOf(old("a.png"), old("b.png"), old("c.png"))
         every { store.delete("a.png") } returns true
         every { store.delete("b.png") } throws ArtworkStorageException()
         every { store.delete("c.png") } returns true
@@ -48,10 +58,33 @@ class PersonPhotoOrphanSweeperTest {
     fun `a referenced webp variant is not treated as an orphan`() {
         every { people.findAllProfilePaths() } returns listOf("a.png")
         every { people.findAllProfilePathsWebp() } returns listOf("a.webp")
-        every { store.listKeys() } returns listOf("a.png", "a.webp")
+        every { store.listKeysWithAge() } returns listOf(old("a.png"), old("a.webp"))
 
         val removed = sweeper.sweepOnce()
 
         assertThat(removed).isEqualTo(0)
+    }
+
+    @Test
+    fun `an unreferenced object written just now survives the sweep (V2_6-03)`() {
+        every { people.findAllProfilePaths() } returns emptyList()
+        every { people.findAllProfilePathsWebp() } returns emptyList()
+        every { store.listKeysWithAge() } returns listOf(fresh("a.png"))
+
+        val removed = sweeper.sweepOnce()
+
+        assertThat(removed).isEqualTo(0)
+    }
+
+    @Test
+    fun `an old unreferenced object is still removed (V2_6-03)`() {
+        every { people.findAllProfilePaths() } returns emptyList()
+        every { people.findAllProfilePathsWebp() } returns emptyList()
+        every { store.listKeysWithAge() } returns listOf(old("a.png"))
+        every { store.delete("a.png") } returns true
+
+        val removed = sweeper.sweepOnce()
+
+        assertThat(removed).isEqualTo(1)
     }
 }

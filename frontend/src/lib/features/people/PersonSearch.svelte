@@ -15,6 +15,14 @@
   let value = query ?? '';
   let suggestions: PersonHit[] = [];
   let suggestionsOpen = false;
+  let activeIndex = -1;
+
+  function optionId(index: number): string {
+    return `person-suggestion-${index}`;
+  }
+
+  // Keep the active suggestion in range as the list changes.
+  $: if (activeIndex >= suggestions.length) activeIndex = suggestions.length - 1;
 
   async function defaultSuggest(q: string): Promise<PersonHit[]> {
     const res = await fetch(`/api/people-search?q=${encodeURIComponent(q)}`);
@@ -26,6 +34,7 @@
   function onInput() {
     clearTimeout(debounce);
     const q = value.trim().slice(0, QUERY_MAX_LEN);
+    activeIndex = -1;
     if (!q) {
       suggestions = [];
       suggestionsOpen = false;
@@ -48,11 +57,33 @@
   function pick(p: PersonHit) {
     suggestions = [];
     suggestionsOpen = false;
+    activeIndex = -1;
     navigateFn(`/people/${p.id}`);
   }
 
   function onKeydown(e: KeyboardEvent) {
-    if (e.key === 'Escape') suggestionsOpen = false;
+    if (e.key === 'ArrowDown') {
+      if (!suggestions.length) return;
+      e.preventDefault();
+      const wasOpen = suggestionsOpen;
+      suggestionsOpen = true;
+      activeIndex = wasOpen ? (activeIndex + 1) % suggestions.length : 0;
+    } else if (e.key === 'ArrowUp') {
+      if (!suggestions.length) return;
+      e.preventDefault();
+      const wasOpen = suggestionsOpen;
+      suggestionsOpen = true;
+      activeIndex = wasOpen ? (activeIndex - 1 + suggestions.length) % suggestions.length : suggestions.length - 1;
+    } else if (e.key === 'Enter') {
+      if (suggestionsOpen && activeIndex >= 0 && activeIndex < suggestions.length) {
+        e.preventDefault();
+        pick(suggestions[activeIndex]);
+      }
+    } else if (e.key === 'Escape' && suggestionsOpen) {
+      e.preventDefault();
+      suggestionsOpen = false;
+      activeIndex = -1;
+    }
   }
 
   // A suggestion button's mousedown fires before the input's blur; preventing
@@ -84,12 +115,20 @@
       aria-expanded={suggestionsOpen}
       aria-controls="person-suggestions"
       aria-autocomplete="list"
+      aria-activedescendant={suggestionsOpen && activeIndex >= 0 ? optionId(activeIndex) : undefined}
     />
     {#if suggestionsOpen}
       <ul id="person-suggestions" class="suggestions" role="listbox">
-        {#each suggestions as p (p.id)}
-          <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-noninteractive-element-interactions -->
-          <li role="option" aria-selected="false" on:mousedown={keepFocus} on:click={() => pick(p)}>
+        {#each suggestions as p, index (p.id)}
+          <!-- svelte-ignore a11y-click-events-have-key-events -- keyboard selection (ArrowDown/Enter) is handled on the input above, per the combobox pattern; the option itself stays non-focusable. -->
+          <li
+            id={optionId(index)}
+            role="option"
+            aria-selected={index === activeIndex}
+            class:active={index === activeIndex}
+            on:mousedown={keepFocus}
+            on:click={() => pick(p)}
+          >
             {p.name}
           </li>
         {/each}
@@ -142,7 +181,8 @@
     border-bottom: 1px solid var(--border);
   }
   .suggestions li:last-child { border-bottom: none; }
-  .suggestions li:hover {
+  .suggestions li:hover,
+  .suggestions li.active {
     background: var(--surface-2);
   }
   .person-search button[type='submit'] {

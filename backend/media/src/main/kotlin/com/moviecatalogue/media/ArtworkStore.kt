@@ -1,6 +1,7 @@
 package com.moviecatalogue.media
 
 import java.io.InputStream
+import java.time.Instant
 
 /**
  * Storage abstraction for validated artwork bytes (§10). The storage key is
@@ -23,6 +24,14 @@ interface ArtworkStore {
 
     /** All storage keys currently present (used by the orphan sweeper). */
     fun listKeys(): List<String>
+
+    /**
+     * All storage keys currently present, with each one's last-modified time
+     * (V2.6-03). Used by the orphan sweepers to skip objects too young to have
+     * finished their upload/encode-and-commit sequence, instead of reaching
+     * into a storage-specific SDK for that timestamp.
+     */
+    fun listKeysWithAge(): List<StoredKey>
 }
 
 /** Result of a store [ArtworkStore.put]: the key plus computed integrity data. */
@@ -30,4 +39,10 @@ data class StoredObject(
     val storageKey: String,
     val byteSize: Long,
     val sha256: String,
+)
+
+/** A storage key paired with when it was last written, from [ArtworkStore.listKeysWithAge]. */
+data class StoredKey(
+    val key: String,
+    val lastModified: Instant,
 )

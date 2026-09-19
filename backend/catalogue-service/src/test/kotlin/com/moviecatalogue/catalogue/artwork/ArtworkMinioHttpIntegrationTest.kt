@@ -68,6 +68,7 @@ class ArtworkMinioHttpIntegrationTest {
             registry.add("spring.datasource.url", postgres::getJdbcUrl)
             registry.add("spring.datasource.username", postgres::getUsername)
             registry.add("spring.datasource.password", postgres::getPassword)
+            registry.add("catalogue.artwork.sweep.min-age") { "PT0S" }
             registry.add("grpc.client.people-service.address") { "in-process:artwork-minio-http-it" }
 
             val client = MinioClient.builder()

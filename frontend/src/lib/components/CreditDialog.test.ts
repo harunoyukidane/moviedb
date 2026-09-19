@@ -68,7 +68,7 @@ describe('CreditDialog', () => {
     await user.type(screen.getByLabelText('Person'), 'Jane');
     // debounce is 200ms
     await new Promise((r) => setTimeout(r, 260));
-    await user.click(await screen.findByRole('button', { name: 'Jane Star' }));
+    await user.click(await screen.findByRole('option', { name: 'Jane Star' }));
 
     // choose a CAST role -> character field appears and submit stays disabled until filled
     await user.selectOptions(screen.getByLabelText('Role'), 'ACTOR');
@@ -86,11 +86,29 @@ describe('CreditDialog', () => {
 
     await user.type(screen.getByLabelText('Person'), 'Jane');
     await new Promise((r) => setTimeout(r, 260));
-    await user.click(await screen.findByRole('button', { name: 'Jane Star' }));
+    await user.click(await screen.findByRole('option', { name: 'Jane Star' }));
 
     await user.selectOptions(screen.getByLabelText('Role'), 'DIRECTOR');
     // no character field for CREW
     expect(screen.queryByLabelText('Character name *')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add credit' })).toBeEnabled();
+  });
+
+  it('picks a person suggestion via the keyboard (ArrowDown + Enter)', async () => {
+    const user = userEvent.setup();
+    render(CreditDialog, { props: { open: true, roles } });
+    await tick();
+
+    const personField = screen.getByLabelText('Person');
+    await user.type(personField, 'Jane');
+    await new Promise((r) => setTimeout(r, 260));
+    await screen.findByRole('option', { name: 'Jane Star' });
+
+    await user.keyboard('{ArrowDown}{Enter}');
+
+    expect(personField).toHaveValue('Jane Star');
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText('Role'), 'DIRECTOR');
     expect(screen.getByRole('button', { name: 'Add credit' })).toBeEnabled();
   });
 
@@ -122,7 +140,7 @@ describe('CreditDialog', () => {
 
     await user.type(screen.getByLabelText('Person'), 'Jane');
     await new Promise((r) => setTimeout(r, 260));
-    await user.click(await screen.findByRole('button', { name: 'Jane Star' }));
+    await user.click(await screen.findByRole('option', { name: 'Jane Star' }));
     await user.selectOptions(screen.getByLabelText('Role'), 'DIRECTOR');
 
     // A form submitted natively (no use:enhance) never reaches our mocked

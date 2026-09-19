@@ -105,6 +105,20 @@ class MinioArtworkStore(
         return result
     }
 
+    override fun listKeysWithAge(): List<StoredKey> {
+        val result = mutableListOf<StoredKey>()
+        try {
+            val items = client.listObjects(ListObjectsArgs.builder().bucket(bucket).recursive(true).build())
+            for (item in items) {
+                val stat = item.get()
+                result.add(StoredKey(stat.objectName(), stat.lastModified().toInstant()))
+            }
+        } catch (e: Exception) {
+            throw mapError(e)
+        }
+        return result
+    }
+
     private fun requireValidKey(key: String) {
         if (!KEY_PATTERN.matches(key)) {
             throw IllegalArgumentException("illegal storage key")

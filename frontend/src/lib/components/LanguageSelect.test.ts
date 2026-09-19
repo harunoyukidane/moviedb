@@ -31,24 +31,36 @@ describe('LanguageSelect', () => {
     const user = userEvent.setup();
     render(LanguageSelect, { props: { languages } });
     await user.type(screen.getByLabelText('Original language'), 'jap');
-    expect(await screen.findByRole('button', { name: 'Japanese' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'French' })).not.toBeInTheDocument();
+    expect(await screen.findByRole('option', { name: 'Japanese' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'French' })).not.toBeInTheDocument();
   });
 
   it('filters suggestions by code as well as name', async () => {
     const user = userEvent.setup();
     render(LanguageSelect, { props: { languages } });
     await user.type(screen.getByLabelText('Original language'), 'fr');
-    expect(await screen.findByRole('button', { name: 'French' })).toBeInTheDocument();
+    expect(await screen.findByRole('option', { name: 'French' })).toBeInTheDocument();
   });
 
-  it('picking a suggestion sets the hidden code input and closes the list', async () => {
+  it('picking a suggestion with the mouse sets the hidden code input and closes the list', async () => {
     const user = userEvent.setup();
     render(LanguageSelect, { props: { languages } });
     await user.type(screen.getByLabelText('Original language'), 'eng');
-    await user.click(await screen.findByRole('button', { name: 'English' }));
+    await user.click(await screen.findByRole('option', { name: 'English' }));
 
     expect(screen.getByLabelText('Original language')).toHaveValue('English');
+    expect(hiddenValue()).toBe('en');
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+  });
+
+  it('picking a suggestion with the keyboard sets the hidden code input and closes the list', async () => {
+    const user = userEvent.setup();
+    render(LanguageSelect, { props: { languages } });
+    const input = screen.getByLabelText('Original language');
+    await user.type(input, 'eng');
+    await user.keyboard('{ArrowDown}{Enter}');
+
+    expect(input).toHaveValue('English');
     expect(hiddenValue()).toBe('en');
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
   });

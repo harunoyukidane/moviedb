@@ -168,8 +168,9 @@ select[aria-invalid='true'] {
 
 /* Autocomplete suggestion dropdown, shared by LanguageSelect and CreditDialog. */
 .suggestions { list-style: none; margin: 4px 0 0; padding: 0; border: 1px solid var(--border); border-radius: var(--radius); max-height: 12rem; overflow-y: auto; }
-.suggestions li button { width: 100%; text-align: left; background: var(--surface); border: none; border-bottom: 1px solid var(--border); border-radius: 0; }
-.suggestions li button:hover { background: var(--surface-2); }
+.suggestions li[role='option'] { padding: var(--sp-1); cursor: pointer; border-bottom: 1px solid var(--border); }
+.suggestions li[role='option']:last-child { border-bottom: none; }
+.suggestions li[role='option']:hover { background: var(--surface-2); }
 
 .hint { color: var(--text-muted); }
 

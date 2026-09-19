@@ -74,6 +74,20 @@ class LocalArtworkStore(
                 .toList()
         }
 
+    override fun listKeysWithAge(): List<StoredKey> =
+        try {
+            Files.list(root).use { stream ->
+                stream.filter { Files.isRegularFile(it) }
+                    .filter { !it.fileName.toString().endsWith(".tmp") }
+                    .map { StoredKey(it.fileName.toString(), Files.getLastModifiedTime(it).toInstant()) }
+                    .toList()
+            }
+        } catch (e: java.io.UncheckedIOException) {
+            throw ArtworkStorageException(cause = e)
+        } catch (e: java.io.IOException) {
+            throw ArtworkStorageException(cause = e)
+        }
+
     /**
      * Resolve a storage key to a path *inside* [root], rejecting any key that
      * escapes the root (path traversal / absolute paths). Keys are server-made,

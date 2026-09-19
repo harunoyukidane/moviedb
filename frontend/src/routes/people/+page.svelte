@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import type { PageData } from './$types';
   import StateBanner from '$lib/components/StateBanner.svelte';
   import AlphabetPager from '$lib/components/AlphabetPager.svelte';
@@ -6,6 +7,23 @@
   import PersonSearch from '$lib/features/people/PersonSearch.svelte';
 
   export let data: PageData;
+
+  // Measures the grid's own rendered column count instead of assuming
+  // desktop width for what counts as "the first row" (V2.6-07).
+  let gridEl: HTMLUListElement | undefined;
+  let eagerCount = 2;
+
+  function measureEagerCount() {
+    if (!gridEl) return;
+    const columns = getComputedStyle(gridEl).gridTemplateColumns.split(' ').filter(Boolean).length;
+    if (columns > 0) eagerCount = columns;
+  }
+
+  onMount(() => {
+    measureEagerCount();
+    window.addEventListener('resize', measureEagerCount);
+    return () => window.removeEventListener('resize', measureEagerCount);
+  });
   $: page = data.page;
   $: hasPrev = page.offset > 0;
   $: hasNext = page.offset + page.limit < page.total;
@@ -59,10 +77,17 @@
     {/if}
   </StateBanner>
 {:else}
-  <ul class="photo-grid" aria-label="People">
+  <ul class="photo-grid" aria-label="People" bind:this={gridEl}>
     {#each page.items as person, i (person.id)}
       <li>
-        <PersonListRow id={person.id} name={person.name} photoUrl={person.photoUrl} dates={datesFor(person)} index={i} />
+        <PersonListRow
+          id={person.id}
+          name={person.name}
+          photoUrl={person.photoUrl}
+          dates={datesFor(person)}
+          index={i}
+          {eagerCount}
+        />
       </li>
     {/each}
   </ul>

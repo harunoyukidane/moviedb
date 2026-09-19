@@ -26,6 +26,12 @@
   let searching = false;
   let noMatch = false;
   let searchError = false;
+  let suggestionsOpen = false;
+  let activeIndex = -1;
+
+  function suggestionId(index: number): string {
+    return `person-suggestion-${index}`;
+  }
 
   $: selectedRole = roles.find((r) => r.code === roleCode) ?? null;
   $: isCast = selectedRole?.category === 'CAST';
@@ -47,6 +53,8 @@
     characterName = '';
     billingOrder = '';
     suggestions = [];
+    suggestionsOpen = false;
+    activeIndex = -1;
     noMatch = false;
     searchError = false;
   }
@@ -57,13 +65,18 @@
     dispatch('close');
   }
 
+  // Keep the active suggestion in range as the list changes.
+  $: if (activeIndex >= suggestions.length) activeIndex = suggestions.length - 1;
+
   let debounce: ReturnType<typeof setTimeout>;
   async function onQueryInput() {
     selectedPersonId = '';
+    activeIndex = -1;
     clearTimeout(debounce);
     const q = personQuery.trim();
     if (!q) {
       suggestions = [];
+      suggestionsOpen = false;
       noMatch = false;
       searchError = false;
       return;
@@ -75,9 +88,11 @@
         const res = await fetch(`/api/people-search?q=${encodeURIComponent(q)}`);
         const data = (await res.json()) as { items: { id: string; name: string }[] };
         suggestions = data.items;
+        suggestionsOpen = suggestions.length > 0;
         noMatch = suggestions.length === 0;
       } catch {
         suggestions = [];
+        suggestionsOpen = false;
         noMatch = false;
         searchError = true;
       } finally {
@@ -91,7 +106,36 @@
     selectedPersonName = p.name;
     personQuery = p.name;
     suggestions = [];
+    suggestionsOpen = false;
+    activeIndex = -1;
     noMatch = false;
+  }
+
+  function onQueryKeydown(e: KeyboardEvent) {
+    if (e.key === 'ArrowDown') {
+      if (!suggestions.length) return;
+      e.preventDefault();
+      const wasOpen = suggestionsOpen;
+      suggestionsOpen = true;
+      activeIndex = wasOpen ? (activeIndex + 1) % suggestions.length : 0;
+    } else if (e.key === 'ArrowUp') {
+      if (!suggestions.length) return;
+      e.preventDefault();
+      const wasOpen = suggestionsOpen;
+      suggestionsOpen = true;
+      activeIndex = wasOpen ? (activeIndex - 1 + suggestions.length) % suggestions.length : suggestions.length - 1;
+    } else if (e.key === 'Enter') {
+      if (suggestionsOpen && activeIndex >= 0 && activeIndex < suggestions.length) {
+        e.preventDefault();
+        pick(suggestions[activeIndex]);
+      }
+    } else if (e.key === 'Escape' && suggestionsOpen) {
+      // Close just the suggestion list; the window-level handler below
+      // handles the dialog's own Escape-to-close.
+      e.stopPropagation();
+      suggestionsOpen = false;
+      activeIndex = -1;
+    }
   }
 
   function onKeydown(e: KeyboardEvent) {
@@ -108,7 +152,9 @@
 <svelte:window on:keydown={onKeydown} />
 
 {#if open}
-  <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions a11y-no-noninteractive-element-interactions -->
+  <!-- svelte-ignore a11y-click-events-have-key-events -- dismiss-on-click backdrop; Escape is handled by the window keydown listener above, not this element. -->
+  <!-- svelte-ignore a11y-no-static-element-interactions -- role="presentation" backdrop is intentionally non-interactive to assistive tech; the click only dismisses, it carries no content or focusable behavior of its own. -->
+  <!-- svelte-ignore a11y-no-noninteractive-element-interactions -- same backdrop-dismiss pattern; role="presentation" removes it from the accessibility tree by design. -->
   <div class="overlay" role="presentation" on:click={close}>
     <div
       class="dialog"
@@ -136,18 +182,26 @@
             bind:this={firstField}
             bind:value={personQuery}
             on:input={onQueryInput}
+            on:keydown={onQueryKeydown}
             autocomplete="off"
             role="combobox"
-            aria-expanded={suggestions.length > 0}
+            aria-expanded={suggestionsOpen}
             aria-controls="person-suggestions"
+            aria-autocomplete="list"
+            aria-activedescendant={suggestionsOpen && activeIndex >= 0 ? suggestionId(activeIndex) : undefined}
             placeholder="Search people…"
           />
           {#if searching}<p class="hint">Searching…</p>{/if}
-          {#if suggestions.length}
+          {#if suggestionsOpen && suggestions.length}
             <ul id="person-suggestions" class="suggestions" role="listbox">
-              {#each suggestions as p (p.id)}
-                <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-noninteractive-element-interactions -->
-                <li role="option" aria-selected={selectedPersonId === p.id} on:click={() => pick(p)}>
+              {#each suggestions as p, index (p.id)}
+                <li
+                  id={suggestionId(index)}
+                  role="option"
+                  aria-selected={index === activeIndex}
+                  class:active={index === activeIndex}
+                  on:mousedown|preventDefault={() => pick(p)}
+                >
                   {p.name}
                 </li>
               {/each}
@@ -207,4 +261,5 @@
   .dialog { max-width: 520px; }
   .hint { font-size: 0.875rem; }
   .actions { margin-top: var(--sp-2); }
+  .suggestions li.active { background: var(--surface-2); }
 </style>

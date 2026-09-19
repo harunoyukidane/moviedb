@@ -8,6 +8,8 @@
   export let dates: string | null = null;
   /** This row's position in the grid - the first row must not be lazy-loaded (LCP), and only the very first photo gets fetchpriority. */
   export let index = -1;
+  /** How many leading items count as "the first row"; the grid owner measures its own rendered column count (V2.6-07). */
+  export let eagerCount = 6;
 </script>
 
 <a class="entity-card" href={`/people/${id}`}>
@@ -17,7 +19,7 @@
         class="photo-thumb"
         src={photoUrl}
         alt={`Photo of ${name}`}
-        loading={index >= 0 && index < 6 ? undefined : 'lazy'}
+        loading={index >= 0 && index < eagerCount ? undefined : 'lazy'}
         fetchpriority={index === 0 ? 'high' : undefined}
       />
     {:else}

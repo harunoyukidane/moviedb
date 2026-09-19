@@ -47,6 +47,7 @@ class ArtworkHttpIntegrationTest {
             registry.add("spring.datasource.username", postgres::getUsername)
             registry.add("spring.datasource.password", postgres::getPassword)
             registry.add("artwork.storage-path") { artworkDir.toString() }
+            registry.add("catalogue.artwork.sweep.min-age") { "PT0S" }
             // avoid needing a People gRPC server for this HTTP-only test
             registry.add("grpc.client.people-service.address") { "in-process:artwork-it" }
         }
