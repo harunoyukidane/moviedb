@@ -344,35 +344,58 @@ Covered by [`navigation.test.ts`](../../../frontend/src/lib/stores/navigation.te
 which walks whole browsing sessions rather than setting the store directly —
 the previous component-level tests passed against the ping-ponging version.
 
-## Verification state at the time of writing
+## Verification state
 
-- **Frontend: green** — `npm test` → 51 files, **271 passed**, 0 failed.
+Updated after the pass; supersedes the "not run here" notes this section
+carried while the work was in progress.
+
+- **Frontend: green** — `npm test` → 51 files, **279 passed**, 0 failed.
   Coverage added for `StateBanner` autofocus, the `app.css` long-word rules,
   `DateField`'s error association, the `PERSON_DATE_CONFLICTS_CREDIT` rewrites
   in `errors.ts`, the back stack (whole browsing sessions, not just store
   writes), and a second consecutive save re-announcing.
 - **`npm run check`: 0 errors**, the same pre-existing unused-CSS warning as
   before (`MovieFilters.svelte`) — unrelated to this pass.
-- **Playwright: not run here** (needs the composed stack). The layout
-  assertion for V2.8-01 — a 300-character unbroken name must not widen the
-  person page at 1280px or 375px — lives in `e2e/journey.spec.ts` and is the
-  only test that measures rendered layout; `app.css.test.ts` only pins the
-  rules and cannot prove the page is correct.
-- **Backend: not run** (sandbox blocks Gradle — `java.io.IOException: Unable to
-  establish loopback connection` from both bash and PowerShell, including via
-  `gradlew.bat` directly; consistent with prior passes). The `PersonUseCasesTest`
-  cases, the new `CreditRulesFrontendContractTest`, the two added credit/release
-  path cases and the escaped contract-test files are **not compiled**. Run
+- **Playwright: green** — 3 passed against the composed stack (~10s). Getting
+  there turned up a defect in the test rather than the product, worth recording
+  because the failure mode is easy to repeat:
+  - `journey.spec.ts` had been red since `0b27e95` ("lighthouse fix"), which
+    replaced the credit dialog's suggestion `<button>` with a non-focusable
+    `<li role="option">` — the ARIA combobox pattern the V2.6 a11y work
+    adopted. The test still asked for
+    `getByRole('button', { name: personName })`, which cannot match an option,
+    so it hung to the 30s timeout at step 3.
+  - **An a11y refactor that changes an element's role silently invalidates
+    every role-based selector aimed at it.** `npm run check` and the component
+    tests cannot see this; only the e2e run can.
+  - It stayed hidden because on a cold stack the run failed earlier, at step
+    1's 5s visibility assertion, so the real failure never got a turn. A first
+    red step is not necessarily the only red step.
+  - The e2e step entered CI in `bfc68fd` ("2.7 fixes"), *after* `0b27e95`
+    landed, and CI only triggers on `main` — so nothing had run this spec
+    end-to-end since the break.
+  - The journey also deleted its movie but never its person, so every green
+    run left an `E2E Person <stamp>` row in the catalogue permanently. It now
+    deletes the person as step 8; the four accumulated rows were removed.
+  - The layout assertion for V2.8-01 - a 300-character unbroken name must not
+    widen the person page at 1280px or 375px — lives in the same file and is
+    the only test that measures rendered layout; `app.css.test.ts` only pins
+    the rules and cannot prove the page is correct.
+- **Backend: green**, confirmed by the maintainer running
   `./gradlew :catalogue-service:test '-PdockerApiVersion=1.44'` outside the
-  sandbox to confirm before merging.
+  sandbox. Gradle cannot run inside it (`java.io.IOException: Unable to
+  establish loopback connection`, from bash, PowerShell and `gradlew.bat`
+  alike), so the `PersonUseCasesTest` cases, the new
+  `CreditRulesFrontendContractTest` and the two added credit/release path
+  cases are always verified outside.
 - **V2.8-03's grace window (5 years) was checked against the live seeded
   catalogue**, not just reasoned about: querying the running local stack
   (1477 people / 123 movies) found the worst legitimate posthumous gap is
   Leigh Brackett / *The Empire Strikes Back* at 2.17 years, comfortably inside
-  5 years, and 2 pre-existing birth-after-release rows in the seed data
-  (`Alan Keyes`, `Ken Davitian` — both born "2024", clearly bad TMDB import
-  data) that the new check does not retroactively touch, since it only runs
-  when `birthDate`/`deathDate` is part of an actual edit.
+  5 years. The handful of birth-after-release rows carrying a "2024" birth date
+  are the maintainer's own manual test records, not seed data, and the new
+  check does not retroactively touch them either way — it only runs when
+  `birthDate`/`deathDate` is part of an actual edit.
 
 ## Sequencing
 
