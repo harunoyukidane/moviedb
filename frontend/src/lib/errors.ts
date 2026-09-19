@@ -7,6 +7,7 @@ export type ErrorCode =
   | 'NOT_FOUND'
   | 'CONFLICT'
   | 'PERSON_IN_USE'
+  | 'PERSON_DATE_CONFLICTS_CREDIT'
   | 'PAYLOAD_TOO_LARGE'
   | 'UNSUPPORTED_MEDIA_TYPE'
   | 'STORAGE_UNAVAILABLE'
@@ -20,6 +21,8 @@ const MESSAGES: Record<ErrorCode, string> = {
     'Someone else changed this while you were editing. What you entered is still here — reload to see their version.',
   PERSON_IN_USE:
     'This person is still credited on one or more movies. Remove those credits first, then delete the person.',
+  PERSON_DATE_CONFLICTS_CREDIT:
+    "That date conflicts with a movie this person is already credited on. See the highlighted field for details.",
   PAYLOAD_TOO_LARGE: 'That image is too large. Please choose a file up to 5 MB.',
   UNSUPPORTED_MEDIA_TYPE: 'That file is not a supported image. Please upload a JPEG, PNG, or WebP.',
   STORAGE_UNAVAILABLE:
@@ -161,6 +164,19 @@ const VALIDATION_REWRITES: ValidationRewrite[] = [
   {
     pattern: /^(\w+) code '[^']+' is inactive$/,
     render: ([, kind]) => `That ${kind} is no longer active. Please choose another.`
+  },
+  {
+    // V2.8-03: a birth/death date contradicts a credited movie's release date.
+    // The backend already names the movie(s) and dates - only the raw field
+    // key needs the same friendly-label treatment every other message gets.
+    pattern: /^(\w+) (\S+) is after the release date of (.+)\. Check the date and try again\.$/,
+    render: ([, field, date, movies]) =>
+      `${labelFor(field)} (${date}) is after the release date of ${movies}. Check the date and try again.`
+  },
+  {
+    pattern: /^(\w+) (\S+) is more than (\d+) years? before the release date of (.+)\. Check the date and try again\.$/,
+    render: ([, field, date, years, movies]) =>
+      `${labelFor(field)} (${date}) is more than ${years} years before the release date of ${movies}. Check the date and try again.`
   },
   {
     pattern: /^releaseYear must be between (\d+) and (\d+)$/,

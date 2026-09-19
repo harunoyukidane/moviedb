@@ -27,6 +27,10 @@
   let addCreditButton: HTMLButtonElement;
   let detailsForm: HTMLFormElement;
   let stale = false;
+  // Bumped on every successful save so the "Changes saved" banner below
+  // remounts (via {#key}) and re-focuses/re-announces even when saving twice
+  // in a row leaves `form?.updated` true both times (V2.8-02).
+  let saveCount = 0;
 
   async function checkStale() {
     try {
@@ -104,9 +108,11 @@
 <a class="page-back" href={`/movies/${movie.id}`}>← Back to movie</a>
 <h1>Edit “{movie.title}”</h1>
 
-{#if form?.updated}
-  <StateBanner variant="info">Changes saved.</StateBanner>
-{/if}
+{#key saveCount}
+  {#if form?.updated}
+    <StateBanner variant="info" autofocus>Changes saved.</StateBanner>
+  {/if}
+{/key}
 
 <section class="form-section" aria-label="Movie details">
   <h2>Details</h2>
@@ -127,6 +133,7 @@
         // blank them until the user reloads: reload data without resetting the form.
         await update({ reset: false });
         savingDetails = false;
+        if (form?.updated) saveCount += 1;
         await focusFirstInvalid();
       };
     }}

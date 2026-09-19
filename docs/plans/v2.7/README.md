@@ -6,9 +6,10 @@ canonical_for: v2.7-backlog
 last_verified: 2026-09-19
 ```
 
-Nothing here is started. This plan is the output of a **second** code review run
-on 2026-09-19, against `main` at `7e7ee50` — after the whole of
-[v2.6](../v2.6/README.md) had landed (PRs #3, #4, #5).
+All items below have since been implemented (see [Status](#status)). This plan
+is the output of a **second** code review run on 2026-09-19, against `main` at
+`7e7ee50` — after the whole of [v2.6](../v2.6/README.md) had landed (PRs #3,
+#4, #5).
 
 Two items are follow-ups on V2.6 code that shipped (V2.7-02, V2.7-03). The rest
 come from ground the first review never covered: unified search, the error-message

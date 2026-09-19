@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/svelte';
+import { render, screen, waitFor } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -116,5 +116,18 @@ describe('person edit form: saving keeps every field, not just the country selec
     // uncontrolled field (name, biography, birthDate, placeOfBirth) even
     // though only birthCountryCode was actually submitted as changed.
     expectAllFieldsPopulated();
+  });
+});
+
+describe('person edit form: save confirmation is easy to miss on a long form (V2.8-02)', () => {
+  it('moves focus to the "Changes saved" banner so it is noticed even when the field just saved is off-screen', async () => {
+    render(Page, {
+      props: {
+        data: { person: makePerson(), countries, photoUrl: '/api/people/person-1/photo' },
+        form: { updated: true }
+      }
+    });
+    await waitFor(() => expect(screen.getByRole('status')).toHaveFocus());
+    expect(screen.getByText('Changes saved.')).toBeInTheDocument();
   });
 });

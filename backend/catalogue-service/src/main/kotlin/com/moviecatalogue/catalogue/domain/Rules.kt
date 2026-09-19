@@ -2,6 +2,7 @@ package com.moviecatalogue.catalogue.domain
 
 import java.time.Clock
 import java.time.LocalDate
+import java.util.UUID
 
 /** Credit category, mirrors the DB `credit_category` enum and the GraphQL enum. */
 enum class CreditCategory { CAST, CREW }
@@ -190,6 +191,54 @@ object CreditRules {
                 "Can't save: $personName was born on $personBirthDate, after this movie's release on " +
                     "$movieReleaseDate. Check the dates and try again.",
                 field = field,
+            )
+        }
+    }
+
+    // Posthumous releases are routine - an actor can die during production or
+    // post and the film releases months or years later - so a death date
+    // isn't rejected just for preceding a credited release. It's only wrong
+    // once the gap is implausibly large (V2.8-03). 5 years comfortably covers
+    // every legitimate delayed-release/archive-footage case in the seeded
+    // catalogue (max observed gap: Leigh Brackett / The Empire Strikes Back,
+    // 2.17 years) while still catching the reported case (decades).
+    const val POSTHUMOUS_CREDIT_GRACE_YEARS = 5L
+
+    fun isDeathTooLongBeforeRelease(personDeathDate: LocalDate?, movieReleaseDate: LocalDate?): Boolean =
+        personDeathDate != null && movieReleaseDate != null &&
+            movieReleaseDate.isAfter(personDeathDate.plusYears(POSTHUMOUS_CREDIT_GRACE_YEARS))
+
+    /** A credited movie's release date, for checking against a person's birth/death date. */
+    data class CreditedMovieDate(val movieId: UUID, val title: String, val releaseDate: LocalDate)
+
+    private fun describeMovies(movies: List<CreditedMovieDate>): String {
+        val named = movies.take(3).joinToString(", ") { "\"${it.title}\" (${it.releaseDate})" }
+        val more = if (movies.size > 3) " and ${movies.size - 3} more" else ""
+        return "$named$more"
+    }
+
+    /**
+     * V2.8-03: a person's birth/death date must not contradict the movies
+     * they're already credited on. Belongs in Catalogue, not People - People
+     * never depends on Catalogue (overview.md §6, ADR-1) - so this only runs
+     * from the person-edit path in Catalogue's PersonUseCases, which has the
+     * credit/release-date data People doesn't.
+     */
+    fun validatePersonDatesAgainstCredits(birthDate: LocalDate?, deathDate: LocalDate?, creditedMovies: List<CreditedMovieDate>) {
+        val birthViolations = creditedMovies.filter { isBornAfterRelease(birthDate, it.releaseDate) }
+        if (birthViolations.isNotEmpty()) {
+            throw PersonDateConflictsCreditException(
+                "birthDate $birthDate is after the release date of ${describeMovies(birthViolations)}. " +
+                    "Check the date and try again.",
+                field = "birthDate",
+            )
+        }
+        val deathViolations = creditedMovies.filter { isDeathTooLongBeforeRelease(deathDate, it.releaseDate) }
+        if (deathViolations.isNotEmpty()) {
+            throw PersonDateConflictsCreditException(
+                "deathDate $deathDate is more than $POSTHUMOUS_CREDIT_GRACE_YEARS years before the release date " +
+                    "of ${describeMovies(deathViolations)}. Check the date and try again.",
+                field = "deathDate",
             )
         }
     }

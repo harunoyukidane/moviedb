@@ -1,6 +1,7 @@
 package com.moviecatalogue.catalogue.application
 
 import com.moviecatalogue.catalogue.credit.CreditRepository
+import com.moviecatalogue.catalogue.domain.CreditRules
 import com.moviecatalogue.catalogue.domain.PersonInUseException
 import com.moviecatalogue.catalogue.domain.MovieRules
 import com.moviecatalogue.catalogue.movie.MovieRepository
@@ -48,7 +49,33 @@ class PersonUseCases(
         CreatePersonData(name, biography, birthDate, deathDate, placeOfBirth, birthCountryCode),
     )
 
-    fun updatePerson(command: UpdatePersonData): PersonData = peopleClient.updatePerson(command)
+    /**
+     * V2.8-03: a birth/death date being set must not contradict a movie this
+     * person is already credited on. Checked here, not in People - People
+     * never depends on Catalogue (overview.md §6, ADR-1) - and only when one
+     * of those dates is actually part of this update, so the common edit
+     * path (no date change) pays no extra query. Bypassable via People's gRPC
+     * directly, same known limitation as the safe-delete check (ADR-6).
+     */
+    @Transactional
+    fun updatePerson(command: UpdatePersonData): PersonData {
+        if ("birth_date" in command.maskPaths || "death_date" in command.maskPaths) {
+            val creditedMovies = creditedMovieDates(command.id)
+            if (creditedMovies.isNotEmpty()) {
+                CreditRules.validatePersonDatesAgainstCredits(command.birthDate, command.deathDate, creditedMovies)
+            }
+        }
+        return peopleClient.updatePerson(command)
+    }
+
+    private fun creditedMovieDates(personId: UUID): List<CreditRules.CreditedMovieDate> {
+        val personCredits = credits.findAllByPersonId(personId)
+        if (personCredits.isEmpty()) return emptyList()
+        val movieIds = personCredits.map { it.movieId }.distinct()
+        return movies.findAllById(movieIds).mapNotNull { m ->
+            m.releaseDate?.let { CreditRules.CreditedMovieDate(m.id, m.title, it) }
+        }
+    }
 
     /** Controlled ISO 3166-1 alpha-2 country reference data (V2.2-10), owned by People. */
     fun listCountries(activeOnly: Boolean): List<CountryCodeData> = peopleClient.listCountries(activeOnly)

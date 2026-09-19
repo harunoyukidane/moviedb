@@ -19,6 +19,7 @@ export function codeForError(cause: unknown): string {
 export function statusForCode(code: string): number {
   switch (code) {
     case 'BAD_USER_INPUT':
+    case 'PERSON_DATE_CONFLICTS_CREDIT':
       return 400;
     case 'NOT_FOUND':
       return 404;

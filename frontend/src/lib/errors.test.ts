@@ -14,6 +14,7 @@ describe('error boundary', () => {
     'NOT_FOUND',
     'CONFLICT',
     'PERSON_IN_USE',
+    'PERSON_DATE_CONFLICTS_CREDIT',
     'PAYLOAD_TOO_LARGE',
     'UNSUPPORTED_MEDIA_TYPE',
     'STORAGE_UNAVAILABLE',
@@ -29,6 +30,10 @@ describe('error boundary', () => {
 
   it('PERSON_IN_USE message guides removing credits first', () => {
     expect(messageForCode('PERSON_IN_USE')).toMatch(/credit/i);
+  });
+
+  it('PERSON_DATE_CONFLICTS_CREDIT message points at the highlighted field (V2.8-03)', () => {
+    expect(messageForCode('PERSON_DATE_CONFLICTS_CREDIT')).toMatch(/highlighted field/i);
   });
 
   it('CONFLICT message mentions reloading', () => {
@@ -132,6 +137,26 @@ describe('humanizeValidationMessage', () => {
     );
     expect(humanizeValidationMessage("role code 'director' is inactive")).toBe(
       'That role is no longer active. Please choose another.'
+    );
+  });
+
+  it('rewrites a birth-date-conflicts-credit message using the field label (V2.8-03)', () => {
+    expect(
+      humanizeValidationMessage(
+        'birthDate 2024-09-03 is after the release date of "Fuck" (2006-11-01). Check the date and try again.'
+      )
+    ).toBe('Birth date (2024-09-03) is after the release date of "Fuck" (2006-11-01). Check the date and try again.');
+  });
+
+  it('rewrites a death-date-conflicts-credit message using the field label and grace-window years (V2.8-03)', () => {
+    expect(
+      humanizeValidationMessage(
+        'deathDate 1953-01-01 is more than 5 years before the release date of "The Matrix Reloaded" (2003-05-15) and 2 more. ' +
+          'Check the date and try again.'
+      )
+    ).toBe(
+      'Death date (1953-01-01) is more than 5 years before the release date of "The Matrix Reloaded" (2003-05-15) and 2 more. ' +
+        'Check the date and try again.'
     );
   });
 

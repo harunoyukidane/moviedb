@@ -7,11 +7,14 @@ import com.moviecatalogue.catalogue.credit.MovieCredit
 import com.moviecatalogue.catalogue.domain.CreditCategory
 import com.moviecatalogue.catalogue.domain.DependencyUnavailableException
 import com.moviecatalogue.catalogue.domain.NotFoundException
+import com.moviecatalogue.catalogue.domain.PersonDateConflictsCreditException
 import com.moviecatalogue.catalogue.domain.PersonInUseException
 import com.moviecatalogue.catalogue.domain.ValidationException
+import com.moviecatalogue.catalogue.movie.Movie
 import com.moviecatalogue.catalogue.movie.MovieRepository
 import com.moviecatalogue.catalogue.people.PeopleClient
 import com.moviecatalogue.catalogue.people.PersonData
+import com.moviecatalogue.catalogue.people.UpdatePersonData
 import com.moviecatalogue.catalogue.reference.CreditRoleCode
 import com.moviecatalogue.catalogue.reference.CreditRoleCodeRepository
 import io.mockk.every
@@ -190,6 +193,95 @@ class PersonUseCasesTest {
         every { credits.existsByPersonId(id) } returns false
         useCases.deletePerson(id)
         verify(exactly = 1) { peopleClient.deletePerson(id) }
+    }
+
+    private fun credit(personId: UUID, movieId: UUID) =
+        com.moviecatalogue.catalogue.credit.MovieCredit(UUID.randomUUID(), movieId, personId, "ACTOR", CreditCategory.CAST, characterName = "X")
+
+    private fun updateCommand(
+        id: UUID,
+        maskPaths: Set<String>,
+        birthDate: java.time.LocalDate? = null,
+        deathDate: java.time.LocalDate? = null,
+    ) = UpdatePersonData(
+        id = id,
+        expectedVersion = 0,
+        maskPaths = maskPaths,
+        name = null,
+        biography = null,
+        birthDate = birthDate,
+        deathDate = deathDate,
+        placeOfBirth = null,
+    )
+
+    @Test
+    fun `updatePerson rejects a birth date after a credited movie's release, naming it`() {
+        val id = UUID.randomUUID()
+        val movieId = UUID.randomUUID()
+        every { credits.findAllByPersonId(id) } returns listOf(credit(id, movieId))
+        every { movies.findAllById(any()) } returns listOf(
+            Movie(id = movieId, title = "Old Film", releaseDate = java.time.LocalDate.of(1990, 1, 1)),
+        )
+
+        assertThatThrownBy {
+            useCases.updatePerson(updateCommand(id, setOf("birth_date"), birthDate = java.time.LocalDate.of(2000, 1, 1)))
+        }.isInstanceOf(PersonDateConflictsCreditException::class.java)
+            .hasMessageContaining("Old Film")
+            .hasMessageContaining("1990-01-01")
+        verify(exactly = 0) { peopleClient.updatePerson(any()) }
+    }
+
+    @Test
+    fun `updatePerson rejects a death date long before a credited movie's release`() {
+        val id = UUID.randomUUID()
+        val movieId = UUID.randomUUID()
+        every { credits.findAllByPersonId(id) } returns listOf(credit(id, movieId))
+        every { movies.findAllById(any()) } returns listOf(
+            Movie(id = movieId, title = "Posthumous Decades Later", releaseDate = java.time.LocalDate.of(2003, 1, 1)),
+        )
+
+        assertThatThrownBy {
+            useCases.updatePerson(updateCommand(id, setOf("death_date"), deathDate = java.time.LocalDate.of(1953, 1, 1)))
+        }.isInstanceOf(PersonDateConflictsCreditException::class.java)
+            .hasMessageContaining("Posthumous Decades Later")
+        verify(exactly = 0) { peopleClient.updatePerson(any()) }
+    }
+
+    @Test
+    fun `updatePerson allows a death date shortly before a credited movie's release (posthumous)`() {
+        val id = UUID.randomUUID()
+        val movieId = UUID.randomUUID()
+        every { credits.findAllByPersonId(id) } returns listOf(credit(id, movieId))
+        every { movies.findAllById(any()) } returns listOf(
+            Movie(id = movieId, title = "The Empire Strikes Back", releaseDate = java.time.LocalDate.of(1980, 5, 20)),
+        )
+        every { peopleClient.updatePerson(any()) } returns
+            PersonData(id, null, "Leigh Brackett", "", null, java.time.LocalDate.of(1978, 3, 18), null, null, 0)
+
+        useCases.updatePerson(updateCommand(id, setOf("death_date"), deathDate = java.time.LocalDate.of(1978, 3, 18)))
+        verify(exactly = 1) { peopleClient.updatePerson(any()) }
+    }
+
+    @Test
+    fun `updatePerson is unaffected when the person has no credits`() {
+        val id = UUID.randomUUID()
+        every { credits.findAllByPersonId(id) } returns emptyList()
+        every { peopleClient.updatePerson(any()) } returns
+            PersonData(id, null, "Nobody", "", null, java.time.LocalDate.of(1900, 1, 1), null, null, 0)
+
+        useCases.updatePerson(updateCommand(id, setOf("death_date"), deathDate = java.time.LocalDate.of(1900, 1, 1)))
+        verify(exactly = 1) { peopleClient.updatePerson(any()) }
+        verify(exactly = 0) { movies.findAllById(any()) }
+    }
+
+    @Test
+    fun `updatePerson skips the credits lookup entirely when neither date changes`() {
+        val id = UUID.randomUUID()
+        every { peopleClient.updatePerson(any()) } returns PersonData(id, null, "Someone", "", null, null, null, null, 0)
+
+        useCases.updatePerson(updateCommand(id, setOf("name")))
+        verify(exactly = 0) { credits.findAllByPersonId(any()) }
+        verify(exactly = 0) { movies.findAllById(any()) }
     }
 }
 

@@ -2,6 +2,7 @@
   import type { PageData, ActionData } from './$types';
   import StateBanner from '$lib/components/StateBanner.svelte';
   import IconLink from '$lib/components/IconLink.svelte';
+  import BackLink from '$lib/components/BackLink.svelte';
 
   export let data: PageData;
   export let form: ActionData;
@@ -18,7 +19,7 @@
 
 <svelte:head><title>{person.name} · MovieDB</title></svelte:head>
 
-<a class="page-back" href="/people">← All people</a>
+<BackLink fallbackHref="/people">← Back</BackLink>
 
 <div class="detail">
   <section class="photo-section" aria-label="Photo">

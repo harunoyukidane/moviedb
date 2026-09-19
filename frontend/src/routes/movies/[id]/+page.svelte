@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { PageData, ActionData } from './$types';
   import { enhance } from '$app/forms';
+  import BackLink from '$lib/components/BackLink.svelte';
   import CreditSection from '$lib/features/credits/CreditSection.svelte';
   import CommentSection from '$lib/features/comments/CommentSection.svelte';
   import IconLink from '$lib/components/IconLink.svelte';
@@ -43,7 +44,7 @@
 
 <svelte:head><title>{movie.title} · MovieDB</title></svelte:head>
 
-<a class="page-back" href="/movies">← All movies</a>
+<BackLink fallbackHref="/movies">← Back</BackLink>
 
 <div class="detail">
   <section class="artwork-section" aria-label="Artwork">

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/svelte';
+import { render, screen, waitFor } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { CreditRoleCode } from '$lib/server/types';
@@ -142,6 +142,19 @@ describe('movie edit form: saving keeps every field, not just the genre selectio
     expectAllFieldsPopulated();
     expect(screen.getByRole('checkbox', { name: 'Horror' })).toBeChecked();
     expect(screen.getByRole('checkbox', { name: 'Psychological Horror' })).toBeChecked();
+  });
+});
+
+describe('movie edit form: save confirmation is easy to miss on a long form (V2.8-02)', () => {
+  it('moves focus to the "Changes saved" banner so it is noticed even when the field just saved is off-screen', async () => {
+    render(Page, {
+      props: {
+        data: { movie: makeMovie(), genres: genreCodes, roles, languages },
+        form: { updated: true }
+      }
+    });
+    await waitFor(() => expect(screen.getByRole('status')).toHaveFocus());
+    expect(screen.getByText('Changes saved.')).toBeInTheDocument();
   });
 });
 

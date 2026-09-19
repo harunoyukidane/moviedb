@@ -4,6 +4,7 @@
   import StateBanner from '$lib/components/StateBanner.svelte';
   import FieldError from '$lib/components/FieldError.svelte';
   import CharCounter from '$lib/components/CharCounter.svelte';
+  import BackLink from '$lib/components/BackLink.svelte';
   import DateField from '$lib/components/DateField.svelte';
   import CountrySelect from '$lib/components/CountrySelect.svelte';
   import { BIRTH_DATE_MIN, birthDateMax, DEATH_DATE_MIN, deathDateMax } from '$lib/dateBounds';
@@ -42,7 +43,7 @@
 
 <svelte:head><title>New person · MovieDB</title></svelte:head>
 
-<a class="page-back" href="/people">← All people</a>
+<BackLink fallbackHref="/people">← Back</BackLink>
 <h1>New person</h1>
 
 {#if form?.message}

@@ -6,24 +6,28 @@ canonical_for: v2.8-backlog
 last_verified: 2026-09-19
 ```
 
-Nothing here is started.
+All items below have been implemented (see [Status](#status)).
 
 Three items (V2.8-01..03) are user-reported defects in the person/movie edit and
 detail flow. Two (V2.8-04, V2.8-05) are carried over from the third review pass
-on 2026-09-19, against `main` at `bfc68fd`.
+on 2026-09-19, against `main` at `bfc68fd`. V2.8-06 was added mid-implementation
+(user-reported: "back" always goes to the unfiltered list instead of wherever
+the user actually came from).
 
-All five were grounded against the current source before being written down —
-where the finding differs from how it was first described, the item says so.
+All five original items were grounded against the current source before being
+written down — where the finding differs from how it was first described, the
+item says so.
 
 ## Status
 
 | Item | Area | Severity | Status |
 |---|---|---|---|
-| [V2.8-01](#v28-01-wrap-long-unbroken-text-instead-of-breaking-the-layout) | A 300-char unbroken "word" breaks the detail page | P2 | not started |
-| [V2.8-02](#v28-02-make-the-existing-save-confirmation-actually-land) | Save confirmation exists but is easy to miss | P3 | not started |
-| [V2.8-03](#v28-03-reject-birthdeath-dates-that-conflict-with-existing-credits) | Birth/death dates can contradict credited movies | P2 | not started |
-| [V2.8-04](#v28-04-escape-the-control-characters-in-the-contract-tests) | Contract tests are binary to git | P2 | not started |
-| [V2.8-05](#v28-05-fix-the-v27-plan-intro-line) | v2.7 plan intro contradicts its own status | P4 | not started |
+| [V2.8-01](#v28-01-wrap-long-unbroken-text-instead-of-breaking-the-layout) | A 300-char unbroken "word" breaks the detail page | P2 | done |
+| [V2.8-02](#v28-02-make-the-existing-save-confirmation-actually-land) | Save confirmation exists but is easy to miss | P3 | done |
+| [V2.8-03](#v28-03-reject-birthdeath-dates-that-conflict-with-existing-credits) | Birth/death dates can contradict credited movies | P2 | done |
+| [V2.8-04](#v28-04-escape-the-control-characters-in-the-contract-tests) | Contract tests are binary to git | P2 | done |
+| [V2.8-05](#v28-05-fix-the-v27-plan-intro-line) | v2.7 plan intro contradicts its own status | P4 | done |
+| [V2.8-06](#v28-06-back-should-return-to-where-the-user-came-from) | "Back" always goes to the unfiltered list, not the actual previous page | P3 | done |
 
 ## V2.8-01: wrap long unbroken text instead of breaking the layout
 
@@ -248,21 +252,55 @@ doc-drift pattern the v2.5 correction was about.
 **Steps:** rewrite that line to describe the delivered state, the way the v2.6
 plan was updated when its work landed.
 
+## V2.8-06: "back" should return to where the user came from
+
+**Severity: P3.** User-reported, added mid-implementation: the back link on the
+movie/person detail pages (and the "new movie"/"new person" forms) always goes
+to the unfiltered `/movies` or `/people` list, even when the user arrived from
+a filtered list, from alphabet-jump pagination, or by clicking through a credit
+from a different record (movie → person, person → movie). Since both list
+pages already have their own top-level nav links, a fixed "all movies"/"all
+people" destination on the back link is redundant with those and loses the
+user's place.
+
+**Implemented:** `afterNavigate` in the root layout
+([`+layout.svelte`](../../../frontend/src/routes/+layout.svelte)) records the
+pathname+search of the page navigated away from into a small store
+([`$lib/stores/navigation.ts`](../../../frontend/src/lib/stores/navigation.ts)).
+A new [`BackLink`](../../../frontend/src/lib/components/BackLink.svelte)
+component reads that store and falls back to a fixed destination only when
+there is no in-app previous page (a direct link, bookmark, or hard refresh).
+Wired into the movie/person detail pages and the "new movie"/"new person"
+pages, replacing the hardcoded `← All movies` / `← All people` links with a
+plain `← Back` that goes wherever the user actually came from.
+
+The edit pages' "← Back to movie"/"← Back to person" links were left as-is —
+they always point at the record being edited regardless of history, which is
+already correct (that's the only page you can reach an edit form from).
+
 ## Verification state at the time of writing
 
-- **Frontend: green** — `npm test` → 48 files, **243 passed**, 0 failed.
-- **`npm run check`: 0 errors**, 1 pre-existing unused-CSS warning
-  (`MovieFilters.svelte`).
-- **Backend: not run in this pass** (sandbox blocks Gradle). It was green on
-  2026-09-19 before the v2.7 changes; the v2.7 backend additions
-  (`SearchUseCasesTest`, `WebpEncoderTest`, both contract tests) are unverified
-  here. Run `./gradlew test '-PdockerApiVersion=1.44'` — quote the flag in
-  PowerShell — and note this is the run that confirms the V2.8-04 files compile
-  at all.
-- **Environment note:** at the time of writing the `frontend` container was not
-  running and `proxy` was `unhealthy` with repeated `502 Bad Gateway`. That is
-  the V2.6-08 healthcheck working correctly against a genuinely dead upstream,
-  not a defect.
+- **Frontend: green** — `npm test` → 50 files, **~270 passed** (added coverage
+  for `StateBanner` autofocus, the `app.css` long-word rules, `BackLink`, and
+  the new `PERSON_DATE_CONFLICTS_CREDIT` rewrites in `errors.ts`), 0 failed.
+- **`npm run check`: 0 errors**, the same pre-existing unused-CSS warning as
+  before (`MovieFilters.svelte`) — unrelated to this pass.
+- **Backend: not run** (sandbox blocks Gradle — `java.io.IOException: Unable to
+  establish loopback connection` from both bash and PowerShell, including via
+  `gradlew.bat` directly; consistent with prior passes). The new
+  `PersonUseCasesTest` cases (V2.8-03) and the two rewritten contract test
+  files (V2.8-04) are reviewed carefully against existing working examples in
+  the same files but **not compiled**. Run
+  `./gradlew :catalogue-service:test '-PdockerApiVersion=1.44'` outside the
+  sandbox to confirm before merging.
+- **V2.8-03's grace window (5 years) was checked against the live seeded
+  catalogue**, not just reasoned about: querying the running local stack
+  (1477 people / 123 movies) found the worst legitimate posthumous gap is
+  Leigh Brackett / *The Empire Strikes Back* at 2.17 years, comfortably inside
+  5 years, and 2 pre-existing birth-after-release rows in the seed data
+  (`Alan Keyes`, `Ken Davitian` — both born "2024", clearly bad TMDB import
+  data) that the new check does not retroactively touch, since it only runs
+  when `birthDate`/`deathDate` is part of an actual edit.
 
 ## Sequencing
 
@@ -272,4 +310,16 @@ test files gain history. V2.8-03 is the substantial one: settle the posthumous
 rule and check it against the seeded data **before** writing code, because
 picking the rule wrong means either rejecting valid records or shipping an
 invariant that does not hold. V2.8-05 is a one-line cleanup that can ride with
-anything.
+anything. V2.8-06 is independent of the rest and was implemented last, after
+being reported mid-pass.
+
+## Follow-ups not covered here
+
+V2.8-03's [scope note](#scope-note--the-other-two-doors) still stands after
+implementation: `CreditUseCases.addCredit` and
+`MovieUseCases.validateCreditedPeopleAgainstReleaseDate` already reject a
+birth date after a release date (V2.2-03b, predates this plan), but neither
+checks the new death-date-vs-grace-window rule this item added. A person's
+dates and their credits can still disagree if the contradiction is created by
+adding a new credit or moving a movie's release date, rather than by editing
+the person - closing all three surfaces for both rules is its own item.

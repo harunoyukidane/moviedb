@@ -34,6 +34,7 @@ Expected errors use stable `extensions.code` values:
 | `NOT_FOUND` | Requested movie/person/credit does not exist |
 | `CONFLICT` | Duplicate record or stale optimistic-lock version |
 | `PERSON_IN_USE` | Delete rejected because credits exist |
+| `PERSON_DATE_CONFLICTS_CREDIT` | birthDate/deathDate would contradict a credited movie's release date (V2.8-03) |
 | `PAYLOAD_TOO_LARGE` | Artwork exceeds the configured limit |
 | `UNSUPPORTED_MEDIA_TYPE` | Artwork signature/type is not allowed |
 | `DEPENDENCY_UNAVAILABLE` | People Service failed or timed out |

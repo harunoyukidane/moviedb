@@ -25,6 +25,13 @@ class ConflictException(message: String) : CatalogueException(message)
 class PersonInUseException(message: String = "person is referenced by one or more credits") :
     CatalogueException(message)
 
+/**
+ * A person's birth/death date would contradict a movie they're already
+ * credited on (V2.8-03). -> PERSON_DATE_CONFLICTS_CREDIT. [field] is
+ * "birthDate" or "deathDate" so the BFF can surface it against that input.
+ */
+class PersonDateConflictsCreditException(message: String, val field: String) : CatalogueException(message)
+
 /** People Service failed or timed out. -> DEPENDENCY_UNAVAILABLE */
 class DependencyUnavailableException(message: String = "people service unavailable", cause: Throwable? = null) :
     CatalogueException(message, cause)

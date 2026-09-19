@@ -1,6 +1,15 @@
 <script lang="ts">
   import '../app.css';
   import { page } from '$app/stores';
+  import { afterNavigate } from '$app/navigation';
+  import { previousPageUrl } from '$lib/stores/navigation';
+
+  // Tracks the page navigated away from, so BackLink can return the user to
+  // where they actually came from (a filtered list, a movie/person page)
+  // rather than a fixed "all movies"/"all people" destination (V2.8-06).
+  afterNavigate(({ from }) => {
+    if (from?.url) previousPageUrl.set(from.url.pathname + from.url.search);
+  });
 </script>
 
 <svelte:head>

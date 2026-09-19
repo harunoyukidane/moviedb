@@ -3,6 +3,7 @@ package com.moviecatalogue.catalogue.graphql
 import com.moviecatalogue.catalogue.domain.ConflictException
 import com.moviecatalogue.catalogue.domain.DependencyUnavailableException
 import com.moviecatalogue.catalogue.domain.NotFoundException
+import com.moviecatalogue.catalogue.domain.PersonDateConflictsCreditException
 import com.moviecatalogue.catalogue.domain.PersonInUseException
 import com.moviecatalogue.catalogue.domain.ValidationException
 import graphql.GraphQLError
@@ -46,6 +47,8 @@ class GraphQlExceptionResolver : DataFetcherExceptionResolverAdapter() {
         is NotFoundException -> Mapped("NOT_FOUND", ErrorType.NOT_FOUND, ex.message ?: "not found")
         is ConflictException -> Mapped("CONFLICT", ErrorType.BAD_REQUEST, ex.message ?: "conflict")
         is PersonInUseException -> Mapped("PERSON_IN_USE", ErrorType.BAD_REQUEST, ex.message ?: "person in use")
+        is PersonDateConflictsCreditException ->
+            Mapped("PERSON_DATE_CONFLICTS_CREDIT", ErrorType.BAD_REQUEST, ex.message ?: "date conflicts with a credit", ex.field)
         is DependencyUnavailableException -> Mapped("DEPENDENCY_UNAVAILABLE", ErrorType.INTERNAL_ERROR, "a dependency is temporarily unavailable")
         else -> Mapped("INTERNAL_ERROR", ErrorType.INTERNAL_ERROR, "internal error")
     }

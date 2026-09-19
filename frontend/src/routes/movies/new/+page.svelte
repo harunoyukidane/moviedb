@@ -4,6 +4,7 @@
   import StateBanner from '$lib/components/StateBanner.svelte';
   import FieldError from '$lib/components/FieldError.svelte';
   import CharCounter from '$lib/components/CharCounter.svelte';
+  import BackLink from '$lib/components/BackLink.svelte';
   import GenreMultiSelect from '$lib/components/GenreMultiSelect.svelte';
   import LanguageSelect from '$lib/components/LanguageSelect.svelte';
   import DateField from '$lib/components/DateField.svelte';
@@ -48,7 +49,7 @@
 
 <svelte:head><title>New movie · MovieDB</title></svelte:head>
 
-<a class="page-back" href="/movies">← All movies</a>
+<BackLink fallbackHref="/movies">← Back</BackLink>
 <h1>New movie</h1>
 
 {#if form?.message}

@@ -33,6 +33,10 @@ html, body {
   color: var(--text);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   line-height: 1.5;
+  /* A single unbroken "word" (long name, long title) must wrap rather than
+     widen its container - user data has no whitespace guarantee. Inherited
+     everywhere except .text-truncate surfaces, which opt out via nowrap. */
+  overflow-wrap: anywhere;
 }
 
 a { color: var(--accent); }
@@ -183,6 +187,11 @@ select[aria-invalid='true'] {
    the movie and people detail pages. Each page sets --detail-col-width. */
 .detail { display: grid; grid-template-columns: 1fr; gap: var(--sp-3); }
 @media (min-width: 720px) { .detail { grid-template-columns: var(--detail-col-width, 240px) 1fr; } }
+/* Grid items default to min-width: auto, which refuses to shrink below the
+   intrinsic width of unbreakable content - without this, a long unbroken
+   token in the info column overflows the grid track no matter what wrapping
+   the text itself allows. */
+.detail > * { min-width: 0; }
 
 .detail-media { width: 100%; object-fit: cover; border-radius: var(--radius); }
 .detail-fallback { display: grid; place-items: center; font-size: 3rem; background: var(--surface-2); }
@@ -204,8 +213,9 @@ select[aria-invalid='true'] {
   border-radius: var(--radius);
   overflow: hidden;
   width: 100%;
+  min-width: 0;
 }
-.entity-card-name { font-weight: 600; padding: var(--sp-1) var(--sp-1) 0; }
+.entity-card-name { font-weight: 600; padding: var(--sp-1) var(--sp-1) 0; min-width: 0; }
 .entity-card > *:last-child { padding-bottom: var(--sp-1); }
 
 /* Detail/edit page scaffolding shared by the movie and people detail, edit
@@ -222,10 +232,11 @@ select[aria-invalid='true'] {
 .danger-zone h2 { color: var(--danger); }
 
 .detail-title-row { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--sp-2); }
+.detail-title-row h1 { min-width: 0; }
 
 .detail-meta { display: grid; grid-template-columns: auto 1fr; gap: 4px var(--sp-2); }
 .detail-meta dt { color: var(--text-muted); }
-.detail-meta dd { margin: 0; }
+.detail-meta dd { margin: 0; min-width: 0; }
 
 .pager { display: flex; gap: var(--sp-2); align-items: center; justify-content: center; margin-top: var(--sp-3); }
 .pager .count { color: var(--text-muted); }

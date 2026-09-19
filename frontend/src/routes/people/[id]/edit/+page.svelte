@@ -25,6 +25,10 @@
   let confirmDeleteOpen = false;
   let detailsForm: HTMLFormElement;
   let stale = false;
+  // Bumped on every successful save so the "Changes saved" banner below
+  // remounts (via {#key}) and re-focuses/re-announces even when saving twice
+  // in a row leaves `form?.updated` true both times (V2.8-02).
+  let saveCount = 0;
 
   async function checkStale() {
     try {
@@ -94,9 +98,11 @@
 <a class="page-back" href={`/people/${person.id}`}>← Back to person</a>
 <h1>Edit “{person.name}”</h1>
 
-{#if form?.updated}
-  <StateBanner variant="info">Changes saved.</StateBanner>
-{/if}
+{#key saveCount}
+  {#if form?.updated}
+    <StateBanner variant="info" autofocus>Changes saved.</StateBanner>
+  {/if}
+{/key}
 
 <section class="form-section" aria-label="Person details">
   <h2>Details</h2>
@@ -118,6 +124,7 @@
         // resetting the form (mirrors the movie edit page's fix for the same bug).
         await update({ reset: false });
         saving = false;
+        if (form?.updated) saveCount += 1;
         await focusFirstInvalid();
       };
     }}
