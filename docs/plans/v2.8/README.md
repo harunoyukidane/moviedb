@@ -249,9 +249,9 @@ files accumulate history. Confirm with `git diff --stat` that neither reports
 tracked text file afterwards found the same raw bytes in three more:
 `catalogue-service`'s `RulesTest.kt` (NUL, SOH), `people-service`'s
 `PersonRulesTest.kt` (two NULs), and **this plan document itself**, whose
-"replace the literals" sentence was written with the literals. All five are
-now escaped and `git diff` reports text for every one. Worth re-running the
-sweep rather than fixing named files:
+"replace the literals" sentence was written with the literals. All C0 bytes in
+these five files are now escaped, and `git diff` reports text for every one.
+Worth re-running the sweep rather than fixing named files:
 
 ```bash
 git ls-files "*.kt" "*.ts" "*.svelte" "*.md" | python -c "
