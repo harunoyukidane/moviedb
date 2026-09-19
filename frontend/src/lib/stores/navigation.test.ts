@@ -89,6 +89,31 @@ describe('in-app back stack (V2.8-06)', () => {
     expect(back()).toBe('/movies?genre=HORROR');
   });
 
+  it('does not send the user back to a form they just submitted', () => {
+    // Creating a person redirects to the new record; back from there must go to
+    // the list the user started from, not the blank "new person" form.
+    visit('/people?letter=S', '/people/new', '/people/person-1');
+    expect(back()).toBe('/people?letter=S');
+  });
+
+  it('still lets a form page itself go back to where it was opened from', () => {
+    visit('/movies?genre=HORROR', '/movies/new');
+    expect(back()).toBe('/movies?genre=HORROR');
+
+    visit('/movies/movie-1', '/movies/movie-1/edit');
+    expect(back()).toBe('/movies/movie-1');
+  });
+
+  it('drops an abandoned edit form rather than making it a destination', () => {
+    // Opened an edit form, wandered off without saving, then came back out.
+    visit('/movies', '/movies/movie-1', '/movies/movie-1/edit', '/people', '/people/person-1');
+    expect(back()).toBe('/people');
+
+    recordNavigation(u('/people/person-1'), u('/people'));
+    // The movie, not the half-filled edit form that was abandoned.
+    expect(back()).toBe('/movies/movie-1');
+  });
+
   it('does not grow without bound over a long session', () => {
     const pages = Array.from({ length: 200 }, (_, i) => `/movies/movie-${i}`);
     visit(...pages);

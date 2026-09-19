@@ -326,6 +326,12 @@ Two details that make it behave the way a back button should:
 - **Consecutive navigations within one page collapse.** Re-filtering, paging or
   typing in search is one destination to the user; without collapsing, back
   would step through every intermediate filter.
+- **Form pages are never back destinations.** A `/new` or `/edit` page the user
+  has left is dropped rather than pushed, so creating a person and then pressing
+  back goes to the list they started from instead of the blank form they just
+  submitted (the double-submit trap), and an abandoned edit form does not
+  resurface later. Arriving at a form still records the page it was opened
+  from, so the form's own back link is unaffected.
 
 The edit pages' "← Back to movie"/"← Back to person" links now use `BackLink`
 too, with the record as their fallback. Leaving them as plain links is what

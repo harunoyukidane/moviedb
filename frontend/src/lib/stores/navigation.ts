@@ -42,6 +42,15 @@ const pathOf = (entry: string): string => {
 const top = (): string | null => (stack.length > 0 ? stack[stack.length - 1] : null);
 
 /**
+ * A form page you have just left is not somewhere to go "back" to: after
+ * creating a person, back would otherwise land on the blank "new person" form
+ * you just submitted. Arriving at one still records the page you came *from*,
+ * so the form's own back link is unaffected - this only stops the form itself
+ * becoming a destination.
+ */
+const isFormPage = (path: string): boolean => path.endsWith('/new') || path.endsWith('/edit');
+
+/**
  * Record one completed client-side navigation. Called from `afterNavigate` in
  * the root layout; [from] is null on the first load of a session (direct link,
  * bookmark, hard refresh), which correctly leaves nothing to go back to.
@@ -59,6 +68,9 @@ export function recordNavigation(from: URL | null | undefined, to: URL | null | 
     // recording the page being left, which is what makes repeated backs walk
     // outwards instead of oscillating between two pages.
     stack.pop();
+  } else if (isFormPage(from.pathname)) {
+    // Leave the stack untouched: the form drops out, and whatever the user was
+    // on before it stays the back destination.
   } else if (top() !== null && from.pathname === pathOf(top() as string)) {
     // Same page, different query string: filtering, paging, switching
     // cluster/list view, alphabet jump, or typing in search. These are one
