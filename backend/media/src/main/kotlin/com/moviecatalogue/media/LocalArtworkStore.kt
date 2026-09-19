@@ -75,11 +75,17 @@ class LocalArtworkStore(
         }
 
     override fun listKeysWithAge(): List<StoredKey> =
-        Files.list(root).use { stream ->
-            stream.filter { Files.isRegularFile(it) }
-                .filter { !it.fileName.toString().endsWith(".tmp") }
-                .map { StoredKey(it.fileName.toString(), Files.getLastModifiedTime(it).toInstant()) }
-                .toList()
+        try {
+            Files.list(root).use { stream ->
+                stream.filter { Files.isRegularFile(it) }
+                    .filter { !it.fileName.toString().endsWith(".tmp") }
+                    .map { StoredKey(it.fileName.toString(), Files.getLastModifiedTime(it).toInstant()) }
+                    .toList()
+            }
+        } catch (e: java.io.UncheckedIOException) {
+            throw ArtworkStorageException(cause = e)
+        } catch (e: java.io.IOException) {
+            throw ArtworkStorageException(cause = e)
         }
 
     /**
