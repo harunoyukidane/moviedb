@@ -568,12 +568,14 @@ class MovieUseCasesTest {
             ),
         )
         every { peopleClient.getPeople(listOf(personId)) } returns mapOf(
-            personId to PersonData(personId, null, "Jane Doe", "", java.time.LocalDate.of(1980, 1, 1), null, null, null, 0),
+            personId to PersonData(
+                personId, null, "Leigh Brackett", "", null, java.time.LocalDate.of(1978, 3, 18), null, null, 0,
+            ),
         )
         every { movies.saveAndFlush(any<com.moviecatalogue.catalogue.movie.Movie>()) } answers { firstArg() }
 
-        val saved = useCases.updateMovie(updateCommand(id, 0, java.time.LocalDate.of(2020, 1, 1)))
-        assertThat(saved.releaseDate).isEqualTo(java.time.LocalDate.of(2020, 1, 1))
+        val saved = useCases.updateMovie(updateCommand(id, 0, java.time.LocalDate.of(1980, 5, 20)))
+        assertThat(saved.releaseDate).isEqualTo(java.time.LocalDate.of(1980, 5, 20))
     }
 }
 
