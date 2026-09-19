@@ -2,6 +2,7 @@
   import type { PageData, ActionData } from './$types';
   import { enhance } from '$app/forms';
   import StateBanner from '$lib/components/StateBanner.svelte';
+  import BackLink from '$lib/components/BackLink.svelte';
   import FieldError from '$lib/components/FieldError.svelte';
   import CharCounter from '$lib/components/CharCounter.svelte';
   import ArtworkUpload from '$lib/components/ArtworkUpload.svelte';
@@ -95,7 +96,7 @@
 
 <svelte:head><title>Edit {person.name} · MovieDB</title></svelte:head>
 
-<a class="page-back" href={`/people/${person.id}`}>← Back to person</a>
+<BackLink fallbackHref={`/people/${person.id}`}>← Back to person</BackLink>
 <h1>Edit “{person.name}”</h1>
 
 {#key saveCount}
@@ -117,14 +118,20 @@
     use:enhance={async () => {
       await checkStale();
       saving = true;
-      return async ({ update }) => {
+      return async ({ result, update }) => {
         // Fields here are populated from server data (`value={v.name}`, etc.),
         // not via bind:value, so the default reset-to-defaultValue on success
         // would blank them until the user reloads: reload data without
         // resetting the form (mirrors the movie edit page's fix for the same bug).
         await update({ reset: false });
         saving = false;
-        if (form?.updated) saveCount += 1;
+        // Read the action result, not the `form` prop: the prop reaches this
+        // component through the page store and is not guaranteed to have
+        // propagated when `update()` resolves. Reading it here would skip the
+        // bump on a second consecutive save - when `form.updated` is already
+        // true and nothing else changes - which is the one case saveCount
+        // exists to handle (V2.8-02).
+        if (result.type === 'success' && result.data?.updated) saveCount += 1;
         await focusFirstInvalid();
       };
     }}
@@ -174,6 +181,7 @@
         <label for="birthDate">Birth date</label>
         <DateField
           id="birthDate"
+          invalid={!!fieldErrors.birthDate}
           name="birthDate"
           value={v.birthDate}
           min={BIRTH_DATE_MIN}
@@ -185,6 +193,7 @@
         <label for="deathDate">Death date</label>
         <DateField
           id="deathDate"
+          invalid={!!fieldErrors.deathDate}
           name="deathDate"
           value={v.deathDate}
           min={DEATH_DATE_MIN}

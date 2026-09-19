@@ -61,3 +61,43 @@ test('full catalogue journey through the BFF UI', async ({ page }) => {
   await page.getByRole('dialog').getByRole('button', { name: 'Delete movie' }).click();
   await expect(page).toHaveURL(/\/movies$/);
 });
+
+// V2.8-01: a few hundred characters with no whitespace is legal input (the name
+// cap is 300), and it used to widen the detail page past the viewport. jsdom
+// runs no layout, so the vitest guard can only pin the CSS rules - this is the
+// assertion that actually measures the page, which is why it lives here.
+test('a 300-character unbroken name does not widen the person page', async ({ page }) => {
+  const longName = 'W'.repeat(300);
+
+  await page.goto('/people/new');
+  await page.getByLabel('Name *').fill(longName);
+  await page.getByRole('button', { name: /create person/i }).click();
+  await expect(page.getByRole('heading', { name: longName })).toBeVisible();
+  const personUrl = page.url();
+
+  for (const viewport of [
+    { width: 1280, height: 900 },
+    { width: 375, height: 812 }
+  ]) {
+    await page.setViewportSize(viewport);
+    await page.goto(personUrl);
+    await expect(page.getByRole('heading', { name: longName })).toBeVisible();
+
+    const overflow = await page.evaluate(() => {
+      const doc = document.documentElement;
+      return { scrollWidth: doc.scrollWidth, clientWidth: doc.clientWidth };
+    });
+    // 1px of tolerance for sub-pixel rounding; the bug overflowed by hundreds.
+    expect(
+      overflow.scrollWidth,
+      `horizontal overflow at ${viewport.width}px: ${overflow.scrollWidth} > ${overflow.clientWidth}`
+    ).toBeLessThanOrEqual(overflow.clientWidth + 1);
+  }
+
+  // Leave the catalogue as we found it (no credits were added, so this is allowed).
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(`${personUrl}/edit`);
+  await page.getByRole('button', { name: 'Delete person' }).first().click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Delete person' }).click();
+  await expect(page).toHaveURL(/\/people$/);
+});

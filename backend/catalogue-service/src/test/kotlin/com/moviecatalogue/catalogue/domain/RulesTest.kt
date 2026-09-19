@@ -234,9 +234,9 @@ class TextRulesTest {
 
     @Test
     fun `rejects NUL, control characters, bidi overrides, and zero-width characters`() {
-        assertThatThrownBy { TextRules.screen("a b", "field", allowNewlines = false, allowEmoji = false) }
+        assertThatThrownBy { TextRules.screen("a\u0000b", "field", allowNewlines = false, allowEmoji = false) }
             .isInstanceOf(ValidationException::class.java)
-        assertThatThrownBy { TextRules.screen("ab", "field", allowNewlines = false, allowEmoji = false) }
+        assertThatThrownBy { TextRules.screen("a\u0001b", "field", allowNewlines = false, allowEmoji = false) }
             .isInstanceOf(ValidationException::class.java)
         assertThatThrownBy { TextRules.screen("a‮b", "field", allowNewlines = false, allowEmoji = false) }
             .isInstanceOf(ValidationException::class.java)

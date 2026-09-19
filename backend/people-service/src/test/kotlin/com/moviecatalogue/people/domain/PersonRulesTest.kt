@@ -189,7 +189,7 @@ class PersonRulesTest {
     fun `normalizeName rejects emoji and control characters`() {
         assertThatThrownBy { PersonRules.normalizeName("Jane 😀") }
             .isInstanceOf(ValidationException::class.java)
-        assertThatThrownBy { PersonRules.normalizeName("Jane Doe") }
+        assertThatThrownBy { PersonRules.normalizeName("Jane\u0000Doe") }
             .isInstanceOf(ValidationException::class.java)
     }
 }
@@ -198,7 +198,7 @@ class PersonTextRulesTest {
 
     @Test
     fun `rejects NUL, control characters, bidi overrides, and zero-width characters`() {
-        assertThatThrownBy { TextRules.screen("a b", "field", allowNewlines = false, allowEmoji = false) }
+        assertThatThrownBy { TextRules.screen("a\u0000b", "field", allowNewlines = false, allowEmoji = false) }
             .isInstanceOf(ValidationException::class.java)
         assertThatThrownBy { TextRules.screen("a‮b", "field", allowNewlines = false, allowEmoji = false) }
             .isInstanceOf(ValidationException::class.java)

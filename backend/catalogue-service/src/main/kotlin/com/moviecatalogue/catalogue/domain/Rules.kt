@@ -208,6 +208,35 @@ object CreditRules {
         personDeathDate != null && movieReleaseDate != null &&
             movieReleaseDate.isAfter(personDeathDate.plusYears(POSTHUMOUS_CREDIT_GRACE_YEARS))
 
+    fun validateCreditDeath(personName: String, personDeathDate: LocalDate?, movieReleaseDate: LocalDate?, field: String? = null) {
+        if (isDeathTooLongBeforeRelease(personDeathDate, movieReleaseDate)) {
+            throw ValidationException(
+                "Can't save: $personName died on $personDeathDate, more than $POSTHUMOUS_CREDIT_GRACE_YEARS years " +
+                    "before this movie's release on $movieReleaseDate. Check the dates and try again.",
+                field = field,
+            )
+        }
+    }
+
+    /**
+     * Both halves of the person-date/credit invariant, for the paths that
+     * attach a person to a movie or move a movie's release date.
+     * [validatePersonDatesAgainstCredits] enforces the same invariant from the
+     * other side, when the person's own dates change. All three write paths
+     * have to check it: guarding only one leaves the conflicting state
+     * reachable by doing the same two edits in the other order.
+     */
+    fun validateCreditDates(
+        personName: String,
+        personBirthDate: LocalDate?,
+        personDeathDate: LocalDate?,
+        movieReleaseDate: LocalDate?,
+        field: String? = null,
+    ) {
+        validateCreditAge(personName, personBirthDate, movieReleaseDate, field)
+        validateCreditDeath(personName, personDeathDate, movieReleaseDate, field)
+    }
+
     /** A credited movie's release date, for checking against a person's birth/death date. */
     data class CreditedMovieDate(val movieId: UUID, val title: String, val releaseDate: LocalDate)
 

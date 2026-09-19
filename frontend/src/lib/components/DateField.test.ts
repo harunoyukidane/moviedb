@@ -54,3 +54,29 @@ describe('DateField', () => {
     expect(input).toHaveFocus();
   });
 });
+
+describe('DateField error association (V2.8-03)', () => {
+  // Before this, a rejected date rendered its message below the field but left
+  // the input unmarked: the `input[aria-invalid='true']` border rule never
+  // matched, so nothing was visibly highlighted (despite the banner copy saying
+  // "see the highlighted field"), and a screen reader on the field announced no
+  // error. The plain inputs on the same forms had both wired up all along.
+  it('points at its error message so a screen reader announces it on the field', () => {
+    render(DateField, { props: { id: 'birthDate', name: 'birthDate' } });
+    // The message is rendered alongside by <FieldError id="birthDate-error">.
+    expect(document.getElementById('birthDate')).toHaveAttribute(
+      'aria-describedby',
+      'birthDate-error'
+    );
+  });
+
+  it('is not marked invalid by default', () => {
+    render(DateField, { props: { id: 'deathDate', name: 'deathDate' } });
+    expect(document.getElementById('deathDate')).toHaveAttribute('aria-invalid', 'false');
+  });
+
+  it('marks the control invalid, which is what the red border rule keys on', () => {
+    render(DateField, { props: { id: 'deathDate', name: 'deathDate', invalid: true } });
+    expect(document.getElementById('deathDate')).toHaveAttribute('aria-invalid', 'true');
+  });
+});

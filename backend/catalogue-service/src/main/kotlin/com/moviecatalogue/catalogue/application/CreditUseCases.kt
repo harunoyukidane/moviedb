@@ -43,7 +43,7 @@ class CreditUseCases(
         // 2. validate the logical person reference over gRPC (throws DEPENDENCY_UNAVAILABLE
         //    on outage, NOT_FOUND if the person doesn't exist) — before any insert.
         val person = peopleClient.getPerson(command.personId)
-        CreditRules.validateCreditAge(person.name, person.birthDate, movie.releaseDate, field = "personId")
+        CreditRules.validateCreditDates(person.name, person.birthDate, person.deathDate, movie.releaseDate, field = "personId")
         val sourceRoleName = CreditRules.normalizeSourceRoleName(command.sourceRoleName)
 
         // Idempotent upsert by TMDB credit id (§12.3): update in place if present.

@@ -236,11 +236,36 @@ Consequences:
 - A test asserting *"we reject dangerous invisible characters"* is itself
   written using raw dangerous invisible characters.
 
-**Steps:** replace the literals with Kotlin unicode escapes — `"a b"`,
-`"a​b"`, `"a‮b"`, `"abcd"`. Semantics are identical, the files
+**Steps:** replace the raw literals with Kotlin unicode escapes — `\u0000`
+for NUL, `\u200B` for the zero-width space, `\u202E` for the bidi override and
+`\u0007` for BEL, so `"a<NUL>b"` is written `"a\u0000b"`. (This paragraph must
+name the escapes rather than paste the characters: written the other way it
+made *this file* binary to git too.) Semantics are identical, the files
 become reviewable text, and `git diff` works again. Worth doing before these
 files accumulate history. Confirm with `git diff --stat` that neither reports
 `Bin` afterwards.
+
+**Scope was wider than the two files first named here.** A sweep of every
+tracked text file afterwards found the same raw bytes in three more:
+`catalogue-service`'s `RulesTest.kt` (NUL, SOH), `people-service`'s
+`PersonRulesTest.kt` (two NULs), and **this plan document itself**, whose
+"replace the literals" sentence was written with the literals. All five are
+now escaped and `git diff` reports text for every one. Worth re-running the
+sweep rather than fixing named files:
+
+```bash
+git ls-files "*.kt" "*.ts" "*.svelte" "*.md" | python -c "
+import sys
+for f in sys.stdin.read().split():
+    b = open(f,'rb').read()
+    if any(c < 9 or c in (11,12) or 13 < c < 32 or c == 127 for c in b):
+        print(f)
+"
+```
+
+(Deliberately free of backslash escapes: a `tr`/`grep` version of this sweep
+has to spell the control characters out, and writing it into a document is how
+this file acquired a NUL byte twice.)
 
 ## V2.8-05: fix the v2.7 plan intro line
 
@@ -263,34 +288,75 @@ pages already have their own top-level nav links, a fixed "all movies"/"all
 people" destination on the back link is redundant with those and loses the
 user's place.
 
-**Implemented:** `afterNavigate` in the root layout
-([`+layout.svelte`](../../../frontend/src/routes/+layout.svelte)) records the
-pathname+search of the page navigated away from into a small store
-([`$lib/stores/navigation.ts`](../../../frontend/src/lib/stores/navigation.ts)).
-A new [`BackLink`](../../../frontend/src/lib/components/BackLink.svelte)
-component reads that store and falls back to a fixed destination only when
-there is no in-app previous page (a direct link, bookmark, or hard refresh).
-Wired into the movie/person detail pages and the "new movie"/"new person"
-pages, replacing the hardcoded `← All movies` / `← All people` links with a
-plain `← Back` that goes wherever the user actually came from.
+**Implemented as a stack that pops.** `afterNavigate` in the root layout
+([`+layout.svelte`](../../../frontend/src/routes/+layout.svelte)) feeds an
+in-app history stack
+([`$lib/stores/navigation.ts`](../../../frontend/src/lib/stores/navigation.ts)),
+and [`BackLink`](../../../frontend/src/lib/components/BackLink.svelte) points
+at the top of it, falling back to a fixed destination only when there is no
+in-app page to return to (direct link, bookmark, hard refresh, and SSR).
 
-The edit pages' "← Back to movie"/"← Back to person" links were left as-is —
-they always point at the record being edited regardless of history, which is
-already correct (that's the only page you can reach an edit form from).
+**A single "previous page" slot does not work, and the first implementation of
+this item shipped one.** It recorded the page navigated away from on every
+navigation — including the navigation the back link itself caused — so going
+back from A to B immediately recorded A as B's previous page:
+
+```text
+/movies → /movies/M          back → /movies         correct
+/movies/M → /movies/M/edit
+edit's back → /movies/M      back → /movies/M/edit   into the edit form
+```
+
+From there the two pages pointed at each other forever and the list was
+unreachable. Same shape via a credit: movie → person → back → movie → back →
+person. A one-slot pointer is a worse browser back button — it pushes where a
+back should pop.
+
+The stack fixes it with one rule: navigating to the entry on top of the stack
+is a *return*, so it pops rather than pushing. That covers the back link and
+the browser's own back button identically, and needs no click handler —
+`BackLink` stays a plain `<a href>`, so middle-click, open-in-new-tab and the
+no-JS case all keep working.
+
+Two details that make it behave the way a back button should:
+
+- **Entries are `pathname + search`.** Filters, cluster/list view, offset and
+  the alphabet jump all live in the query string, so back lands on the state
+  the user left rather than a reset list.
+- **Consecutive navigations within one page collapse.** Re-filtering, paging or
+  typing in search is one destination to the user; without collapsing, back
+  would step through every intermediate filter.
+
+The edit pages' "← Back to movie"/"← Back to person" links now use `BackLink`
+too, with the record as their fallback. Leaving them as plain links is what
+poisoned the stack in the first version: they pushed a fresh entry instead of
+popping, so returning from an edit form left the detail page pointing back into
+it. The label stays specific because the only way to reach an edit form is from
+that record's own detail page, so the destination really is always that record.
+
+Covered by [`navigation.test.ts`](../../../frontend/src/lib/stores/navigation.test.ts),
+which walks whole browsing sessions rather than setting the store directly —
+the previous component-level tests passed against the ping-ponging version.
 
 ## Verification state at the time of writing
 
-- **Frontend: green** — `npm test` → 50 files, **~270 passed** (added coverage
-  for `StateBanner` autofocus, the `app.css` long-word rules, `BackLink`, and
-  the new `PERSON_DATE_CONFLICTS_CREDIT` rewrites in `errors.ts`), 0 failed.
+- **Frontend: green** — `npm test` → 51 files, **271 passed**, 0 failed.
+  Coverage added for `StateBanner` autofocus, the `app.css` long-word rules,
+  `DateField`'s error association, the `PERSON_DATE_CONFLICTS_CREDIT` rewrites
+  in `errors.ts`, the back stack (whole browsing sessions, not just store
+  writes), and a second consecutive save re-announcing.
 - **`npm run check`: 0 errors**, the same pre-existing unused-CSS warning as
   before (`MovieFilters.svelte`) — unrelated to this pass.
+- **Playwright: not run here** (needs the composed stack). The layout
+  assertion for V2.8-01 — a 300-character unbroken name must not widen the
+  person page at 1280px or 375px — lives in `e2e/journey.spec.ts` and is the
+  only test that measures rendered layout; `app.css.test.ts` only pins the
+  rules and cannot prove the page is correct.
 - **Backend: not run** (sandbox blocks Gradle — `java.io.IOException: Unable to
   establish loopback connection` from both bash and PowerShell, including via
-  `gradlew.bat` directly; consistent with prior passes). The new
-  `PersonUseCasesTest` cases (V2.8-03) and the two rewritten contract test
-  files (V2.8-04) are reviewed carefully against existing working examples in
-  the same files but **not compiled**. Run
+  `gradlew.bat` directly; consistent with prior passes). The `PersonUseCasesTest`
+  cases, the new `CreditRulesFrontendContractTest`, the two added credit/release
+  path cases and the escaped contract-test files are **not compiled**. Run
   `./gradlew :catalogue-service:test '-PdockerApiVersion=1.44'` outside the
   sandbox to confirm before merging.
 - **V2.8-03's grace window (5 years) was checked against the live seeded
@@ -315,11 +381,20 @@ being reported mid-pass.
 
 ## Follow-ups not covered here
 
-V2.8-03's [scope note](#scope-note--the-other-two-doors) still stands after
-implementation: `CreditUseCases.addCredit` and
-`MovieUseCases.validateCreditedPeopleAgainstReleaseDate` already reject a
-birth date after a release date (V2.2-03b, predates this plan), but neither
-checks the new death-date-vs-grace-window rule this item added. A person's
-dates and their credits can still disagree if the contradiction is created by
-adding a new credit or moving a movie's release date, rather than by editing
-the person - closing all three surfaces for both rules is its own item.
+V2.8-03's [scope note](#scope-note--the-other-two-doors) has since been
+**closed**. It correctly predicted the hole: the first implementation guarded
+only the person-edit path, so the reported conflict (died 1953, credited on a
+2003 film) stayed reachable simply by setting the death date first and adding
+the credit second - the rule applied or not depending on the order of two
+edits. All three write paths now enforce both halves:
+
+| Path | Check |
+|---|---|
+| Person edit | `CreditRules.validatePersonDatesAgainstCredits` |
+| Add credit | `CreditRules.validateCreditDates` (was birth-only) |
+| Movie release date | `validateCreditedPeopleAgainstReleaseDate` (was birth-only) |
+
+The credit paths keep raising `ValidationException`/`BAD_USER_INPUT` against
+the field the user actually touched (`personId`, `releaseDate`), rather than
+`PERSON_DATE_CONFLICTS_CREDIT`, whose copy is written for the person-edit
+direction.
