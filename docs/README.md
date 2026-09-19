@@ -14,6 +14,9 @@ last_verified: 2026-09-19
 | Task | Load |
 |---|---|
 | Onboarding | root [README.md](../README.md) + [architecture/overview.md](architecture/overview.md) + [architecture/code-map.md](architecture/code-map.md) |
+| "What is this built with / what version" | [architecture/frameworks.md](architecture/frameworks.md) — stack, versions, and the convention each framework imposes |
+| "What depends on what" / suspected layering violation | [architecture/code-graph.md](architecture/code-graph.md) — the measured import graph, with the commands to regenerate it |
+| Test coverage for one module, or the full test list | [verification/test-specs.xlsx](verification/test-specs.xlsx) — every test, with module, steps, expected result and last recorded status |
 | Feature work | the relevant section of [product/requirements.md](product/requirements.md) + one file under [plans/v2/](plans/v2/) or [plans/v2.2/](plans/v2.2/README.md) + the ADRs it names |
 | API / database work | the real sources of truth — [schema.graphqls](../backend/catalogue-service/src/main/resources/graphql/schema.graphqls), [people.proto](../backend/contracts/src/main/proto/catalogue/people/v1/people.proto), Flyway migrations under `backend/*/src/main/resources/db/migration/` — plus [architecture/interfaces.md](architecture/interfaces.md) and [architecture/data-model.md](architecture/data-model.md) for semantics not visible in the source itself |
 | Operations / deployment | root README + [operations/runbook.md](operations/runbook.md) |
@@ -46,10 +49,12 @@ docs/
 ├── architecture/
 │   ├── overview.md              system boundaries, quality priorities, layering
 │   ├── code-map.md              where code lives, package rules
+│   ├── code-graph.md            the measured import graph; layering rules as evidence
+│   ├── frameworks.md            stack and versions, and what each one imposes
 │   ├── data-model.md            ownership, DDL, transaction boundaries
 │   └── interfaces.md            GraphQL/gRPC/HTTP semantics (points at real schema/proto)
 ├── operations/runbook.md        TMDB seeding, resilience, security, observability
-├── verification/                acceptance evidence, kept separate from strategy
+├── verification/                acceptance evidence + test-specs.xlsx, kept separate from strategy
 ├── decisions/                   ADRs (unchanged, one per file)
 ├── plans/v2/                    active v2 backlog (release hardening only; features archived)
 ├── plans/v2.1/                  post-v2 UI fixes backlog

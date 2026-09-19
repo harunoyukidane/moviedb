@@ -38,7 +38,16 @@ backend/full-build.log
 backend/media-test.log
 docs/archive/movie-db-v2-kiro-spec/.config.kiro
 
+# Runner JSON consumed by scripts/build-test-specs.py — regenerated, never committed
+/.test-results/
+
 # Playwright run artifacts
 frontend/test-results/
 frontend/playwright-report/
 frontend/blob-report/
+
+# Python bytecode from scripts/
+__pycache__/
+
+# Excel lock file, created while the workbook is open
+~$*.xlsx

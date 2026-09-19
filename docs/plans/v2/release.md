@@ -6,7 +6,9 @@ canonical_for: v2-release-plan
 last_verified: 2026-09-15
 ```
 
-Status: not started — blocked on [catalogue.md](catalogue.md) and [frontend.md](frontend.md).
+Status: not started — was blocked on the catalogue and frontend implementation
+plans, which have since landed and moved to
+[archive/v2-implementation/](../../archive/v2-implementation/README.md).
 
 ## V2-16: Cross-feature accessibility and responsive review
 

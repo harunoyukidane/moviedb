@@ -226,9 +226,31 @@ MinIO is the first v2 delivery because every poster/photo feature depends on rel
 
 The cutover intentionally discards current local demo artwork and reruns the importer into MinIO. The same seed change expands controlled genres and the movie manifest so genre/year filtering has meaningful data.
 
-## 8. Related documentation
+## 8. Post-v2 increments (v2.1 – v2.8)
 
-- [Code map](code-map.md)
+Everything after v2 has landed inside the boundaries above — no new service, no
+new database, no change to the trust model. What each increment moved:
+
+| Increment | Architectural change |
+|---|---|
+| v2.1 | Post-v2 UI fixes (cluster views, date-field widget). Structurally: a `language_code` reference table, making `movie.original_language` a controlled FK instead of free text |
+| v2.2 | Validation and error-handling path reviewed end to end; text bounds enforced in domain rules *and* as database `CHECK` backstops; `country_code` reference data added to People |
+| v2.3 | Injection hardening: CSP emitted by the BFF (`kit.csp`), security headers in `hooks.server.ts`, stored text rendered as escaped |
+| v2.4 | Alphabet-jump pagination; ICU-collated indexes so accented titles/names interleave with their base letter |
+| v2.5 | `pg_trgm` GIN indexes for substring search, benchmarked; offset pushdown for people search |
+| v2.6 | Accessibility regression fix (the ARIA combobox pattern); media-path hardening — WebP encoding off the request thread, `Accept` q-value negotiation, a minimum-age guard on the orphan sweeper; the Caddy edge proxy (ADR-15) becomes the sole published entry point |
+| v2.7 | Search offset bounds; unified search endpoint; CI coverage of the compose smoke path |
+| v2.8 | Long-word layout containment, save feedback, person birth/death vs. credited release dates (Catalogue-side, all three write paths), in-app back navigation as a popping stack |
+
+Only one of these changed the system's shape: the **edge proxy**, which took over
+as the sole published entry point and is why the BFF now trusts `X-Forwarded-*`
+(see "Edge proxy" in §2). Everything else fits inside an existing boundary.
+
+## 9. Related documentation
+
+- [Code map](code-map.md) — where a new file belongs
+- [Code graph](code-graph.md) — what actually imports what, measured
+- [Frameworks](frameworks.md) — the stack, its versions, and the rules each imposes
 - [Data model](data-model.md)
 - [Interfaces](interfaces.md)
 - [Requirements](../product/requirements.md)

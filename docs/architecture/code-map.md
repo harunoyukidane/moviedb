@@ -74,12 +74,13 @@ src/main/resources/
 └── application.yml
 ```
 
-V2 additions should be placed as follows:
+The v2 additions have landed, and the placements they established are the
+precedent for anything similar:
 
-- `comment/`: comment entity and repository; application workflow stays in `application/` unless the feature becomes large enough to justify `comment/application`.
-- Movie filters: query specifications/repository methods in `movie/`, orchestration in `application/`, contract fields in `graphql/`.
-- Expanded genres: an append-only Catalogue Flyway reference-data migration plus the matching version-controlled importer mapping; never edit the applied v1 seed migration.
-- MinIO: the reusable adapter belongs in `backend/media`; `artwork/MediaConfig` only selects/configures it.
+- `comment/` holds the comment entity and repository; the workflow stayed in `application/CommentUseCases.kt` rather than growing a `comment/application` of its own.
+- Movie filters: query methods in `movie/`, orchestration in `application/`, contract fields in `graphql/`.
+- Expanded genres and languages: append-only Flyway reference-data migrations plus the matching version-controlled importer mapping; the applied v1 seed migration is never edited.
+- MinIO: the reusable adapter lives in `backend/media`; `artwork/MediaConfig` only selects and configures it.
 
 `graphql/` must remain an inbound adapter. It may map GraphQL inputs/outputs and register DataLoaders, but must not contain business transactions or directly coordinate multiple repositories.
 
@@ -165,7 +166,7 @@ frontend/src/
 └── app.html
 ```
 
-`lib/features` is the v2 target for substantial domain-aware UI extracted from route pages. It does not need to be created in advance; add each folder with the first real feature component.
+`lib/features` holds substantial domain-aware UI extracted from route pages. Four folders exist — `movies/`, `credits/`, `comments/`, `people/` — and each was created with its first real feature component, not in advance. Add the next one the same way.
 
 ### SvelteKit naming
 
@@ -197,7 +198,9 @@ Production and test trees mirror one another. Naming communicates scope:
 - `*.test.ts`: TypeScript or Svelte component/unit test.
 - `frontend/e2e/*.spec.ts`: Playwright user journey.
 
-V2 MinIO tests should use a real MinIO Testcontainer for `put`, `open`, `exists`, `delete`, `listKeys`, missing keys, and service configuration. Use a mocked `ArtworkStore` only for testing application-side compensation ordering.
+MinIO tests use a real MinIO Testcontainer for `put`, `open`, `exists`, `delete`, `listKeys`, missing keys, and service configuration. A mocked `ArtworkStore` is used only for application-side compensation ordering.
+
+The per-test enumeration — every test in the repository, with its module, steps and last recorded result — is [verification/test-specs.xlsx](../verification/test-specs.xlsx). Regenerate it rather than hand-editing it.
 
 ## 7. Adding a feature
 
@@ -219,6 +222,7 @@ This order keeps UI and transport code from becoming the accidental source of bu
 
 - Keep GraphQL controllers dependent on application read/write services, not repositories.
 - Add batched database projections/DataLoaders if measurements show nested GraphQL database N+1 behavior; gRPC person hydration is already batched.
-- Extract v2 movie listing, credit display, comment, and people-row UI into feature components as those screens grow.
-- Keep storage selection configuration-driven and remove deployed local-volume mounts only after MinIO integration and rollback tests pass.
+- Movie listing, credit display, comment, and people-row UI are now feature components; keep extracting as route files grow rather than letting one page component sprawl.
+- Storage selection stays configuration-driven. The deployed local-volume mounts are gone; `LocalArtworkStore` remains as the fast test adapter, not a deployment option.
 - Do not create a generic `utils` package; name helpers after their responsibility and place them at the narrowest shared scope.
+- Before claiming a layering rule holds, check it against the measured edges in [code-graph.md](code-graph.md) rather than against this file's prose.

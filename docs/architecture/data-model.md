@@ -22,6 +22,7 @@ erDiagram
     GENRE_CODE ||--o{ MOVIE_GENRE : selected_by
     CREDIT_ROLE_CODE ||--o{ MOVIE_CREDIT : classifies
     LANGUAGE_CODE ||--o{ MOVIE : original_language
+    COUNTRY_CODE ||--o{ PERSON : born_in
     PERSON ||..o{ MOVIE_CREDIT : "logical reference"
     MOVIE {
       uuid id PK
@@ -31,6 +32,10 @@ erDiagram
       int version
     }
     LANGUAGE_CODE {
+      string code PK
+      string name
+    }
+    COUNTRY_CODE {
       string code PK
       string name
     }
@@ -58,12 +63,18 @@ erDiagram
       uuid id PK
       bigint tmdb_id UK
       string name
+      date birth_date
+      date death_date
+      string birth_country_code FK
+      string profile_path
+      string profile_path_webp
       int version
     }
     ARTWORK_ASSET {
       uuid id PK
       uuid movie_id FK
       string storage_key UK
+      string webp_storage_key
     }
     MOVIE_COMMENT {
       uuid id PK
@@ -77,6 +88,19 @@ erDiagram
 The dotted Person-to-Credit relationship is logical. There is no cross-service
 database foreign key — Catalogue stores only a `person_id`; People is authoritative
 for name/biography/photo.
+
+Every solid edge above is a real foreign key, and every one of them stays inside a
+single database. The two databases are separate PostgreSQL instances with separate
+credentials and separate Flyway histories:
+
+| Database | Tables | Migrations |
+|---|---|---|
+| `catalogue-db` | `movie`, `movie_genre`, `movie_credit`, `movie_comment`, `artwork_asset`, `genre_code`, `credit_role_code`, `language_code` | `backend/catalogue-service/src/main/resources/db/migration/` (V1–V10) |
+| `people-db` | `person`, `country_code` | `backend/people-service/src/main/resources/db/migration/` (V1–V6) |
+
+`credit_category` is a PostgreSQL `ENUM` type in the Catalogue database, repeated on
+`movie_credit` so a `CHECK` can enforce the cast/crew field rules; the composite FK
+`(role_code, category) → credit_role_code(code, category)` keeps it honest.
 
 **Primary key strategy: application-generated UUIDv7.** All primary keys are UUIDs
 generated in application (Kotlin) code as UUIDv7 (time-ordered) at entity creation;
