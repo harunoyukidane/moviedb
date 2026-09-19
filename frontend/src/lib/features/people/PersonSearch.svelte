@@ -75,10 +75,10 @@
         e.preventDefault();
         pick(suggestions[activeIndex]);
       }
-    } else if (e.key === 'Escape') {
+    } else if (e.key === 'Escape' && suggestionsOpen) {
+      e.preventDefault();
       suggestionsOpen = false;
       activeIndex = -1;
-    }
   }
 
   // A suggestion button's mousedown fires before the input's blur; preventing
