@@ -53,7 +53,9 @@
 <svelte:window on:keydown={onKeydown} />
 
 {#if open}
-  <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions a11y-no-noninteractive-element-interactions -->
+  <!-- svelte-ignore a11y-click-events-have-key-events -- dismiss-on-click backdrop; Escape is handled by the window keydown listener above, not this element. -->
+  <!-- svelte-ignore a11y-no-static-element-interactions -- role="presentation" backdrop is intentionally non-interactive to assistive tech; the click only dismisses, it carries no content or focusable behavior of its own. -->
+  <!-- svelte-ignore a11y-no-noninteractive-element-interactions -- same backdrop-dismiss pattern; role="presentation" removes it from the accessibility tree by design. -->
   <div class="overlay" on:click={() => close('cancel')} role="presentation">
     <div
       class="dialog"

@@ -72,4 +72,18 @@ class LocalArtworkStoreTest {
         Files.createTempFile(dir, "upload-", ".tmp")
         assertThat(store.listKeys()).containsExactlyInAnyOrder(a.storageKey, b.storageKey)
     }
+
+    @Test
+    fun `listKeysWithAge reports each key's filesystem last-modified time and skips temp files`(@TempDir dir: Path) {
+        val store = LocalArtworkStore(dir)
+        val a = store.put(ByteArrayInputStream(byteArrayOf(1)), "jpg")
+        Files.createTempFile(dir, "upload-", ".tmp")
+
+        val entries = store.listKeysWithAge()
+
+        assertThat(entries).hasSize(1)
+        assertThat(entries.single().key).isEqualTo(a.storageKey)
+        assertThat(entries.single().lastModified)
+            .isEqualTo(Files.getLastModifiedTime(dir.resolve(a.storageKey)).toInstant())
+    }
 }

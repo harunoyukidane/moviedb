@@ -99,6 +99,35 @@ class MinioArtworkStoreTest {
     }
 
     @Test
+    fun `listKeysWithAge pairs each key with the SDK-reported last-modified instant`() {
+        val client = mockk<MinioClient>()
+        val item = mockk<Item>()
+        val lastModified = java.time.ZonedDateTime.parse("2026-01-01T00:00:00Z")
+        every { item.objectName() } returns "a.png"
+        every { item.lastModified() } returns lastModified
+        val result = mockk<Result<Item>>()
+        every { result.get() } returns item
+        every { client.listObjects(any()) } returns listOf(result)
+        val store = MinioArtworkStore(client, BUCKET)
+
+        val entries = store.listKeysWithAge()
+
+        assertThat(entries).hasSize(1)
+        assertThat(entries.single().key).isEqualTo("a.png")
+        assertThat(entries.single().lastModified).isEqualTo(lastModified.toInstant())
+    }
+
+    @Test
+    fun `listKeysWithAge wraps a mid-page listing failure as ArtworkStorageException`() {
+        val client = mockk<MinioClient>()
+        every { client.listObjects(any()) } throws IOException("connection reset mid-page")
+        val store = MinioArtworkStore(client, BUCKET)
+
+        assertThatThrownBy { store.listKeysWithAge() }
+            .isInstanceOf(ArtworkStorageException::class.java)
+    }
+
+    @Test
     fun `open rejects a traversal-style key before any backend call`() {
         val client = mockk<MinioClient>()
         val store = MinioArtworkStore(client, BUCKET)

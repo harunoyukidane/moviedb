@@ -182,6 +182,15 @@ services:
     ports:
       - "${FRONTEND_PORT:-4173}:80"
     networks: [internal]
+    healthcheck:
+      # V2.6-08: without this, `docker compose up --wait` only waits for the
+      # container to reach "running", not for Caddy to actually be serving -
+      # `wget --spider` is used (not curl) because the stock caddy:2.8-alpine
+      # image has no curl.
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:80/"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   # One-shot TMDB importer (§12). Runs only under the `seed` profile, after the
   # app is healthy. Imports through People gRPC + Catalogue GraphQL + artwork HTTP.

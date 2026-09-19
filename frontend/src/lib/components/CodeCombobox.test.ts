@@ -49,24 +49,36 @@ describe.each([
     const user = userEvent.setup();
     render(CodeCombobox, { props: { items, name: 'code', id: 'code', label } });
     await user.type(screen.getByLabelText(label), c.name.slice(0, 3));
-    expect(await screen.findByRole('button', { name: c.name })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: b.name })).not.toBeInTheDocument();
+    expect(await screen.findByRole('option', { name: c.name })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: b.name })).not.toBeInTheDocument();
   });
 
   it('filters suggestions by code as well as name', async () => {
     const user = userEvent.setup();
     render(CodeCombobox, { props: { items, name: 'code', id: 'code', label } });
     await user.type(screen.getByLabelText(label), b.code);
-    expect(await screen.findByRole('button', { name: b.name })).toBeInTheDocument();
+    expect(await screen.findByRole('option', { name: b.name })).toBeInTheDocument();
   });
 
-  it('picking a suggestion sets the hidden code input and closes the list', async () => {
+  it('picking a suggestion with the mouse sets the hidden code input and closes the list', async () => {
     const user = userEvent.setup();
     render(CodeCombobox, { props: { items, name: 'code', id: 'code', label } });
     await user.type(screen.getByLabelText(label), a.name.slice(0, 3));
-    await user.click(await screen.findByRole('button', { name: a.name }));
+    await user.click(await screen.findByRole('option', { name: a.name }));
 
     expect(screen.getByLabelText(label)).toHaveValue(a.name);
+    expect(hiddenValue()).toBe(a.code);
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+  });
+
+  it('picking a suggestion with the keyboard sets the hidden code input and closes the list', async () => {
+    const user = userEvent.setup();
+    render(CodeCombobox, { props: { items, name: 'code', id: 'code', label } });
+    const input = screen.getByLabelText(label);
+    await user.type(input, a.name.slice(0, 3));
+    await user.keyboard('{ArrowDown}{Enter}');
+
+    expect(input).toHaveValue(a.name);
     expect(hiddenValue()).toBe(a.code);
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
   });

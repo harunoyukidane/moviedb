@@ -108,7 +108,7 @@ describe('person edit form: saving keeps every field, not just the country selec
 
     // Select a country - the exact reported scenario - then save.
     await user.type(screen.getByLabelText('Country'), 'United States');
-    await user.click(await screen.findByRole('button', { name: 'United States' }));
+    await user.click(await screen.findByRole('option', { name: 'United States' }));
     await user.click(screen.getByRole('button', { name: /save changes/i }));
 
     expect(mockUpdate).toHaveBeenCalledWith(expect.any(HTMLFormElement), { reset: false });

@@ -4,6 +4,7 @@ import com.moviecatalogue.media.ArtworkStore
 import org.springframework.http.CacheControl
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
+import org.springframework.http.InvalidMediaTypeException
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.DeleteMapping
@@ -17,6 +18,27 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 import com.moviecatalogue.media.UnsupportedMediaTypeException
 import java.time.Duration
 import java.util.UUID
+
+private val WEBP = MediaType.valueOf("image/webp")
+
+/**
+ * True if `accept` explicitly asks for `image/webp` with a non-zero quality
+ * value (V2.6-06). A bare wildcard Accept or an absent/unparseable header
+ * falls through to `false` - serving the primary asset - which is the existing, correct
+ * fallback; this only tightens the explicit-webp case so
+ * `Accept: image/webp;q=0` is honoured as a refusal instead of matching a
+ * plain substring check.
+ */
+internal fun acceptsWebp(accept: String?): Boolean {
+    if (accept.isNullOrBlank()) return false
+    val types = try {
+        MediaType.parseMediaTypes(accept)
+    } catch (e: InvalidMediaTypeException) {
+        return false
+    }
+    val explicit = types.firstOrNull { it.type == WEBP.type && it.subtype == WEBP.subtype } ?: return false
+    return explicit.qualityValue > 0.0
+}
 
 /**
  * Person profile-photo media endpoints. Same validated path as movie artwork.
@@ -64,7 +86,7 @@ class PersonPhotoController(
         // successfully generated at upload time. `Vary: Accept` is set on every response
         // below so a shared cache never serves one client's negotiated format to a client
         // that asked for a different `Accept`.
-        val serveWebp = keys.webpStorageKey != null && accept?.contains("image/webp") == true
+        val serveWebp = keys.webpStorageKey != null && acceptsWebp(accept)
         val key = if (serveWebp) keys.webpStorageKey!! else primaryKey
 
         if (!store.exists(key)) return ResponseEntity.notFound().build()

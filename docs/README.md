@@ -22,8 +22,8 @@ last_verified: 2026-09-19
 | Input validation / error messages / error codes | [plans/v2.2/README.md](plans/v2.2/README.md) — the reviewed state of the whole validation path and the open backlog against it |
 | Security hardening (CSP, injection defenses) | [plans/v2.3/README.md](plans/v2.3/README.md) — done |
 | Search / pagination scaling for large datasets | [plans/v2.5/README.md](plans/v2.5/README.md) — done (trigram index benchmarked; offset pushdown shipped for people search) |
-| Accessibility, or anything touching the combobox/suggestion components | [plans/v2.6/README.md](plans/v2.6/README.md) — open; V2.6-01 is a live keyboard-access regression |
-| Media/artwork upload, WebP variants, orphan sweeping | [plans/v2.6/README.md](plans/v2.6/README.md) — open backlog, plus [architecture/interfaces.md](architecture/interfaces.md) for the serving contract |
+| Accessibility, or anything touching the combobox/suggestion components | [plans/v2.6/README.md](plans/v2.6/README.md) — done; V2.6-01's keyboard-access regression is fixed |
+| Media/artwork upload, WebP variants, orphan sweeping | [plans/v2.6/README.md](plans/v2.6/README.md) — done, plus [architecture/interfaces.md](architecture/interfaces.md) for the serving contract |
 
 ## Rules
 
@@ -50,6 +50,6 @@ docs/
 ├── plans/v2.2/                  validation + error-handling backlog
 ├── plans/v2.3/                  injection hardening (done)
 ├── plans/v2.5/                  search/pagination scaling (done — trigram index benchmarked, offset pushdown shipped)
-├── plans/v2.6/                  a11y regression + media-path hardening (open; from the 2026-09-19 review)
+├── plans/v2.6/                  a11y regression + media-path hardening (done; from the 2026-09-19 review)
 └── archive/                     superseded content, historical reference only
 ```

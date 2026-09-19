@@ -6,10 +6,10 @@ canonical_for: v2.6-backlog
 last_verified: 2026-09-19
 ```
 
-Nothing here is started. This plan is the output of a code review and gap
-analysis run on 2026-09-19 against `main` at `e4dd993`, covering the work in
-`d3837f7..e4dd993` (alphabet pagination, search optimization, Lighthouse
-optimization).
+This plan is the output of a code review and gap analysis run on 2026-09-19
+against `main` at `e4dd993`, covering the work in `d3837f7..e4dd993` (alphabet
+pagination, search optimization, Lighthouse optimization). All eight items
+below have since been implemented (see [Status](#status)).
 
 **Read this first if you are picking the work up cold.** The review verified a
 lot of this release as *correct* — see [What is already
@@ -20,14 +20,53 @@ right](#what-is-already-right) before touching the media path, so you don't
 
 | Item | Area | Severity | Status |
 |---|---|---|---|
-| [V2.6-01](#v26-01-restore-keyboard-access-to-the-comboboxes) | Keyboard lockout in 3 combobox components | **P1 — WCAG 2.1.1 Level A** | not started |
-| [V2.6-02](#v26-02-make-the-a11y-gate-able-to-fail-again) | `svelte-ignore` defeats the a11y gate | P2 | not started |
-| [V2.6-03](#v26-03-give-the-orphan-sweeper-a-minimum-age-guard) | Sweeper can delete in-flight uploads | P2 | not started |
-| [V2.6-04](#v26-04-take-webp-encoding-off-the-request-thread) | Synchronous unbounded `cwebp` in upload path | P3 | not started |
-| [V2.6-05](#v26-05-stop-leaving-cwebps-output-stream-unconsumed) | Unread pipe on `cwebp` process | P3 | not started |
-| [V2.6-06](#v26-06-honour-accept-q-values-when-negotiating-webp) | `Accept: image/webp;q=0` still gets WebP | P4 | not started |
-| [V2.6-07](#v26-07-make-the-eager-image-count-responsive) | `EAGER_COUNT = 6` assumes desktop width | P4 | not started |
-| [V2.6-08](#v26-08-give-the-edge-proxy-a-healthcheck) | Edge proxy has no healthcheck | P4 | not started |
+| [V2.6-01](#v26-01-restore-keyboard-access-to-the-comboboxes) | Keyboard lockout in 3 combobox components | **P1 — WCAG 2.1.1 Level A** | done |
+| [V2.6-02](#v26-02-make-the-a11y-gate-able-to-fail-again) | `svelte-ignore` defeats the a11y gate | P2 | done |
+| [V2.6-03](#v26-03-give-the-orphan-sweeper-a-minimum-age-guard) | Sweeper can delete in-flight uploads | P2 | done |
+| [V2.6-04](#v26-04-take-webp-encoding-off-the-request-thread) | Synchronous unbounded `cwebp` in upload path | P3 | done |
+| [V2.6-05](#v26-05-stop-leaving-cwebps-output-stream-unconsumed) | Unread pipe on `cwebp` process | P3 | done |
+| [V2.6-06](#v26-06-honour-accept-q-values-when-negotiating-webp) | `Accept: image/webp;q=0` still gets WebP | P4 | done |
+| [V2.6-07](#v26-07-make-the-eager-image-count-responsive) | `EAGER_COUNT = 6` assumes desktop width | P4 | done |
+| [V2.6-08](#v26-08-give-the-edge-proxy-a-healthcheck) | Edge proxy has no healthcheck | P4 | done |
+
+## Implementation notes (2026-09-19)
+
+- **V2.6-01/02**: keyboard pattern (`ArrowUp`/`ArrowDown`/`Enter`/`Escape`,
+  `aria-activedescendant`) added to `CodeCombobox`, `CreditDialog`, and
+  `PersonSearch`; options stay non-focusable `<li role="option">`. The 14
+  failing tests now assert `role="option"` and each component gained a
+  keyboard-path test. The blanket `svelte-ignore` comments are gone; the two
+  remaining ones (dismiss-on-click dialog backdrops in `ConfirmDialog` /
+  `CreditDialog`) are now one rule each with an inline justification, enforced
+  by a new guard test in `src/source-guard.test.ts`.
+- **V2.6-03**: `ArtworkStore` gained `listKeysWithAge()` (returns `StoredKey`
+  with a last-modified `Instant`) alongside the existing `listKeys()`, so both
+  sweepers can skip anything younger than a configurable min-age (default 15
+  minutes, `catalogue.artwork.sweep.min-age` / `people.photo.sweep.min-age`)
+  without reaching into the MinIO SDK from the sweeper.
+- **V2.6-04**: chose the bounded-executor shape over moving the encode out of
+  the request. `WebpEncoder` now gates `encode()` behind a `Semaphore`
+  (`maxConcurrent`, default 4 per service instance), so a burst of uploads can
+  no longer fork an unbounded number of concurrent `cwebp` processes; each
+  caller still pays its own encode latency, but worst-case resource usage is
+  now capped and explicit rather than tracking request concurrency.
+- **V2.6-05**: `WebpEncoder` now uses `redirectOutput/-Error(DISCARD)` instead
+  of `redirectErrorStream(true)`.
+- **V2.6-06**: both serving controllers now parse `Accept` with
+  `MediaType.parseMediaTypes` and only serve WebP when an explicit
+  `image/webp` entry has `qualityValue > 0`; absent/wildcard Accept still
+  falls back to the primary asset unchanged.
+- **V2.6-07**: `MovieClusterView` and the people list page now measure their
+  own grid's rendered `grid-template-columns` count on mount (and on resize)
+  instead of a hardcoded `6`.
+- **V2.6-08**: `proxy` in `compose.yaml` has a `wget --spider` healthcheck so
+  `docker compose up --wait` gates on Caddy actually serving.
+
+Not verified here: the Testcontainers-backed integration tests (Minio,
+Postgres, GraphQL/gRPC contract tests) require Docker, which was unavailable
+in the environment this round of fixes was implemented in. All non-Docker
+unit/component tests pass in every module, including the new/updated ones
+listed above.
 
 ## Verification state at the time of review
 

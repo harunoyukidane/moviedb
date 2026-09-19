@@ -27,7 +27,21 @@ describe('PersonSearch', () => {
     await user.type(screen.getByRole('combobox'), 'pacino');
     await waitFor(() => expect(screen.getByRole('option', { name: 'Al Pacino' })).toBeInTheDocument());
 
-    await user.click(screen.getByRole('button', { name: 'Al Pacino' }));
+    await user.click(screen.getByRole('option', { name: 'Al Pacino' }));
+    expect(navigateFn).toHaveBeenCalledWith('/people/p1');
+    expect(screen.queryByRole('option', { name: 'Al Pacino' })).not.toBeInTheDocument();
+  });
+
+  it('picks a suggestion via the keyboard (ArrowDown + Enter) instead of the mouse', async () => {
+    const user = userEvent.setup();
+    const suggestFn = vi.fn(async (): Promise<Hit[]> => [{ id: 'p1', name: 'Al Pacino' }]);
+    const navigateFn = vi.fn();
+    render(PersonSearch, { props: { suggestFn, navigateFn, debounceMs: 10 } });
+
+    await user.type(screen.getByRole('combobox'), 'pacino');
+    await waitFor(() => expect(screen.getByRole('option', { name: 'Al Pacino' })).toBeInTheDocument());
+
+    await user.keyboard('{ArrowDown}{Enter}');
     expect(navigateFn).toHaveBeenCalledWith('/people/p1');
     expect(screen.queryByRole('option', { name: 'Al Pacino' })).not.toBeInTheDocument();
   });
