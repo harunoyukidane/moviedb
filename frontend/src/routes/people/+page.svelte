@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import type { PageData } from './$types';
   import StateBanner from '$lib/components/StateBanner.svelte';
   import AlphabetPager from '$lib/components/AlphabetPager.svelte';
@@ -8,22 +7,13 @@
 
   export let data: PageData;
 
-  // Measures the grid's own rendered column count instead of assuming
-  // desktop width for what counts as "the first row" (V2.6-07).
-  let gridEl: HTMLUListElement | undefined;
-  let eagerCount = 2;
-
-  function measureEagerCount() {
-    if (!gridEl) return;
-    const columns = getComputedStyle(gridEl).gridTemplateColumns.split(' ').filter(Boolean).length;
-    if (columns > 0) eagerCount = columns;
-  }
-
-  onMount(() => {
-    measureEagerCount();
-    window.addEventListener('resize', measureEagerCount);
-    return () => window.removeEventListener('resize', measureEagerCount);
-  });
+  // `loading` is a server-rendered attribute the browser's preload scanner
+  // acts on before hydration, so "the first row" has to be known at SSR time
+  // rather than measured client-side (V2.7-02). `.photo-grid` caps at 6
+  // columns wide (app.css), so 6 is desktop-correct; narrower viewports
+  // render fewer than 6 per row and eagerly load one extra row's worth
+  // there, which is wasted bandwidth but not a correctness problem.
+  const eagerCount = 6;
   $: page = data.page;
   $: hasPrev = page.offset > 0;
   $: hasNext = page.offset + page.limit < page.total;
@@ -77,7 +67,7 @@
     {/if}
   </StateBanner>
 {:else}
-  <ul class="photo-grid" aria-label="People" bind:this={gridEl}>
+  <ul class="photo-grid" aria-label="People">
     {#each page.items as person, i (person.id)}
       <li>
         <PersonListRow

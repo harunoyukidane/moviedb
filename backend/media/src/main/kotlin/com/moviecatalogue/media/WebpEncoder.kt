@@ -22,24 +22,35 @@ import java.util.concurrent.TimeUnit
  * thread - each caller still pays up to [timeoutSeconds] of latency - but
  * concurrent invocations are capped at [maxConcurrent] via [permits], so a
  * burst of uploads can no longer fork an unbounded number of `cwebp`
- * processes and temp files against a small resource pool; excess callers
- * queue for a permit instead.
+ * processes and temp files against a small resource pool.
+ *
+ * (V2.7-03) A caller that can't get a permit within [permitWaitSeconds]
+ * degrades to "no WebP variant" instead of queueing indefinitely and holding
+ * an upload-request thread for however long the burst takes to drain - the
+ * same degradation this docblock already promises for a missing binary, a
+ * timeout, or a failed conversion. The wait budget defaults to
+ * [timeoutSeconds]: a caller that has already waited as long as one full
+ * encode would take is better off skipping the variant than queueing further.
  */
 class WebpEncoder(
     private val binary: String = "cwebp",
     private val quality: Int = 80,
     private val timeoutSeconds: Long = 10,
     maxConcurrent: Int = 4,
+    private val permitWaitSeconds: Long = timeoutSeconds,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
     private val permits = Semaphore(maxConcurrent)
 
-    /** Returns WebP-encoded bytes, or null if `cwebp` is unavailable or the conversion fails. */
+    /** Returns WebP-encoded bytes, or null if `cwebp` is unavailable, busy, or the conversion fails. */
     fun encode(sourceBytes: ByteArray): ByteArray? {
         var acquired = false
         try {
-            permits.acquire()
-            acquired = true
+            acquired = permits.tryAcquire(permitWaitSeconds, TimeUnit.SECONDS)
+            if (!acquired) {
+                log.warn("no cwebp permit available after {}s; skipping WebP variant", permitWaitSeconds)
+                return null
+            }
             return encodeWithinLimit(sourceBytes)
         } catch (e: InterruptedException) {
             Thread.currentThread().interrupt()
@@ -52,9 +63,10 @@ class WebpEncoder(
     private fun encodeWithinLimit(sourceBytes: ByteArray): ByteArray? {
         val input = File.createTempFile("webp-src-", ".img")
         val output = File.createTempFile("webp-out-", ".webp")
+        var process: Process? = null
         return try {
             input.writeBytes(sourceBytes)
-            val process = ProcessBuilder(
+            process = ProcessBuilder(
                 binary, "-quiet", "-q", quality.toString(), input.absolutePath, "-o", output.absolutePath,
             ).redirectOutput(ProcessBuilder.Redirect.DISCARD)
                 .redirectError(ProcessBuilder.Redirect.DISCARD)
@@ -71,6 +83,11 @@ class WebpEncoder(
                 return null
             }
             output.readBytes()
+        } catch (e: InterruptedException) {
+            // Don't orphan a running cwebp process when this thread is interrupted
+            // while blocked in waitFor.
+            process?.destroyForcibly()
+            throw e
         } catch (e: IOException) {
             log.warn("cwebp unavailable ({}); skipping WebP variant", e.message)
             null

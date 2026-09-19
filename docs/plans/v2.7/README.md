@@ -1,7 +1,7 @@
 # V2.7: search offset bounds + V2.6 follow-ups
 
 ```yaml
-status: current
+status: done
 canonical_for: v2.7-backlog
 last_verified: 2026-09-19
 ```
@@ -22,12 +22,12 @@ the remaining issues are narrower than they might look from the item titles.
 
 | Item | Area | Severity | Status |
 |---|---|---|---|
-| [V2.7-01](#v27-01-bound-the-unified-search-offset) | Unbounded `offset` → 500 + heap amplification | **P1** | not started |
-| [V2.7-02](#v27-02-make-the-eager-image-count-work-at-ssr-time) | V2.6-07's measurement runs too late to matter | P2 | not started |
-| [V2.7-03](#v27-03-let-the-webp-semaphore-degrade-instead-of-queueing) | `Semaphore.acquire()` has no timeout | P3 | not started |
-| [V2.7-04](#v27-04-stop-parsing-backend-prose-in-the-frontend) | Validation copy duplicated in 3 places, unguarded | P3 | not started |
-| [V2.7-05](#v27-05-close-the-two-ci-gaps) | No E2E job; smoke test never hits the proxy | P4 | not started |
-| [V2.7-06](#v27-06-let-modifier-key-combinations-through-the-number-guard) | Number guard swallows Ctrl/Cmd shortcuts | P4 | not started |
+| [V2.7-01](#v27-01-bound-the-unified-search-offset) | Unbounded `offset` → 500 + heap amplification | **P1** | done |
+| [V2.7-02](#v27-02-make-the-eager-image-count-work-at-ssr-time) | V2.6-07's measurement runs too late to matter | P2 | done |
+| [V2.7-03](#v27-03-let-the-webp-semaphore-degrade-instead-of-queueing) | `Semaphore.acquire()` has no timeout | P3 | done |
+| [V2.7-04](#v27-04-stop-parsing-backend-prose-in-the-frontend) | Validation copy duplicated in 3 places, unguarded | P3 | done (contract test, not the structural fix — see item) |
+| [V2.7-05](#v27-05-close-the-two-ci-gaps) | No E2E job; smoke test never hits the proxy | P4 | done |
+| [V2.7-06](#v27-06-let-modifier-key-combinations-through-the-number-guard) | Number guard swallows Ctrl/Cmd shortcuts | P4 | done |
 
 ## Verification state at the time of review
 

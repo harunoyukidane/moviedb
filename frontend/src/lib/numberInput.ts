@@ -8,5 +8,10 @@
 const BLOCKED_KEYS = new Set(['-', '+', 'e', 'E', '.']);
 
 export function blockNonWholeNumberKeys(event: KeyboardEvent): void {
+  // Let Ctrl/Cmd/Alt shortcuts (e.g. Ctrl+E, Cmd+E) through undisturbed - this
+  // guard is a convenience against stray keystrokes, not a validation
+  // boundary (paste already bypasses it entirely; the server check is the
+  // real defense) (V2.7-06).
+  if (event.ctrlKey || event.metaKey || event.altKey) return;
   if (BLOCKED_KEYS.has(event.key)) event.preventDefault();
 }

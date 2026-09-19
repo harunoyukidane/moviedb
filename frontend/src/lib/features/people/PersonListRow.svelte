@@ -8,7 +8,7 @@
   export let dates: string | null = null;
   /** This row's position in the grid - the first row must not be lazy-loaded (LCP), and only the very first photo gets fetchpriority. */
   export let index = -1;
-  /** How many leading items count as "the first row"; the grid owner measures its own rendered column count (V2.6-07). */
+  /** How many leading items count as "the first row"; fixed at the SSR-time desktop column cap (V2.7-02) since `loading` is a server-rendered attribute. */
   export let eagerCount = 6;
 </script>
 

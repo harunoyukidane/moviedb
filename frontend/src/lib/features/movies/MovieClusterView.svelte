@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import type { Movie } from '$lib/server/types';
   import MoviePosterFallback from './MoviePosterFallback.svelte';
 
@@ -7,28 +6,16 @@
 
   // The first rendered row must not be lazy-loaded, or the LCP candidate
   // (almost always one of the first row's posters) gets deprioritized instead
-  // of helped. `.poster-grid` reflows its column count with viewport width
-  // (V2.6-07: a fixed "6" assumed desktop width and stayed wrong on mobile,
-  // where the grid narrows to 2-3 columns and "eager" spanned several rows -
-  // the opposite of the intent) - so this measures the grid's own rendered
-  // column count instead of guessing a breakpoint.
-  let gridEl: HTMLUListElement | undefined;
-  let eagerCount = 2;
-
-  function measureEagerCount() {
-    if (!gridEl) return;
-    const columns = getComputedStyle(gridEl).gridTemplateColumns.split(' ').filter(Boolean).length;
-    if (columns > 0) eagerCount = columns;
-  }
-
-  onMount(() => {
-    measureEagerCount();
-    window.addEventListener('resize', measureEagerCount);
-    return () => window.removeEventListener('resize', measureEagerCount);
-  });
+  // of helped. `loading` is a server-rendered attribute that the browser's
+  // preload scanner acts on before hydration (V2.7-02), so this can't be a
+  // client-measured value - it has to be known at SSR time. `.poster-grid`
+  // caps at 6 columns wide (app.css), so 6 is desktop-correct; narrower
+  // viewports render fewer than 6 per row and eagerly load one extra row's
+  // worth there, which is wasted bandwidth but not a correctness problem.
+  const EAGER_COUNT = 6;
 </script>
 
-<ul class="poster-grid" aria-label="Movies" bind:this={gridEl}>
+<ul class="poster-grid" aria-label="Movies">
   {#each items as movie, i (movie.id)}
     <li>
       <a class="poster-card" href={`/movies/${movie.id}`}>
@@ -36,7 +23,7 @@
           <img
             src={movie.artwork.url}
             alt={`Poster for ${movie.title}`}
-            loading={i < eagerCount ? undefined : 'lazy'}
+            loading={i < EAGER_COUNT ? undefined : 'lazy'}
             fetchpriority={i === 0 ? 'high' : undefined}
           />
         {:else}

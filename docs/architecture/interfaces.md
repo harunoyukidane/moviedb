@@ -39,6 +39,20 @@ Expected errors use stable `extensions.code` values:
 | `DEPENDENCY_UNAVAILABLE` | People Service failed or timed out |
 | `INTERNAL_ERROR` | Unexpected failure; no stack trace exposed |
 
+**Validation message text is, today, accidentally part of the contract**
+(V2.7-04). `extensions.code: BAD_USER_INPUT` is the stable, intended
+contract — the frontend's `messageForCode` always has a code-only fallback —
+but [`errors.ts`](../../frontend/src/lib/errors.ts) additionally parses the
+GraphQL error `message` string with regexes to render more specific copy
+(field name, character class, bound). Nothing currently binds that prose to
+the two services' `domain/TextRules.kt` / `Rules.kt`/`PersonRules.kt`
+messages other than a same-day check; a `TextRulesFrontendContractTest` in
+each service pins the current wording so a reword fails a backend test
+instead of silently degrading to the generic `BAD_USER_INPUT` copy in the UI.
+The structural fix — carrying a stable rule code in `extensions` alongside
+`field`, so the frontend stops parsing English — is tracked but not done; see
+[plans/v2.7/README.md](../plans/v2.7/README.md#v27-04-stop-parsing-backend-prose-in-the-frontend).
+
 ## Artwork/photo HTTP endpoints
 
 Binary bytes never go through GraphQL — streaming, multipart transfer,

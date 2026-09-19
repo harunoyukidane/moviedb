@@ -104,6 +104,23 @@ jobs:
       - name: Verify Catalogue readiness
         run: |
           curl -fsS http://localhost:8080/actuator/health/readiness | grep -q '"status":"UP"'
+      # Proxy is the only published port and had no healthcheck before V2.6-08;
+      # readiness above never touches it, so this is the only check that covers
+      # the whole browser-facing chain (V2.7-05).
+      - name: Verify proxy serves the frontend
+        run: curl -fsS http://localhost:4173/ > /dev/null
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      # The full create person -> create movie -> add credit -> upload artwork ->
+      # search -> remove credit -> delete journey (V2.7-05): it creates every
+      # record it needs, so it runs against the empty, unseeded stack above with
+      # no TMDB_READ_TOKEN required.
+      - name: Run E2E journey against the composed stack
+        working-directory: frontend
+        env:
+          BASE_URL: http://localhost:4173
+        run: npm run test:e2e
       - name: Tear down
         if: always()
         run: docker compose down -v

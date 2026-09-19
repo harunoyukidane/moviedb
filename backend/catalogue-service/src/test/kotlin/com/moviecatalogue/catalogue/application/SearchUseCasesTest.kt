@@ -13,6 +13,7 @@ import com.moviecatalogue.catalogue.people.PersonHit
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
+import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
@@ -121,6 +122,29 @@ class SearchUseCasesTest {
         search.search("q", 9999, 0)
         // fetch window = clampedLimit(100) + offset(0)
         assertThat(pageableSlot.captured.pageSize).isEqualTo(100)
+    }
+
+    @Test
+    fun `offset at Int MAX_VALUE returns an empty result without touching the DB or people service`() {
+        val result = search.search("q", 10, Int.MAX_VALUE)
+
+        assertThat(result.movies).isEmpty()
+        assertThat(result.people).isEmpty()
+        verify(exactly = 0) { movies.searchByTitlePattern(any(), any<Pageable>()) }
+        verify(exactly = 0) { people.searchPeople(any(), any(), any()) }
+    }
+
+    @Test
+    fun `a large but valid offset issues no oversized fetch`() {
+        val pageableSlot = slot<Pageable>()
+        every { movies.searchByTitlePattern(any(), capture(pageableSlot)) } returns emptyList()
+        every { people.searchPeople(any(), any(), any()) } returns emptyList()
+        noCredits()
+
+        search.search("q", 10, 9_990)
+
+        // fetch window = offset(9990) + limit(10), just under the deep-offset ceiling
+        assertThat(pageableSlot.captured.pageSize).isEqualTo(10_000)
     }
 
     @Test

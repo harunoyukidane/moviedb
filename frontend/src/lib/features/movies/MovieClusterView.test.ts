@@ -32,6 +32,19 @@ describe('MovieClusterView', () => {
     expect(link.querySelector('img')).toBeNull();
   });
 
+  it('marks the first six posters eager and the rest lazy, without waiting for a client measurement', () => {
+    const many = Array.from({ length: 8 }, (_, i) => ({
+      id: `m${i}`,
+      title: `Movie ${i}`,
+      releaseDate: null,
+      artwork: { id: `a${i}`, url: `/artwork/a${i}`, mediaType: 'image/jpeg', byteSize: 100 }
+    })) as any;
+    render(MovieClusterView, { props: { items: many } });
+    const imgs = screen.getAllByRole('img');
+    imgs.slice(0, 6).forEach((img) => expect(img).not.toHaveAttribute('loading', 'lazy'));
+    imgs.slice(6).forEach((img) => expect(img).toHaveAttribute('loading', 'lazy'));
+  });
+
   it('renders nothing but an empty, labeled list for an empty page', () => {
     render(MovieClusterView, { props: { items: [] } });
     const list = screen.getByRole('list', { name: 'Movies' });

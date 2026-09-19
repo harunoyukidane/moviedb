@@ -54,6 +54,18 @@ class SearchUseCases(
         const val RANK_EXACT_PREFIX = 0
         const val RANK_SUBSTRING = 1
         const val RANK_RELATED_CREDIT = 2
+
+        /**
+         * Deep-offset ceiling for unified search only (V2.7-01). Unlike
+         * movies/people, search still hydrates `offset + limit` rows in memory to
+         * merge and rank title and credit hits, so a request at or past this
+         * offset returns an empty page without touching the DB or gRPC at all,
+         * rather than clamping into `clampOffset` (which would silently change
+         * movies/people semantics too). Set well above any offset a real paging
+         * UI reaches — page 100 at the max limit of 100/page — while still
+         * bounding the worst-case in-memory hydration.
+         */
+        const val MAX_SEARCH_OFFSET = 10_000
     }
 
     @Transactional(readOnly = true)
@@ -61,11 +73,18 @@ class SearchUseCases(
         val query = normalizeQuery(rawQuery)
         val clampedLimit = MovieRules.clampLimit(limit)
         val clampedOffset = MovieRules.clampOffset(offset)
+        if (clampedOffset >= MAX_SEARCH_OFFSET) {
+            return SearchResultView(emptyList(), emptyList())
+        }
         val lower = query.lowercase()
         val pattern = SearchPattern.containsPattern(query)
 
         // 1 & 2 concurrently: title search (DB) + people search (gRPC).
-        val fetchWindow = clampedOffset + clampedLimit
+        // Math.addExact: clampedOffset < MAX_SEARCH_OFFSET and clampedLimit <=
+        // PAGE_LIMIT_MAX so this never actually overflows, but it guarantees the
+        // int overflow -> negative PageRequest -> INTERNAL_ERROR path (V2.7-01)
+        // can never reopen if either bound is loosened later.
+        val fetchWindow = Math.addExact(clampedOffset, clampedLimit)
         val titleFuture = CompletableFuture.supplyAsync {
             movies.searchByTitlePattern(pattern, PageRequest.of(0, fetchWindow))
         }

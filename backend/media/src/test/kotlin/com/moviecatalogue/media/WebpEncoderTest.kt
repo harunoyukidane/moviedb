@@ -66,4 +66,43 @@ class WebpEncoderTest {
         // (~400ms + overhead) case this guards against.
         assertThat(elapsedMs).isGreaterThanOrEqualTo(700)
     }
+
+    @Test
+    fun `a caller that cannot get a permit within the wait budget returns null promptly (V2_7-03)`() {
+        // Every permit is held by a slow encode for well beyond the contender's wait
+        // budget, so the contender must degrade rather than queue.
+        val script = kotlin.io.path.createTempFile("webp-delay-", ".sh").apply {
+            toFile().writeText(
+                """
+                #!/bin/sh
+                sleep 2
+                touch "${'$'}6"
+                exit 0
+                """.trimIndent(),
+            )
+            toFile().setExecutable(true)
+            toFile().deleteOnExit()
+        }
+        val encoder = WebpEncoder(
+            binary = script.toString(),
+            maxConcurrent = 1,
+            timeoutSeconds = 5,
+            permitWaitSeconds = 1,
+        )
+
+        val pool = Executors.newFixedThreadPool(2)
+        try {
+            val holder = pool.submit { encoder.encode(pngBytes()) }
+            Thread.sleep(200) // let the holder acquire the only permit first
+            val start = System.nanoTime()
+            val contender = pool.submit { encoder.encode(pngBytes()) }.get(10, TimeUnit.SECONDS)
+            val elapsedMs = (System.nanoTime() - start) / 1_000_000
+
+            assertThat(contender).isNull()
+            assertThat(elapsedMs).isLessThan(2000)
+            holder.get(10, TimeUnit.SECONDS)
+        } finally {
+            pool.shutdownNow()
+        }
+    }
 }
