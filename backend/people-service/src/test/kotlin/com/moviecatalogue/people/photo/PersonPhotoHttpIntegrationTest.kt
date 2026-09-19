@@ -49,6 +49,7 @@ class PersonPhotoHttpIntegrationTest {
             registry.add("spring.datasource.password", postgres::getPassword)
             registry.add("artwork.storage-path") { photoDir.toString() }
             registry.add("grpc.server.port") { "0" } // random gRPC port to avoid clashes
+            registry.add("people.photo.sweep.min-age") { "PT0S" }
         }
     }
 

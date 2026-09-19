@@ -68,6 +68,7 @@ class PersonPhotoMinioHttpIntegrationTest {
             registry.add("spring.datasource.username", postgres::getUsername)
             registry.add("spring.datasource.password", postgres::getPassword)
             registry.add("grpc.server.port") { "0" }
+            registry.add("people.photo.sweep.min-age") { "PT0S" }
 
             val client = MinioClient.builder()
                 .endpoint(minio.s3URL)
