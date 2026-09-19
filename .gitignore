@@ -37,3 +37,8 @@ backend/media-deps.log
 backend/full-build.log
 backend/media-test.log
 docs/archive/movie-db-v2-kiro-spec/.config.kiro
+
+# Playwright run artifacts
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/
