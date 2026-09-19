@@ -111,6 +111,7 @@
     noMatch = false;
   }
 
+  function onQueryKeydown(e: KeyboardEvent) {
     if (e.key === 'ArrowDown') {
       if (!suggestions.length) return;
       e.preventDefault();

@@ -83,6 +83,7 @@
       e.preventDefault();
       suggestionsOpen = false;
       activeIndex = -1;
+    }
   }
 
   // A suggestion button's mousedown fires before the input's blur; preventing
