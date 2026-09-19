@@ -7,6 +7,15 @@ demo.
 
 ---
 
+## Copyright
+
+Copyright © 2026 Harunoyukidane. All rights reserved.
+
+This repository is made available for portfolio viewing only. No permission is
+granted to use, copy, modify, or distribute its contents.
+
+---
+
 ## Quick start (fresh clone)
 
 Prerequisites: **Docker** + **Docker Compose v2**, with Docker Desktop running.
@@ -330,11 +339,3 @@ person data and posters are sourced from
 [The Movie Database (TMDB)](https://www.themoviedb.org) at setup time; after seeding
 the application has no runtime dependency on TMDB. See the in-app `/about` page.
 
----
-
-## Copyright
-
-Copyright © 2026 Harunoyukidane. All rights reserved.
-
-This repository is made available for portfolio viewing only. No permission is
-granted to use, copy, modify, or distribute its contents.
