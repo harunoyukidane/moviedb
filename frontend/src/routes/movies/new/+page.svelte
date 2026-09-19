@@ -8,6 +8,7 @@
   import LanguageSelect from '$lib/components/LanguageSelect.svelte';
   import DateField from '$lib/components/DateField.svelte';
   import { RELEASE_DATE_MIN, releaseDateMax } from '$lib/dateBounds';
+  import { blockNonWholeNumberKeys } from '$lib/numberInput';
   import { tick } from 'svelte';
 
   export let data: PageData;
@@ -131,6 +132,7 @@
           type="number"
           min="1"
           value={v.runtimeMinutes ?? ''}
+          on:keydown={blockNonWholeNumberKeys}
           aria-invalid={!!fieldErrors.runtimeMinutes}
           aria-describedby="runtimeMinutes-error"
         />

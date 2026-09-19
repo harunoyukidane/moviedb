@@ -3,6 +3,7 @@
   import { enhance } from '$app/forms';
   import type { CreditRoleCode } from '$lib/server/types';
   import CharCounter from './CharCounter.svelte';
+  import { blockNonWholeNumberKeys } from '$lib/numberInput';
 
   const CHARACTER_NAME_MAX = 300;
 
@@ -245,7 +246,14 @@
 
         <div class="field">
           <label for="billingOrder">Billing order (optional)</label>
-          <input id="billingOrder" name="billingOrder" type="number" min="0" bind:value={billingOrder} />
+          <input
+            id="billingOrder"
+            name="billingOrder"
+            type="number"
+            min="0"
+            bind:value={billingOrder}
+            on:keydown={blockNonWholeNumberKeys}
+          />
         </div>
 
         <div class="actions">

@@ -13,18 +13,18 @@ describe('BFF request helpers', () => {
     expect(codeForError(new Error('boom'))).toBe('INTERNAL_ERROR');
   });
 
-  it('messageForError surfaces the backend validation message', () => {
+  it('messageForError surfaces the backend validation message, rewritten for display', () => {
     const e = new GraphQlRequestError('BAD_USER_INPUT', 'title must be at most 300 characters', 'trace-1', 'title');
-    expect(messageForError(e, 'BAD_USER_INPUT')).toBe('title must be at most 300 characters');
+    expect(messageForError(e, 'BAD_USER_INPUT')).toBe('Title can be up to 300 characters.');
   });
 
   it('messageForError falls back to the generic copy for a non-GraphQL error', () => {
     expect(messageForError(new Error('boom'), 'INTERNAL_ERROR')).not.toMatch(/boom/);
   });
 
-  it('fieldErrorsForError keys the message to the offending field', () => {
+  it('fieldErrorsForError keys the rewritten message to the offending field', () => {
     const e = new GraphQlRequestError('BAD_USER_INPUT', 'title must be at most 300 characters', 'trace-1', 'title');
-    expect(fieldErrorsForError(e)).toEqual({ title: 'title must be at most 300 characters' });
+    expect(fieldErrorsForError(e)).toEqual({ title: 'Title can be up to 300 characters.' });
   });
 
   it('fieldErrorsForError is undefined when the error carries no field', () => {

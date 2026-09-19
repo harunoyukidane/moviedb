@@ -8,6 +8,7 @@
   import LanguageSelect from '$lib/components/LanguageSelect.svelte';
   import DateField from '$lib/components/DateField.svelte';
   import { RELEASE_DATE_MIN, releaseDateMax } from '$lib/dateBounds';
+  import { blockNonWholeNumberKeys } from '$lib/numberInput';
   import ArtworkUpload from '$lib/components/ArtworkUpload.svelte';
   import CreditDialog from '$lib/components/CreditDialog.svelte';
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
@@ -205,6 +206,7 @@
           type="number"
           min="1"
           value={v.runtimeMinutes}
+          on:keydown={blockNonWholeNumberKeys}
           aria-invalid={!!fieldErrors.runtimeMinutes}
           aria-describedby="runtimeMinutes-error"
         />
