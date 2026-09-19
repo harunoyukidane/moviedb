@@ -69,8 +69,9 @@
   {#if open && filtered.length}
     <ul id={`${id}-listbox`} class="suggestions" role="listbox">
       {#each filtered as i (i.code)}
-        <li role="option" aria-selected={selectedCode === i.code}>
-          <button type="button" on:mousedown|preventDefault={() => pick(i)}>{i.name}</button>
+        <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-noninteractive-element-interactions -->
+        <li role="option" aria-selected={selectedCode === i.code} on:mousedown|preventDefault={() => pick(i)}>
+          {i.name}
         </li>
       {/each}
     </ul>

@@ -3,6 +3,10 @@
   import { page } from '$app/stores';
 </script>
 
+<svelte:head>
+  <meta name="description" content="Browse and manage a catalogue of movies, cast and crew." />
+</svelte:head>
+
 <a href="#main" class="skip-link">Skip to content</a>
 <header class="site-header">
   <div class="container header-row">

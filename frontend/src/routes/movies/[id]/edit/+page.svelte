@@ -98,6 +98,8 @@
   }
 </script>
 
+<svelte:head><title>Edit {movie.title} · MovieDB</title></svelte:head>
+
 <a class="page-back" href={`/movies/${movie.id}`}>← Back to movie</a>
 <h1>Edit “{movie.title}”</h1>
 

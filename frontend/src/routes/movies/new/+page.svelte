@@ -45,6 +45,8 @@
   }
 </script>
 
+<svelte:head><title>New movie · MovieDB</title></svelte:head>
+
 <a class="page-back" href="/movies">← All movies</a>
 <h1>New movie</h1>
 

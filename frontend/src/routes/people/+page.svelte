@@ -39,6 +39,8 @@
   $: activeLetter = /^[A-Za-z]/.test(page.items[0]?.name ?? '') ? page.items[0].name[0].toUpperCase() : null;
 </script>
 
+<svelte:head><title>People · MovieDB</title></svelte:head>
+
 <div class="head-row">
   <h1>People</h1>
   <a class="new-link" href="/people/new">+ New person</a>

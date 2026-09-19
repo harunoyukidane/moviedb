@@ -40,6 +40,8 @@
   }
 </script>
 
+<svelte:head><title>New person · MovieDB</title></svelte:head>
+
 <a class="page-back" href="/people">← All people</a>
 <h1>New person</h1>
 

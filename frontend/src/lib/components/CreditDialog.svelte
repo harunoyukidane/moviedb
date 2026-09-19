@@ -146,8 +146,9 @@
           {#if suggestions.length}
             <ul id="person-suggestions" class="suggestions" role="listbox">
               {#each suggestions as p (p.id)}
-                <li role="option" aria-selected={selectedPersonId === p.id}>
-                  <button type="button" on:click={() => pick(p)}>{p.name}</button>
+                <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-noninteractive-element-interactions -->
+                <li role="option" aria-selected={selectedPersonId === p.id} on:click={() => pick(p)}>
+                  {p.name}
                 </li>
               {/each}
             </ul>

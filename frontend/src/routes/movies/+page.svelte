@@ -70,6 +70,8 @@
     : null;
 </script>
 
+<svelte:head><title>Movies · MovieDB</title></svelte:head>
+
 <div class="head-row">
   <h1>Movies</h1>
   <a class="new-link" href="/movies/new">+ New movie</a>

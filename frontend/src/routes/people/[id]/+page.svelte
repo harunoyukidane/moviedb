@@ -16,6 +16,8 @@
   $: birthPlace = [person.placeOfBirth, person.birthCountry?.name].filter(Boolean).join(' — ');
 </script>
 
+<svelte:head><title>{person.name} · MovieDB</title></svelte:head>
+
 <a class="page-back" href="/people">← All people</a>
 
 <div class="detail">

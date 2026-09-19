@@ -88,8 +88,9 @@
     {#if suggestionsOpen}
       <ul id="person-suggestions" class="suggestions" role="listbox">
         {#each suggestions as p (p.id)}
-          <li role="option" aria-selected="false">
-            <button type="button" on:mousedown={keepFocus} on:click={() => pick(p)}>{p.name}</button>
+          <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-noninteractive-element-interactions -->
+          <li role="option" aria-selected="false" on:mousedown={keepFocus} on:click={() => pick(p)}>
+            {p.name}
           </li>
         {/each}
       </ul>
@@ -135,19 +136,13 @@
     max-height: 16rem;
     overflow-y: auto;
   }
-  .suggestions li { border-bottom: 1px solid var(--border); }
-  .suggestions li:last-child { border-bottom: none; }
-  .suggestions button {
-    display: block;
-    width: 100%;
-    text-align: left;
+  .suggestions li {
     padding: var(--sp-1);
-    background: none;
-    border: none;
     cursor: pointer;
+    border-bottom: 1px solid var(--border);
   }
-  .suggestions button:hover,
-  .suggestions button:focus {
+  .suggestions li:last-child { border-bottom: none; }
+  .suggestions li:hover {
     background: var(--surface-2);
   }
   .person-search button[type='submit'] {
