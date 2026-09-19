@@ -63,13 +63,17 @@
 
   function onKeydown(e: KeyboardEvent) {
     if (e.key === 'ArrowDown') {
-      if (!suggestionsOpen || !suggestions.length) return;
+      if (!suggestions.length) return;
       e.preventDefault();
-      activeIndex = (activeIndex + 1) % suggestions.length;
+      const wasOpen = suggestionsOpen;
+      suggestionsOpen = true;
+      activeIndex = wasOpen ? (activeIndex + 1) % suggestions.length : 0;
     } else if (e.key === 'ArrowUp') {
-      if (!suggestionsOpen || !suggestions.length) return;
+      if (!suggestions.length) return;
       e.preventDefault();
-      activeIndex = (activeIndex - 1 + suggestions.length) % suggestions.length;
+      const wasOpen = suggestionsOpen;
+      suggestionsOpen = true;
+      activeIndex = wasOpen ? (activeIndex - 1 + suggestions.length) % suggestions.length : suggestions.length - 1;
     } else if (e.key === 'Enter') {
       if (suggestionsOpen && activeIndex >= 0 && activeIndex < suggestions.length) {
         e.preventDefault();
