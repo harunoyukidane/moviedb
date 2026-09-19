@@ -5,6 +5,7 @@ import com.moviecatalogue.media.ArtworkStore
 import com.moviecatalogue.media.ImageContentValidator
 import com.moviecatalogue.media.LocalArtworkStore
 import com.moviecatalogue.media.MinioArtworkStore
+import com.moviecatalogue.media.WebpEncoder
 import io.minio.BucketExistsArgs
 import io.minio.MinioClient
 import org.springframework.beans.factory.annotation.Value
@@ -75,6 +76,9 @@ class MediaConfig {
 
     @Bean
     fun imageContentValidator(): ImageContentValidator = ImageContentValidator()
+
+    @Bean
+    fun webpEncoder(): WebpEncoder = WebpEncoder()
 
     @Bean
     fun artworkTransactionTemplate(txManager: PlatformTransactionManager): TransactionTemplate =

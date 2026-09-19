@@ -9,7 +9,11 @@ interface ArtworkRepository : JpaRepository<ArtworkAsset, UUID> {
     fun findByMovieId(movieId: UUID): ArtworkAsset?
     fun findAllByMovieIdIn(movieIds: Collection<UUID>): List<ArtworkAsset>
 
-    /** All storage keys currently referenced by metadata (orphan sweeper). */
+    /** All primary storage keys currently referenced by metadata (orphan sweeper). */
     @Query("SELECT a.storageKey FROM ArtworkAsset a")
     fun findAllStorageKeys(): List<String>
+
+    /** All WebP variant storage keys currently referenced by metadata (orphan sweeper). */
+    @Query("SELECT a.webpStorageKey FROM ArtworkAsset a WHERE a.webpStorageKey IS NOT NULL")
+    fun findAllWebpStorageKeys(): List<String>
 }

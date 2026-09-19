@@ -48,7 +48,7 @@
 <div class="detail">
   <section class="artwork-section" aria-label="Artwork">
     {#if movie.artwork}
-      <img class="detail-media" src={movie.artwork.url} alt={`Poster for ${movie.title}`} />
+      <img class="detail-media" src={movie.artwork.url} alt={`Poster for ${movie.title}`} fetchpriority="high" />
     {:else}
       <div class="detail-media detail-fallback" aria-hidden="true">🎞️</div>
     {/if}

@@ -44,6 +44,10 @@ class Person(
     @Column(name = "profile_path")
     var profilePath: String? = null,
 
+    /** Optional WebP variant for `Accept`-negotiated serving; null if `cwebp` wasn't available at upload time. */
+    @Column(name = "profile_path_webp")
+    var profilePathWebp: String? = null,
+
     @Version
     @Column(name = "version", nullable = false)
     var version: Long = 0,

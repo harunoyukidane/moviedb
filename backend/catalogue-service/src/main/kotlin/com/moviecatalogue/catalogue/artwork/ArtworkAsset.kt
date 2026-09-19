@@ -46,6 +46,17 @@ class ArtworkAsset(
     @Column(name = "height")
     var height: Int? = null,
 
+    /** Optional WebP variant for `Accept`-negotiated serving; null if `cwebp` wasn't available at upload time. */
+    @Column(name = "webp_storage_key")
+    var webpStorageKey: String? = null,
+
+    @Column(name = "webp_byte_size")
+    var webpByteSize: Long? = null,
+
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "webp_sha256", length = 64)
+    var webpSha256: String? = null,
+
     @Column(name = "created_at", nullable = false, updatable = false, insertable = false)
     var createdAt: OffsetDateTime? = null,
 )

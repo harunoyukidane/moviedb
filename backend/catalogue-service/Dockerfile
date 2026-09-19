@@ -6,6 +6,10 @@
 # Build the jar first:  (from backend/) ./gradlew :catalogue-service:bootJar
 FROM eclipse-temurin:21-jre
 WORKDIR /app
+# cwebp: best-effort WebP transcoding for artwork (WebpEncoder). Its absence
+# degrades gracefully (artwork is just served in its primary format), but
+# installing it is what actually turns on Accept-negotiated WebP responses.
+RUN apt-get update && apt-get install -y --no-install-recommends webp && rm -rf /var/lib/apt/lists/*
 # Non-root user (security baseline §14).
 RUN useradd -r -u 1001 appuser
 # Pre-create the artwork mount dir owned by appuser so a fresh named volume

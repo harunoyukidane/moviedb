@@ -24,7 +24,7 @@ class PhotoExceptionAdviceTest {
     @Test
     fun `a storage backend outage while serving returns 503, not a default 500`() {
         val personId = UUID.randomUUID()
-        given(photoUseCases.photoKey(personId)).willReturn("key.png")
+        given(photoUseCases.photoKeys(personId)).willReturn(PersonPhotoUseCases.PhotoKeys("key.png", null))
         given(store.exists("key.png")).willThrow(ArtworkStorageException())
 
         mockMvc.get("/api/people/$personId/photo")

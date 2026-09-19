@@ -3,9 +3,12 @@ package com.moviecatalogue.catalogue.artwork
 import com.moviecatalogue.catalogue.common.UuidV7
 import com.moviecatalogue.catalogue.domain.NotFoundException
 import com.moviecatalogue.catalogue.movie.MovieRepository
+import com.moviecatalogue.media.ArtworkStorageException
 import com.moviecatalogue.media.ArtworkStore
 import com.moviecatalogue.media.ImageContentValidator
+import com.moviecatalogue.media.StoredObject
 import com.moviecatalogue.media.ValidatedImage
+import com.moviecatalogue.media.WebpEncoder
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -28,6 +31,7 @@ class ArtworkUseCases(
     private val transactionTemplate: TransactionTemplate,
     private val meterRegistry: io.micrometer.core.instrument.MeterRegistry =
         io.micrometer.core.instrument.simple.SimpleMeterRegistry(),
+    private val webpEncoder: WebpEncoder = WebpEncoder(),
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
     // §15 metric: artwork metadata-swap failures (bytes written but DB failed).
@@ -50,6 +54,11 @@ class ArtworkUseCases(
         // 4-5. store to the volume (server key + atomic move + sha256)
         val stored = store.put(ByteArrayInputStream(validated.bytes), validated.format.extension)
 
+        // Best-effort WebP variant for Accept-negotiated serving (ArtworkServingController).
+        // Never blocks the upload: a missing `cwebp` binary or a failed store.put here just
+        // means this asset is served in its primary format only.
+        val webpStored = encodeAndStoreWebp(validated)
+
         val previous = artworkRepository.findByMovieId(movieId)
         val newAsset = ArtworkAsset(
             id = UuidV7.generate(),
@@ -61,6 +70,9 @@ class ArtworkUseCases(
             sha256 = stored.sha256,
             width = validated.width,
             height = validated.height,
+            webpStorageKey = webpStored?.storageKey,
+            webpByteSize = webpStored?.byteSize,
+            webpSha256 = webpStored?.sha256,
         )
 
         // 6. swap metadata transactionally; compensate the new file if the DB write fails.
@@ -80,6 +92,7 @@ class ArtworkUseCases(
             artworkFailureCounter.increment()
             try {
                 store.delete(stored.storageKey) // compensating delete of the just-written bytes
+                webpStored?.let { store.delete(it.storageKey) }
             } catch (storageError: com.moviecatalogue.media.ArtworkStorageException) {
                 log.warn(
                     "compensation failed for artwork file {}; orphan will remain for sweeper: {}",
@@ -95,8 +108,11 @@ class ArtworkUseCases(
             throw e
         }
 
-        // 7. delete the previous file only after commit; best-effort (sweeper retries)
-        previous?.let { deleteBestEffort(it.storageKey, "old artwork file") }
+        // 7. delete the previous file(s) only after commit; best-effort (sweeper retries)
+        previous?.let {
+            deleteBestEffort(it.storageKey, "old artwork file")
+            it.webpStorageKey?.let { webpKey -> deleteBestEffort(webpKey, "old artwork webp file") }
+        }
         return saved
     }
 
@@ -105,11 +121,28 @@ class ArtworkUseCases(
         val asset = artworkRepository.findByMovieId(movieId)
             ?: throw NotFoundException("movie '$movieId' has no artwork")
         val key = asset.storageKey
+        val webpKey = asset.webpStorageKey
         artworkRepository.delete(asset)
         artworkRepository.flush()
         // remove bytes after the association is gone; sweeper covers a failed delete
         deleteBestEffort(key, "artwork file")
+        webpKey?.let { deleteBestEffort(it, "artwork webp file") }
         return asset.id
+    }
+
+    /**
+     * Encodes [validated]'s bytes to WebP and stores the result, or returns null if `cwebp`
+     * is unavailable, the encode fails, or the store write itself fails - all best-effort,
+     * since the primary asset already satisfies every existing caller without this variant.
+     */
+    private fun encodeAndStoreWebp(validated: ValidatedImage): StoredObject? {
+        val webpBytes = webpEncoder.encode(validated.bytes) ?: return null
+        return try {
+            store.put(ByteArrayInputStream(webpBytes), "webp")
+        } catch (e: ArtworkStorageException) {
+            log.warn("failed to store WebP variant; serving primary format only: {}", e.message)
+            null
+        }
     }
 
     /**

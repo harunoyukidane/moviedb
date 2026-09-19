@@ -5,6 +5,7 @@ import com.moviecatalogue.media.ArtworkStorageException
 import com.moviecatalogue.media.ArtworkStore
 import com.moviecatalogue.media.ImageContentValidator
 import com.moviecatalogue.media.StoredObject
+import com.moviecatalogue.media.WebpEncoder
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import com.moviecatalogue.catalogue.domain.NotFoundException
 import io.mockk.every
@@ -29,11 +30,19 @@ class ArtworkUseCasesTest {
     private val store = mockk<ArtworkStore>()
     private val validator = ImageContentValidator()
     private val meterRegistry = SimpleMeterRegistry()
+    // Encoding is off by default in these tests (returns null) so the existing scenarios
+    // exercise the "no webp variant" path without depending on `cwebp` being installed.
+    private val webpEncoder = mockk<WebpEncoder>()
 
     // A TransactionTemplate that just runs the callback (no real tx) but can be made to "fail".
     private val txTemplate = mockk<TransactionTemplate>()
 
-    private val useCases = ArtworkUseCases(movies, artworkRepository, store, validator, txTemplate, meterRegistry)
+    private val useCases =
+        ArtworkUseCases(movies, artworkRepository, store, validator, txTemplate, meterRegistry, webpEncoder)
+
+    init {
+        every { webpEncoder.encode(any()) } returns null
+    }
 
     private fun pngBytes(): ByteArray {
         val out = ByteArrayOutputStream()
@@ -151,4 +160,60 @@ class ArtworkUseCasesTest {
         id = UUID.randomUUID(), movieId = UUID.randomUUID(), storageKey = "new-key.png",
         originalFilename = "poster.png", mediaType = "image/png", byteSize = 100, sha256 = "c".repeat(64),
     )
+
+    @Test
+    fun `stores a webp variant and records it on the asset when the encoder succeeds`() {
+        val movieId = UUID.randomUUID()
+        every { movies.existsById(movieId) } returns true
+        every { store.put(any(), "png") } returns StoredObject("new-key.png", 100, "a".repeat(64))
+        every { webpEncoder.encode(any()) } returns ByteArray(10)
+        every { store.put(any(), "webp") } returns StoredObject("new-key.webp", 10, "e".repeat(64))
+        every { artworkRepository.findByMovieId(movieId) } returns null
+        val captured = slot<ArtworkAsset>()
+        every { artworkRepository.saveAndFlush(capture(captured)) } answers { captured.captured }
+        val callback = slot<TransactionCallback<ArtworkAsset>>()
+        every { txTemplate.execute(capture(callback)) } answers { callback.captured.doInTransaction(mockk(relaxed = true)) }
+
+        val result = useCases.uploadMovieArtwork(movieId, pngBytes(), "poster.png")
+
+        assertThat(result.webpStorageKey).isEqualTo("new-key.webp")
+        assertThat(result.webpByteSize).isEqualTo(10L)
+        assertThat(result.webpSha256).isEqualTo("e".repeat(64))
+    }
+
+    @Test
+    fun `leaves webp fields null when the encoder returns nothing`() {
+        val movieId = UUID.randomUUID()
+        every { movies.existsById(movieId) } returns true
+        every { store.put(any(), "png") } returns StoredObject("new-key.png", 100, "a".repeat(64))
+        every { artworkRepository.findByMovieId(movieId) } returns null
+        val captured = slot<ArtworkAsset>()
+        every { artworkRepository.saveAndFlush(capture(captured)) } answers { captured.captured }
+        val callback = slot<TransactionCallback<ArtworkAsset>>()
+        every { txTemplate.execute(capture(callback)) } answers { callback.captured.doInTransaction(mockk(relaxed = true)) }
+
+        val result = useCases.uploadMovieArtwork(movieId, pngBytes(), "poster.png")
+
+        assertThat(result.webpStorageKey).isNull()
+        verify(exactly = 0) { store.put(any(), "webp") }
+    }
+
+    @Test
+    fun `db failure also compensates the newly written webp file`() {
+        val movieId = UUID.randomUUID()
+        every { movies.existsById(movieId) } returns true
+        every { store.put(any(), "png") } returns StoredObject("new-key.png", 100, "a".repeat(64))
+        every { webpEncoder.encode(any()) } returns ByteArray(10)
+        every { store.put(any(), "webp") } returns StoredObject("new-key.webp", 10, "e".repeat(64))
+        every { artworkRepository.findByMovieId(movieId) } returns null
+        every { txTemplate.execute(any<TransactionCallback<*>>()) } throws RuntimeException("db down")
+        every { store.delete("new-key.png") } returns true
+        every { store.delete("new-key.webp") } returns true
+
+        assertThatThrownBy { useCases.uploadMovieArtwork(movieId, pngBytes(), "poster.png") }
+            .isInstanceOf(RuntimeException::class.java)
+
+        verify(exactly = 1) { store.delete("new-key.png") }
+        verify(exactly = 1) { store.delete("new-key.webp") }
+    }
 }

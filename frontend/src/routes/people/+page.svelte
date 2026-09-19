@@ -60,9 +60,9 @@
   </StateBanner>
 {:else}
   <ul class="photo-grid" aria-label="People">
-    {#each page.items as person (person.id)}
+    {#each page.items as person, i (person.id)}
       <li>
-        <PersonListRow id={person.id} name={person.name} photoUrl={person.photoUrl} dates={datesFor(person)} />
+        <PersonListRow id={person.id} name={person.name} photoUrl={person.photoUrl} dates={datesFor(person)} index={i} />
       </li>
     {/each}
   </ul>

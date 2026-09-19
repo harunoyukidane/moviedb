@@ -6,6 +6,10 @@
 # Build the jar first:  (from backend/) ./gradlew :people-service:bootJar
 FROM eclipse-temurin:21-jre
 WORKDIR /app
+# cwebp: best-effort WebP transcoding for person photos (WebpEncoder). Its absence
+# degrades gracefully (photos are just served in their primary format), but
+# installing it is what actually turns on Accept-negotiated WebP responses.
+RUN apt-get update && apt-get install -y --no-install-recommends webp && rm -rf /var/lib/apt/lists/*
 # Non-root user (security baseline §14).
 RUN useradd -r -u 1001 appuser
 # Pre-create the person-artwork mount dir owned by appuser (see catalogue Dockerfile).

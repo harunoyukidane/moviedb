@@ -91,7 +91,11 @@ interface PersonRepository : JpaRepository<Person, UUID> {
     )
     fun countByNamePatternLessThan(@Param("pattern") pattern: String, @Param("letter") letter: String): Long
 
-    /** Storage keys currently referenced by person profile metadata. */
+    /** Primary storage keys currently referenced by person profile metadata. */
     @Query("SELECT p.profilePath FROM Person p WHERE p.profilePath IS NOT NULL")
     fun findAllProfilePaths(): List<String>
+
+    /** WebP variant storage keys currently referenced by person profile metadata. */
+    @Query("SELECT p.profilePathWebp FROM Person p WHERE p.profilePathWebp IS NOT NULL")
+    fun findAllProfilePathsWebp(): List<String>
 }

@@ -1,0 +1,13 @@
+# Edge reverse proxy for the SvelteKit BFF (fixes the Lighthouse "no compression
+# applied on the document request" finding): adapter-node's own server
+# (frontend:3000) already precompresses and serves static JS/CSS with
+# gzip/brotli, but its SSR'd HTML responses are streamed out uncompressed.
+# This proxy is the single place that compresses every response, including
+# the document itself. Brotli isn't in the stock Caddy build (it needs a
+# custom xcaddy image with the brotli plugin), so this uses zstd/gzip only -
+# both built into Caddy core.
+:80 {
+	encode zstd gzip
+
+	reverse_proxy frontend:3000
+}

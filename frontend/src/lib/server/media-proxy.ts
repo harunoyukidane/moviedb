@@ -3,7 +3,8 @@ const PASSTHROUGH_HEADERS = [
   'content-length',
   'etag',
   'cache-control',
-  'x-content-type-options'
+  'x-content-type-options',
+  'vary'
 ] as const;
 
 /** Relay a cacheable media GET through the BFF without buffering the body. */
@@ -11,6 +12,11 @@ export async function proxyMediaGet(upstream: string, request: Request): Promise
   const headers: Record<string, string> = {};
   const ifNoneMatch = request.headers.get('if-none-match');
   if (ifNoneMatch) headers['If-None-Match'] = ifNoneMatch;
+  // Forwarded so the media service's Accept-negotiated WebP variant (§ ArtworkServingController /
+  // PersonPhotoController) actually reaches the browser instead of always falling back to the
+  // primary format - the upstream fetch here would otherwise carry no Accept header of its own.
+  const accept = request.headers.get('accept');
+  if (accept) headers['Accept'] = accept;
 
   let response: Response;
   try {

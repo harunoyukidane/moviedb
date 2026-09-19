@@ -33,6 +33,35 @@ class ImageContentValidatorTest {
     }
 
     @Test
+    fun `downscales an oversized JPEG to the max dimension, preserving aspect ratio`() {
+        val small = ImageContentValidator(maxDimension = 100)
+        val v = small.validate(realImage("jpg", w = 400, h = 200))
+        assertThat(v.format).isEqualTo(ImageFormat.JPEG)
+        assertThat(v.width).isEqualTo(100)
+        assertThat(v.height).isEqualTo(50)
+        assertThat(v.byteSize).isLessThan(realImage("jpg", w = 400, h = 200).size.toLong())
+    }
+
+    @Test
+    fun `downscales an oversized PNG and keeps it PNG`() {
+        val small = ImageContentValidator(maxDimension = 100)
+        val v = small.validate(realImage("png", w = 200, h = 400))
+        assertThat(v.format).isEqualTo(ImageFormat.PNG)
+        assertThat(v.width).isEqualTo(50)
+        assertThat(v.height).isEqualTo(100)
+    }
+
+    @Test
+    fun `leaves an image already within the max dimension untouched`() {
+        val small = ImageContentValidator(maxDimension = 100)
+        val original = realImage("jpg", w = 80, h = 60)
+        val v = small.validate(original)
+        assertThat(v.width).isEqualTo(80)
+        assertThat(v.height).isEqualTo(60)
+        assertThat(v.bytes).isEqualTo(original)
+    }
+
+    @Test
     fun `rejects empty upload`() {
         assertThatThrownBy { validator.validate(ByteArray(0)) }
             .isInstanceOf(UnsupportedMediaTypeException::class.java)

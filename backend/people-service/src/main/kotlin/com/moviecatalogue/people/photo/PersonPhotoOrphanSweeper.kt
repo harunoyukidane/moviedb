@@ -27,7 +27,7 @@ class PersonPhotoOrphanSweeper(
      * the rest of the sweep.
      */
     fun sweepOnce(): Int {
-        val referenced = people.findAllProfilePaths().toHashSet()
+        val referenced = (people.findAllProfilePaths() + people.findAllProfilePathsWebp()).toHashSet()
         val onDisk = try {
             store.listKeys()
         } catch (e: com.moviecatalogue.media.ArtworkStorageException) {

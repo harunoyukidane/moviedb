@@ -19,6 +19,7 @@ class PersonPhotoOrphanSweeperTest {
     @Test
     fun `a failed listing skips this run cleanly instead of propagating`() {
         every { people.findAllProfilePaths() } returns emptyList()
+        every { people.findAllProfilePathsWebp() } returns emptyList()
         every { store.listKeys() } throws ArtworkStorageException()
 
         val removed = sweeper.sweepOnce()
@@ -30,6 +31,7 @@ class PersonPhotoOrphanSweeperTest {
     @Test
     fun `one key failing to delete does not abort the rest of the sweep`() {
         every { people.findAllProfilePaths() } returns emptyList()
+        every { people.findAllProfilePathsWebp() } returns emptyList()
         every { store.listKeys() } returns listOf("a.png", "b.png", "c.png")
         every { store.delete("a.png") } returns true
         every { store.delete("b.png") } throws ArtworkStorageException()
@@ -40,5 +42,16 @@ class PersonPhotoOrphanSweeperTest {
         assertThat(removed).isEqualTo(2)
         assertThat(meterRegistry.counter("people.photo.sweep.failure").count()).isEqualTo(1.0)
         assertThat(meterRegistry.counter("people.photo.sweep.removed").count()).isEqualTo(2.0)
+    }
+
+    @Test
+    fun `a referenced webp variant is not treated as an orphan`() {
+        every { people.findAllProfilePaths() } returns listOf("a.png")
+        every { people.findAllProfilePathsWebp() } returns listOf("a.webp")
+        every { store.listKeys() } returns listOf("a.png", "a.webp")
+
+        val removed = sweeper.sweepOnce()
+
+        assertThat(removed).isEqualTo(0)
     }
 }

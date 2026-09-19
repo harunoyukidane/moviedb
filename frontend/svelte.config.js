@@ -6,6 +6,13 @@ const config = {
   preprocess: vitePreprocess(),
   kit: {
     adapter: adapter(),
+    // Render-blocking CSS fix: per-route/component CSS chunks under this size get
+    // inlined as a <style> tag in the SSR'd HTML instead of an external
+    // render-blocking <link>. Covers every chunk this app currently produces
+    // (largest observed so far is the root layout's ~6KB); CSP `mode: 'auto'`
+    // already hashes/nonces inlined <style> the same way it does inline <script>,
+    // so no CSP directive changes are needed alongside this.
+    inlineStyleThreshold: 8192,
     // V2.3-01: BFF is the public entry point browsers render HTML from, so it
     // gets the CSP. `mode: 'auto'` makes SvelteKit nonce its own inline scripts
     // instead of falling back to 'unsafe-inline'. img-src allows same-origin +

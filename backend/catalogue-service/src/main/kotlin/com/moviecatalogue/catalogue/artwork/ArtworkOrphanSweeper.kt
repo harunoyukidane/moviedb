@@ -36,7 +36,7 @@ class ArtworkOrphanSweeper(
      * rest of the sweep.
      */
     fun sweepOnce(): Int {
-        val referenced = artworkRepository.findAllStorageKeys().toHashSet()
+        val referenced = (artworkRepository.findAllStorageKeys() + artworkRepository.findAllWebpStorageKeys()).toHashSet()
         val onDisk = try {
             store.listKeys()
         } catch (e: com.moviecatalogue.media.ArtworkStorageException) {

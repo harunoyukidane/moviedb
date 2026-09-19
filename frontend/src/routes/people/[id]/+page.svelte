@@ -23,7 +23,13 @@
 <div class="detail">
   <section class="photo-section" aria-label="Photo">
     {#if !photoError}
-      <img class="detail-media" src={data.photoUrl} alt={`Photo of ${person.name}`} on:error={() => (photoError = true)} />
+      <img
+        class="detail-media"
+        src={data.photoUrl}
+        alt={`Photo of ${person.name}`}
+        fetchpriority="high"
+        on:error={() => (photoError = true)}
+      />
     {:else}
       <div class="detail-media detail-fallback" aria-hidden="true">👤</div>
     {/if}

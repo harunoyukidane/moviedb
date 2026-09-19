@@ -55,13 +55,24 @@ class PersonPhotoController(
     fun serve(
         @PathVariable personId: UUID,
         @org.springframework.web.bind.annotation.RequestHeader(value = HttpHeaders.IF_NONE_MATCH, required = false) ifNoneMatch: String?,
+        @org.springframework.web.bind.annotation.RequestHeader(value = HttpHeaders.ACCEPT, required = false) accept: String?,
     ): ResponseEntity<StreamingResponseBody> {
-        val key = photoUseCases.photoKey(personId) ?: return ResponseEntity.notFound().build()
+        val keys = photoUseCases.photoKeys(personId)
+        val primaryKey = keys.storageKey ?: return ResponseEntity.notFound().build()
+
+        // Prefer the WebP variant when the client advertises support for it and it was
+        // successfully generated at upload time. `Vary: Accept` is set on every response
+        // below so a shared cache never serves one client's negotiated format to a client
+        // that asked for a different `Accept`.
+        val serveWebp = keys.webpStorageKey != null && accept?.contains("image/webp") == true
+        val key = if (serveWebp) keys.webpStorageKey!! else primaryKey
+
         if (!store.exists(key)) return ResponseEntity.notFound().build()
         val etag = "\"$key\""
         val cacheControl = CacheControl.maxAge(Duration.ofDays(30)).cachePublic()
         if (ifNoneMatch != null && ifNoneMatch.split(",").map { it.trim() }.any { it == etag || it == "*" }) {
             return ResponseEntity.status(HttpStatus.NOT_MODIFIED).eTag(etag).cacheControl(cacheControl)
+                .header(HttpHeaders.VARY, HttpHeaders.ACCEPT)
                 .header("X-Content-Type-Options", "nosniff").build()
         }
         val mediaType = when {
@@ -74,6 +85,7 @@ class PersonPhotoController(
         return ResponseEntity.ok()
             .eTag(etag)
             .cacheControl(cacheControl)
+            .header(HttpHeaders.VARY, HttpHeaders.ACCEPT)
             .contentType(MediaType.parseMediaType(mediaType))
             .header("X-Content-Type-Options", "nosniff")
             .body(body)

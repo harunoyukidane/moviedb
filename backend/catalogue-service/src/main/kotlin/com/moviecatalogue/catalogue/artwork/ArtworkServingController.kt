@@ -33,12 +33,24 @@ class ArtworkServingController(
     fun serve(
         @PathVariable artworkId: UUID,
         @RequestHeader(value = HttpHeaders.IF_NONE_MATCH, required = false) ifNoneMatch: String?,
+        @RequestHeader(value = HttpHeaders.ACCEPT, required = false) accept: String?,
     ): ResponseEntity<StreamingResponseBody> {
         val asset = artworkRepository.findById(artworkId).orElse(null)
             ?: return ResponseEntity.notFound().build()
-        if (!store.exists(asset.storageKey)) return ResponseEntity.notFound().build()
 
-        val etag = "\"${asset.sha256}\""
+        // Prefer the WebP variant when the client advertises support for it and it was
+        // successfully generated at upload time; otherwise fall back to the primary asset.
+        // `Vary: Accept` is set on every response below so a shared cache never serves one
+        // client's negotiated format to a client that asked for a different `Accept`.
+        val serveWebp = asset.webpStorageKey != null && (accept?.contains("image/webp") == true)
+        val storageKey = if (serveWebp) asset.webpStorageKey!! else asset.storageKey
+        val mediaType = if (serveWebp) "image/webp" else asset.mediaType
+        val byteSize = if (serveWebp) asset.webpByteSize!! else asset.byteSize
+        val sha256 = if (serveWebp) asset.webpSha256!! else asset.sha256
+
+        if (!store.exists(storageKey)) return ResponseEntity.notFound().build()
+
+        val etag = "\"$sha256\""
         val cacheControl = CacheControl.maxAge(Duration.ofDays(365)).cachePublic().immutable()
 
         // Conditional request: 304 when the client already has this exact content.
@@ -46,16 +58,18 @@ class ArtworkServingController(
             return ResponseEntity.status(HttpStatus.NOT_MODIFIED)
                 .eTag(etag)
                 .cacheControl(cacheControl)
+                .header(HttpHeaders.VARY, HttpHeaders.ACCEPT)
                 .build()
         }
 
-        val input = store.open(asset.storageKey) ?: return ResponseEntity.notFound().build()
+        val input = store.open(storageKey) ?: return ResponseEntity.notFound().build()
         val body = StreamingResponseBody { out -> input.use { it.copyTo(out) } }
         return ResponseEntity.ok()
             .eTag(etag)
             .cacheControl(cacheControl)
-            .contentType(MediaType.parseMediaType(asset.mediaType))
-            .contentLength(asset.byteSize)
+            .header(HttpHeaders.VARY, HttpHeaders.ACCEPT)
+            .contentType(MediaType.parseMediaType(mediaType))
+            .contentLength(byteSize)
             .body(body)
     }
 }

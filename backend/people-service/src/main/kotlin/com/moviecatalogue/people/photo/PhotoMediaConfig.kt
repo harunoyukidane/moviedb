@@ -4,6 +4,7 @@ import com.moviecatalogue.media.ArtworkStore
 import com.moviecatalogue.media.ImageContentValidator
 import com.moviecatalogue.media.LocalArtworkStore
 import com.moviecatalogue.media.MinioArtworkStore
+import com.moviecatalogue.media.WebpEncoder
 import com.moviecatalogue.people.observability.ObjectStorageHealthIndicator
 import io.minio.BucketExistsArgs
 import io.minio.MinioClient
@@ -75,6 +76,9 @@ class PhotoMediaConfig {
 
     @Bean
     fun imageContentValidator(): ImageContentValidator = ImageContentValidator()
+
+    @Bean
+    fun webpEncoder(): WebpEncoder = WebpEncoder()
 
     @Bean
     fun personPhotoTransactionTemplate(txManager: PlatformTransactionManager): TransactionTemplate =

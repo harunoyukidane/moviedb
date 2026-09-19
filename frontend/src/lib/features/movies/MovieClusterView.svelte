@@ -3,14 +3,24 @@
   import MoviePosterFallback from './MoviePosterFallback.svelte';
 
   export let items: Movie[] = [];
+
+  // The grid caps rows at 6 posters wide (see .poster-grid), so the first row is
+  // always above the fold - those images must not be lazy-loaded, or the LCP
+  // candidate (almost always one of them) gets deprioritized instead of helped.
+  const EAGER_COUNT = 6;
 </script>
 
 <ul class="poster-grid" aria-label="Movies">
-  {#each items as movie (movie.id)}
+  {#each items as movie, i (movie.id)}
     <li>
       <a class="poster-card" href={`/movies/${movie.id}`}>
         {#if movie.artwork}
-          <img src={movie.artwork.url} alt={`Poster for ${movie.title}`} loading="lazy" />
+          <img
+            src={movie.artwork.url}
+            alt={`Poster for ${movie.title}`}
+            loading={i < EAGER_COUNT ? undefined : 'lazy'}
+            fetchpriority={i === 0 ? 'high' : undefined}
+          />
         {:else}
           <MoviePosterFallback />
         {/if}
